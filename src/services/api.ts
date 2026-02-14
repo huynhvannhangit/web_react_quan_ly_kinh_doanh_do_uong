@@ -1,35 +1,40 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
+import axios from "axios";
+import Cookies from "js-cookie";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
+// Request interceptor to add the JWT token to headers
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('accessToken');
+    const token = Cookies.get("token");
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
+// Response interceptor to handle token expiration or unauthorized access
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      Cookies.remove('accessToken');
-      window.location.href = '/login';
+    if (error.response?.status === 401) {
+      Cookies.remove("token");
+      Cookies.remove("user");
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
