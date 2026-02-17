@@ -29,13 +29,14 @@ export default function StaffPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
-    employeeCode: "",
     fullName: "",
     position: "",
     salary: 0,
     phone: "",
     address: "",
   });
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -52,20 +53,62 @@ export default function StaffPage() {
     }
   };
 
+  const resetForm = () => {
+    setNewEmployee({
+      fullName: "",
+      position: "",
+      salary: 0,
+      phone: "",
+      address: "",
+    });
+    setEditingEmployee(null);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = async (employee: Employee) => {
+    try {
+      const freshData = await employeeService.getById(employee.id);
+      setEditingEmployee(freshData);
+      setIsEditMode(true);
+      setNewEmployee({
+        fullName: freshData.fullName,
+        position: freshData.position || "",
+        salary: freshData.salary,
+        phone: freshData.phone || "",
+        address: freshData.address || "",
+      });
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load employee details:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (confirm(`Bạn có chắc muốn xóa nhân viên "${name}"?`)) {
+      try {
+        await employeeService.delete(id);
+        loadEmployees();
+      } catch (error) {
+        console.error("Failed to delete employee:", error);
+        alert("Xóa nhân viên thất bại!");
+      }
+    }
+  };
+
   const handleCreateEmployee = async () => {
     try {
-      await employeeService.create({
-        ...newEmployee,
-        salary: Number(newEmployee.salary),
-      });
-      setNewEmployee({
-        employeeCode: "",
-        fullName: "",
-        position: "",
-        salary: 0,
-        phone: "",
-        address: "",
-      });
+      if (isEditMode && editingEmployee) {
+        await employeeService.update(editingEmployee.id, {
+          ...newEmployee,
+          salary: Number(newEmployee.salary),
+        });
+      } else {
+        await employeeService.create({
+          ...newEmployee,
+          salary: Number(newEmployee.salary),
+        });
+      }
+      resetForm();
       setIsDialogOpen(false);
       loadEmployees();
     } catch (error) {
@@ -77,7 +120,13 @@ export default function StaffPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Quản lý Nhân viên</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Thêm nhân viên
@@ -85,37 +134,24 @@ export default function StaffPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-150">
             <DialogHeader>
-              <DialogTitle>Thêm nhân viên mới</DialogTitle>
+              <DialogTitle>
+                {isEditMode ? "Chỉnh sửa nhân viên" : "Thêm nhân viên mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="code">Mã nhân viên</Label>
-                  <Input
-                    id="code"
-                    value={newEmployee.employeeCode}
-                    onChange={(e) =>
-                      setNewEmployee({
-                        ...newEmployee,
-                        employeeCode: e.target.value,
-                      })
-                    }
-                    placeholder="NV001"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="fullName">Họ và tên</Label>
-                  <Input
-                    id="fullName"
-                    value={newEmployee.fullName}
-                    onChange={(e) =>
-                      setNewEmployee({
-                        ...newEmployee,
-                        fullName: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="fullName">Họ và tên</Label>
+                <Input
+                  id="fullName"
+                  value={newEmployee.fullName}
+                  onChange={(e) =>
+                    setNewEmployee({
+                      ...newEmployee,
+                      fullName: e.target.value,
+                    })
+                  }
+                  placeholder="Nhập họ tên nhân viên"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -137,11 +173,11 @@ export default function StaffPage() {
                   <Input
                     id="salary"
                     type="number"
-                    value={newEmployee.salary}
+                    value={newEmployee.salary || ""}
                     onChange={(e) =>
                       setNewEmployee({
                         ...newEmployee,
-                        salary: parseFloat(e.target.value),
+                        salary: e.target.value ? parseFloat(e.target.value) : 0,
                       })
                     }
                   />
@@ -174,9 +210,9 @@ export default function StaffPage() {
               </Button>
               <Button
                 onClick={handleCreateEmployee}
-                disabled={!newEmployee.employeeCode || !newEmployee.fullName}
+                disabled={!newEmployee.fullName}
               >
-                Lưu
+                {isEditMode ? "Cập nhật" : "Lưu"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -231,13 +267,19 @@ export default function StaffPage() {
                     </TableCell>
                     <TableCell>{emp.phone || "—"}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="mr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => handleEdit(emp)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        onClick={() => handleDelete(emp.id, emp.fullName)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

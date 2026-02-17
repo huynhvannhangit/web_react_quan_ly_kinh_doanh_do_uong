@@ -37,6 +37,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Upload } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function ProductPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,6 +54,11 @@ export default function ProductPage() {
     isAvailable: true,
     imageUrl: "",
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -71,22 +79,107 @@ export default function ProductPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetForm = () => {
+    setNewProduct({
+      name: "",
+      description: "",
+      price: 0,
+      categoryId: "",
+      isAvailable: true,
+      imageUrl: "",
+    });
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setEditingProduct(null);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = async (product: Product) => {
+    try {
+      // Fetch fresh data from API
+      const freshData = await productService.getOne(product.id);
+      setEditingProduct(freshData);
+      setIsEditMode(true);
+      setNewProduct({
+        name: freshData.name,
+        description: freshData.description || "",
+        price: freshData.price,
+        categoryId: freshData.categoryId.toString(),
+        isAvailable: freshData.isAvailable,
+        imageUrl: freshData.imageUrl || "",
+      });
+      if (freshData.imageUrl) {
+        setPreviewUrl(
+          freshData.imageUrl.startsWith("http")
+            ? freshData.imageUrl
+            : `${API_BASE_URL.replace("/api", "")}${freshData.imageUrl}`,
+        );
+      }
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load product details:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (confirm(`Bạn có chắc muốn xóa sản phẩm "${name}"?`)) {
+      try {
+        await productService.delete(id);
+        loadData();
+      } catch (error) {
+        console.error("Failed to delete product:", error);
+        alert("Xóa sản phẩm thất bại!");
+      }
+    }
+  };
+
   const handleCreateProduct = async () => {
     try {
       if (!newProduct.categoryId) return;
-      await productService.create({
-        ...newProduct,
-        categoryId: parseInt(newProduct.categoryId),
-        price: Number(newProduct.price),
-      });
-      setNewProduct({
-        name: "",
-        description: "",
-        price: 0,
-        categoryId: "",
-        isAvailable: true,
-        imageUrl: "",
-      });
+
+      let imageUrl = newProduct.imageUrl;
+
+      // 1. Upload image if selected
+      if (selectedFile) {
+        try {
+          imageUrl = await productService.uploadImage(selectedFile);
+        } catch (uploadError) {
+          console.error("Failed to upload image:", uploadError);
+          // Continue with creation but maybe without image or with old URL
+        }
+      }
+
+      if (isEditMode && editingProduct) {
+        // Update existing product
+        await productService.update(editingProduct.id, {
+          ...newProduct,
+          imageUrl,
+          categoryId: parseInt(newProduct.categoryId),
+          price: Number(newProduct.price),
+        });
+      } else {
+        // Create new product
+        await productService.create({
+          ...newProduct,
+          imageUrl,
+          categoryId: parseInt(newProduct.categoryId),
+          price: Number(newProduct.price),
+        });
+      }
+
+      resetForm();
       setIsDialogOpen(false);
       loadData();
     } catch (error) {
@@ -100,7 +193,13 @@ export default function ProductPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Danh sách Sản phẩm
         </h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm(); // Reset when dialog closes
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Thêm sản phẩm
@@ -108,7 +207,9 @@ export default function ProductPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-125">
             <DialogHeader>
-              <DialogTitle>Thêm sản phẩm mới</DialogTitle>
+              <DialogTitle>
+                {isEditMode ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -159,15 +260,49 @@ export default function ProductPage() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="imageUrl">URL hình ảnh</Label>
-                <Input
-                  id="imageUrl"
-                  value={newProduct.imageUrl}
-                  onChange={(e) =>
-                    setNewProduct({ ...newProduct, imageUrl: e.target.value })
-                  }
-                  placeholder="https://..."
-                />
+                <Label>Hình ảnh sản phẩm</Label>
+                <div className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg border-muted">
+                  {previewUrl ? (
+                    <div className="relative h-32 w-32">
+                      <Image
+                        src={previewUrl}
+                        alt="Preview"
+                        fill
+                        className="object-cover rounded-md"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setPreviewUrl(null);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex flex-col items-center gap-2 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="p-4 bg-muted rounded-full">
+                        <Upload className="h-6 w-6" />
+                      </div>
+                      <span className="text-sm font-medium">
+                        Click để chọn ảnh
+                      </span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="description">Mô tả sản phẩm</Label>
@@ -191,7 +326,7 @@ export default function ProductPage() {
                 onClick={handleCreateProduct}
                 disabled={!newProduct.name || !newProduct.categoryId}
               >
-                Lưu
+                {isEditMode ? "Cập nhật" : "Lưu"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -236,7 +371,11 @@ export default function ProductPage() {
                     <TableCell>
                       {product.imageUrl ? (
                         <Image
-                          src={product.imageUrl}
+                          src={
+                            product.imageUrl.startsWith("http")
+                              ? product.imageUrl
+                              : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                          }
                           alt={product.name}
                           width={40}
                           height={40}
@@ -271,13 +410,19 @@ export default function ProductPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="mr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => handleEdit(product)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        onClick={() => handleDelete(product.id, product.name)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

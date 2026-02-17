@@ -29,6 +29,8 @@ export default function CategoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -45,10 +47,47 @@ export default function CategoryPage() {
     }
   };
 
+  const resetForm = () => {
+    setNewCategory({ name: "", description: "" });
+    setEditingCategory(null);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = async (category: Category) => {
+    try {
+      const freshData = await categoryService.getOne(category.id);
+      setEditingCategory(freshData);
+      setIsEditMode(true);
+      setNewCategory({
+        name: freshData.name,
+        description: freshData.description || "",
+      });
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load category details:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (confirm(`Bạn có chắc muốn xóa danh mục "${name}"?`)) {
+      try {
+        await categoryService.delete(id);
+        loadCategories();
+      } catch (error) {
+        console.error("Failed to delete category:", error);
+        alert("Xóa danh mục thất bại!");
+      }
+    }
+  };
+
   const handleCreateCategory = async () => {
     try {
-      await categoryService.create(newCategory);
-      setNewCategory({ name: "", description: "" });
+      if (isEditMode && editingCategory) {
+        await categoryService.update(editingCategory.id, newCategory);
+      } else {
+        await categoryService.create(newCategory);
+      }
+      resetForm();
       setIsDialogOpen(false);
       loadCategories();
     } catch (error) {
@@ -60,7 +99,13 @@ export default function CategoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Danh mục Sản phẩm</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Thêm danh mục
@@ -68,7 +113,9 @@ export default function CategoryPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Thêm danh mục mới</DialogTitle>
+              <DialogTitle>
+                {isEditMode ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -105,7 +152,7 @@ export default function CategoryPage() {
                 onClick={handleCreateCategory}
                 disabled={!newCategory.name}
               >
-                Lưu
+                {isEditMode ? "Cập nhật" : "Lưu"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -149,13 +196,19 @@ export default function CategoryPage() {
                     </TableCell>
                     <TableCell>{category.description || "—"}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="mr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => handleEdit(category)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        onClick={() => handleDelete(category.id, category.name)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

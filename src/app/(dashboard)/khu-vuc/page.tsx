@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { areaService, Area } from "@/services/table.service";
+import { areaService, Area } from "@/services/area.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,6 +29,8 @@ export default function AreaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newArea, setNewArea] = useState({ name: "", description: "" });
+  const [editingArea, setEditingArea] = useState<Area | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     loadAreas();
@@ -45,10 +47,47 @@ export default function AreaPage() {
     }
   };
 
+  const resetForm = () => {
+    setNewArea({ name: "", description: "" });
+    setEditingArea(null);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = async (area: Area) => {
+    try {
+      const freshData = await areaService.getOne(area.id);
+      setEditingArea(freshData);
+      setIsEditMode(true);
+      setNewArea({
+        name: freshData.name,
+        description: freshData.description || "",
+      });
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load area details:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (confirm(`Bạn có chắc muốn xóa khu vực "${name}"?`)) {
+      try {
+        await areaService.delete(id);
+        loadAreas();
+      } catch (error) {
+        console.error("Failed to delete area:", error);
+        alert("Xóa khu vực thất bại!");
+      }
+    }
+  };
+
   const handleCreateArea = async () => {
     try {
-      await areaService.create(newArea);
-      setNewArea({ name: "", description: "" });
+      if (isEditMode && editingArea) {
+        await areaService.update(editingArea.id, newArea);
+      } else {
+        await areaService.create(newArea);
+      }
+      resetForm();
       setIsDialogOpen(false);
       loadAreas();
     } catch (error) {
@@ -60,7 +99,13 @@ export default function AreaPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Quản lý Khu vực</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Thêm khu vực
@@ -68,7 +113,9 @@ export default function AreaPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Thêm khu vực mới</DialogTitle>
+              <DialogTitle>
+                {isEditMode ? "Chỉnh sửa khu vực" : "Thêm khu vực mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -98,7 +145,9 @@ export default function AreaPage() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Hủy
               </Button>
-              <Button onClick={handleCreateArea}>Lưu</Button>
+              <Button onClick={handleCreateArea}>
+                {isEditMode ? "Cập nhật" : "Lưu"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -143,13 +192,19 @@ export default function AreaPage() {
                       {new Date(area.createdAt).toLocaleDateString("vi-VN")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="mr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => handleEdit(area)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        onClick={() => handleDelete(area.id, area.name)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

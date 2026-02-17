@@ -3,11 +3,10 @@
 import React, { useEffect, useState } from "react";
 import {
   tableService,
-  areaService,
   Table as TableType,
-  Area,
   TableStatus,
 } from "@/services/table.service";
+import { areaService, Area } from "@/services/area.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -49,6 +48,8 @@ export default function TablePage() {
     areaId: "",
     status: TableStatus.AVAILABLE,
   });
+  const [editingTable, setEditingTable] = useState<TableType | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -69,20 +70,63 @@ export default function TablePage() {
     }
   };
 
+  const resetForm = () => {
+    setNewTable({
+      tableNumber: "",
+      capacity: 4,
+      areaId: "",
+      status: TableStatus.AVAILABLE,
+    });
+    setEditingTable(null);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = async (table: TableType) => {
+    try {
+      const freshData = await tableService.getOne(table.id);
+      setEditingTable(freshData);
+      setIsEditMode(true);
+      setNewTable({
+        tableNumber: freshData.tableNumber,
+        capacity: freshData.capacity,
+        areaId: freshData.areaId.toString(),
+        status: freshData.status,
+      });
+      setIsDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load table details:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, tableNumber: string) => {
+    if (confirm(`Bạn có chắc muốn xóa bàn "${tableNumber}"?`)) {
+      try {
+        await tableService.delete(id);
+        loadData();
+      } catch (error) {
+        console.error("Failed to delete table:", error);
+        alert("Xóa bàn thất bại!");
+      }
+    }
+  };
+
   const handleCreateTable = async () => {
     try {
       if (!newTable.areaId) return;
-      await tableService.create({
-        ...newTable,
-        areaId: parseInt(newTable.areaId),
-        capacity: Number(newTable.capacity),
-      });
-      setNewTable({
-        tableNumber: "",
-        capacity: 4,
-        areaId: "",
-        status: TableStatus.AVAILABLE,
-      });
+      if (isEditMode && editingTable) {
+        await tableService.update(editingTable.id, {
+          ...newTable,
+          areaId: parseInt(newTable.areaId),
+          capacity: Number(newTable.capacity),
+        });
+      } else {
+        await tableService.create({
+          ...newTable,
+          areaId: parseInt(newTable.areaId),
+          capacity: Number(newTable.capacity),
+        });
+      }
+      resetForm();
       setIsDialogOpen(false);
       loadData();
     } catch (error) {
@@ -128,7 +172,13 @@ export default function TablePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Quản lý Bàn</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" /> Thêm bàn
@@ -136,7 +186,9 @@ export default function TablePage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Thêm bàn mới</DialogTitle>
+              <DialogTitle>
+                {isEditMode ? "Chỉnh sửa bàn" : "Thêm bàn mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -193,7 +245,7 @@ export default function TablePage() {
                 onClick={handleCreateTable}
                 disabled={!newTable.areaId || !newTable.tableNumber}
               >
-                Lưu
+                {isEditMode ? "Cập nhật" : "Lưu"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -241,13 +293,21 @@ export default function TablePage() {
                     <TableCell>{table.capacity} người</TableCell>
                     <TableCell>{getStatusBadge(table.status)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="mr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={() => handleEdit(table)}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
+                        onClick={() =>
+                          handleDelete(table.id, table.tableNumber)
+                        }
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

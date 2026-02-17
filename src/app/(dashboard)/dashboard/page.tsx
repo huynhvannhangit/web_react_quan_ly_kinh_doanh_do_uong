@@ -42,8 +42,10 @@ export default function DashboardPage() {
   const [revenueData, setRevenueData] = useState<RevenueStats[]>([]);
   const [topProducts, setTopProducts] = useState<TopProductStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     loadData();
   }, []);
 
@@ -155,47 +157,50 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="h-80 pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={Array.isArray(revenueData) ? revenueData : []}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#f0f0f0"
-                />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(value) => `${value / 1000}k`}
-                />
-                <Tooltip
-                  formatter={(value: number | string | undefined) => [
-                    new Intl.NumberFormat("vi-VN").format(Number(value || 0)) +
-                      "đ",
-                    "Doanh thu",
-                  ]}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "white", strokeWidth: 2 }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <LineChart data={Array.isArray(revenueData) ? revenueData : []}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#f0f0f0"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => `${value / 1000}k`}
+                  />
+                  <Tooltip
+                    formatter={(value: number | string | undefined) => [
+                      new Intl.NumberFormat("vi-VN").format(
+                        Number(value || 0),
+                      ) + "đ",
+                      "Doanh thu",
+                    ]}
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "white", strokeWidth: 2 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -208,50 +213,53 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="h-80 pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={Array.isArray(topProducts) ? topProducts : []}
-                layout="vertical"
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={false}
-                  stroke="#f0f0f0"
-                />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={100}
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "transparent" }}
-                  formatter={(value: number | string | undefined) => [
-                    new Intl.NumberFormat("vi-VN").format(Number(value || 0)) +
-                      "đ",
-                    "Doanh thu",
-                  ]}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  }}
-                />
-                <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={20}>
-                  {(Array.isArray(topProducts) ? topProducts : []).map(
-                    (_, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ),
-                  )}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart
+                  data={Array.isArray(topProducts) ? topProducts : []}
+                  layout="vertical"
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    stroke="#f0f0f0"
+                  />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={100}
+                    tick={{ fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "transparent" }}
+                    formatter={(value: number | string | undefined) => [
+                      new Intl.NumberFormat("vi-VN").format(
+                        Number(value || 0),
+                      ) + "đ",
+                      "Doanh thu",
+                    ]}
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={20}>
+                    {(Array.isArray(topProducts) ? topProducts : []).map(
+                      (_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ),
+                    )}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
