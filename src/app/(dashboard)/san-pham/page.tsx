@@ -149,6 +149,11 @@ export default function ProductPage() {
     try {
       if (!newProduct.categoryId) return;
 
+      if (newProduct.price < 0) {
+        alert("Giá sản phẩm không được nhập số âm!");
+        return;
+      }
+
       let imageUrl = newProduct.imageUrl;
 
       // 1. Upload image if selected
@@ -346,20 +351,22 @@ export default function ProductPage() {
                 <TableHead>Danh mục</TableHead>
                 <TableHead>Giá</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead>Ngày cập nhật</TableHead>
+                <TableHead>Người cập nhật</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               ) : products.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={8}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Chưa có sản phẩm nào
@@ -408,6 +415,14 @@ export default function ProductPage() {
                       ) : (
                         <Badge variant="secondary">Ngừng bán</Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(product.updatedAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
+                    <TableCell>
+                      {product.updater?.fullName ||
+                        product.creator?.fullName ||
+                        "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

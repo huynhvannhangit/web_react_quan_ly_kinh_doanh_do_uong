@@ -6,6 +6,8 @@ export interface Category {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  creator?: { id: number; fullName: string };
+  updater?: { id: number; fullName: string };
 }
 
 export interface Product {
@@ -19,6 +21,8 @@ export interface Product {
   category?: Category;
   createdAt: string;
   updatedAt: string;
+  creator?: { id: number; fullName: string };
+  updater?: { id: number; fullName: string };
 }
 
 export const categoryService = {

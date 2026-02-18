@@ -23,6 +23,8 @@ export interface Table {
   area?: Area;
   createdAt: string;
   updatedAt: string;
+  creator?: { id: number; fullName: string };
+  updater?: { id: number; fullName: string };
 }
 
 export const tableService = {

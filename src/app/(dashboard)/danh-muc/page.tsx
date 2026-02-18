@@ -169,20 +169,22 @@ export default function CategoryPage() {
               <TableRow>
                 <TableHead>Tên danh mục</TableHead>
                 <TableHead>Mô tả</TableHead>
+                <TableHead>Ngày cập nhật</TableHead>
+                <TableHead>Người cập nhật</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               ) : categories.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={3}
+                    colSpan={5}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Chưa có danh mục nào
@@ -195,6 +197,14 @@ export default function CategoryPage() {
                       {category.name}
                     </TableCell>
                     <TableCell>{category.description || "—"}</TableCell>
+                    <TableCell>
+                      {new Date(category.updatedAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
+                    <TableCell>
+                      {category.updater?.fullName ||
+                        category.creator?.fullName ||
+                        "—"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"

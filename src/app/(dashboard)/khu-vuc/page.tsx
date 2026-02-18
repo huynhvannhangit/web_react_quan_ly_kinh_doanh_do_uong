@@ -163,21 +163,22 @@ export default function AreaPage() {
               <TableRow>
                 <TableHead>Tên khu vực</TableHead>
                 <TableHead>Mô tả</TableHead>
-                <TableHead>Ngày tạo</TableHead>
+                <TableHead>Ngày cập nhật</TableHead>
+                <TableHead>Người cập nhật</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               ) : areas.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Chưa có khu vực nào
@@ -189,7 +190,10 @@ export default function AreaPage() {
                     <TableCell className="font-medium">{area.name}</TableCell>
                     <TableCell>{area.description || "—"}</TableCell>
                     <TableCell>
-                      {new Date(area.createdAt).toLocaleDateString("vi-VN")}
+                      {new Date(area.updatedAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
+                    <TableCell>
+                      {area.updater?.fullName || area.creator?.fullName || "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

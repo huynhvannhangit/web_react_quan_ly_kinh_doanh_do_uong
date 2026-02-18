@@ -113,6 +113,12 @@ export default function TablePage() {
   const handleCreateTable = async () => {
     try {
       if (!newTable.areaId) return;
+
+      if (newTable.capacity < 0) {
+        alert("Sức chứa không được nhập số âm!");
+        return;
+      }
+
       if (isEditMode && editingTable) {
         await tableService.update(editingTable.id, {
           ...newTable,
@@ -264,20 +270,22 @@ export default function TablePage() {
                 <TableHead>Khu vực</TableHead>
                 <TableHead>Sức chứa</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead>Ngày cập nhật</TableHead>
+                <TableHead>Người cập nhật</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               ) : tables.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={7}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Chưa có bàn nào
@@ -292,6 +300,14 @@ export default function TablePage() {
                     <TableCell>{table.area?.name || "Khu vực trống"}</TableCell>
                     <TableCell>{table.capacity} người</TableCell>
                     <TableCell>{getStatusBadge(table.status)}</TableCell>
+                    <TableCell>
+                      {new Date(table.updatedAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
+                    <TableCell>
+                      {table.updater?.fullName ||
+                        table.creator?.fullName ||
+                        "—"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"

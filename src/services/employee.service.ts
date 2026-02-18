@@ -9,6 +9,7 @@ export interface Employee {
   birthDate?: string;
   position?: string;
   salary: number;
+  identityCard?: string;
   userId?: number;
   createdAt: string;
   updatedAt: string;

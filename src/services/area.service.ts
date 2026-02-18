@@ -6,6 +6,8 @@ export interface Area {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  creator?: { id: number; fullName: string };
+  updater?: { id: number; fullName: string };
 }
 
 export const areaService = {
