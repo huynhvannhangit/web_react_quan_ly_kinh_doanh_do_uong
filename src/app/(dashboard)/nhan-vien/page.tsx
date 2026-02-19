@@ -32,7 +32,7 @@ import {
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber, parseNumber } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -228,14 +228,14 @@ export default function StaffPage() {
                   <Label htmlFor="salary">Lương cơ bản</Label>
                   <Input
                     id="salary"
-                    type="number"
-                    value={newEmployee.salary || ""}
+                    value={formatNumber(newEmployee.salary)}
                     onChange={(e) =>
                       setNewEmployee({
                         ...newEmployee,
-                        salary: e.target.value ? parseFloat(e.target.value) : 0,
+                        salary: parseNumber(e.target.value),
                       })
                     }
+                    placeholder="VD: 10.000.000"
                   />
                 </div>
               </div>

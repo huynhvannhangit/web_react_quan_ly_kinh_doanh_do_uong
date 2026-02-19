@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Upload } from "lucide-react";
+import { formatNumber, parseNumber } from "@/lib/utils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -233,14 +234,14 @@ export default function ProductPage() {
                   <Label htmlFor="price">Giá bán (VNĐ)</Label>
                   <Input
                     id="price"
-                    type="number"
-                    value={newProduct.price}
+                    value={formatNumber(newProduct.price)}
                     onChange={(e) =>
                       setNewProduct({
                         ...newProduct,
-                        price: parseFloat(e.target.value),
+                        price: parseNumber(e.target.value),
                       })
                     }
+                    placeholder="VD: 20.000"
                   />
                 </div>
                 <div className="grid gap-2">

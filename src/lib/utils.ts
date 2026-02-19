@@ -34,3 +34,22 @@ export function formatCurrency(amount: number): string {
     currency: 'VND'
   }).format(amount);
 }
+
+/**
+ * Format number for input display (e.g. 10.000.000)
+ */
+export function formatNumber(amount: number | string): string {
+  if (!amount) return "";
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(num)) return "";
+  return new Intl.NumberFormat("vi-VN").format(num);
+}
+
+/**
+ * Parse formatted number string back to number
+ */
+export function parseNumber(value: string): number {
+  // Remove all non-numeric characters
+  const cleanValue = value.replace(/\D/g, "");
+  return Number(cleanValue);
+}
