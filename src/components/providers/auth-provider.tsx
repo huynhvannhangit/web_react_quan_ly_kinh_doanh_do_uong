@@ -10,8 +10,15 @@ import React, {
 import { useRouter, usePathname } from "next/navigation";
 import { authService } from "@/services/auth.service";
 
+export interface AuthUser {
+  id?: number;
+  email: string;
+  fullName?: string;
+  role?: unknown;
+}
+
 interface AuthContextType {
-  user: { email: string } | null;
+  user: AuthUser | null;
   login: (
     email: string,
     password: string,
@@ -24,7 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -51,7 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     rememberMe: boolean = false,
   ) => {
     await authService.login(email, password, rememberMe);
-    setUser({ email });
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser || { email });
     router.push("/dashboard");
   };
 

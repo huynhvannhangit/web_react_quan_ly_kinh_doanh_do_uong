@@ -1,3 +1,4 @@
+// cspell:disable
 "use client";
 
 import {
@@ -22,9 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useAuth, AuthUser } from "@/components/providers/auth-provider";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth() as { user: AuthUser | null };
 
   return (
     <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background px-6 shadow-sm">
@@ -94,15 +97,21 @@ export function Header() {
               <Avatar className="h-8 w-8 border border-border">
                 <AvatarImage src="/avatar.png" alt="User" />
                 <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                  AD
+                  {user?.email
+                    ? user.email.substring(0, 2).toUpperCase()
+                    : "AD"}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
                 <div className="text-sm font-medium leading-none">
-                  Admin User
+                  {user?.fullName || user?.email?.split("@")[0] || "User"}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  admin@example.com
+                <div className="text-xs text-muted-foreground mt-1 max-w-37.5 truncate">
+                  {user?.role &&
+                  typeof user.role === "object" &&
+                  "name" in user.role
+                    ? (user.role as { name: string }).name
+                    : (user?.role as string) || user?.email || "Chưa đăng nhập"}
                 </div>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />

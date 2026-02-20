@@ -40,8 +40,28 @@ export const authService = {
     // Store in cookies for persistence and SSR availability if needed
     Cookies.set("token", accessToken, cookieOptions);
     Cookies.set("refreshToken", refreshToken, cookieOptions);
-    // Store email temporarily until we can get user details from token
-    Cookies.set("user", JSON.stringify({ email }), cookieOptions);
+
+    // Decode token to get user details
+    import("jwt-decode").then(({ jwtDecode }) => {
+      try {
+        const decoded = jwtDecode<{
+          sub: number;
+          email?: string;
+          fullName?: string;
+          role?: unknown;
+        }>(accessToken);
+        const userPayload = {
+          id: decoded.sub,
+          email: decoded.email || email,
+          fullName: decoded.fullName,
+          role: decoded.role,
+        };
+        Cookies.set("user", JSON.stringify(userPayload), cookieOptions);
+      } catch (e) {
+        console.error("Failed to decode token", e);
+        Cookies.set("user", JSON.stringify({ email }), cookieOptions);
+      }
+    });
 
     return response.data;
   },

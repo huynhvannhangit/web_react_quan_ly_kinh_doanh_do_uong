@@ -1,3 +1,4 @@
+// cspell:disable
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,8 +27,24 @@ export function UserList() {
     setIsLoading(true);
     try {
       const data = await userService.getAll();
-      setUsers(data);
+      console.log("fetchUsers response:", data);
+
+      // Nếu data được bọc trong cấu trúc { data: [...] } (từ TransformInterceptor)
+      const apiResponse = data as unknown as { data?: User[] };
+      if (
+        apiResponse &&
+        typeof apiResponse === "object" &&
+        Array.isArray(apiResponse.data)
+      ) {
+        setUsers(apiResponse.data);
+      } else if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error("fetchUsers trả về định dạng không mong muốn:", data);
+        setUsers([]);
+      }
     } catch (error) {
+      console.error("fetchUsers error:", error);
       toast.error("Không thể tải danh sách người dùng");
     } finally {
       setIsLoading(false);
@@ -127,3 +144,4 @@ export function UserList() {
     </div>
   );
 }
+
