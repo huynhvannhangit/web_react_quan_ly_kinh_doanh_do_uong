@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { Toaster } from "sonner";
 
 const montserrat = Montserrat({
   subsets: ["latin", "vietnamese"],
@@ -35,6 +36,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>{children}</AuthProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

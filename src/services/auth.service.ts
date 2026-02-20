@@ -13,6 +13,15 @@ export interface LoginResponse {
 }
 
 export const authService = {
+  register: async (data: {
+    email: string;
+    password: string;
+    fullName: string;
+  }) => {
+    const response = await api.post("/auth/register", data);
+    return response.data;
+  },
+
   login: async (
     email: string,
     password: string,
