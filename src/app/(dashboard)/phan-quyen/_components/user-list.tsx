@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Shield, User as UserIcon } from "lucide-react";
 import { UserRoleDialog } from "./user-role-dialog";
 import { toast } from "sonner";
@@ -82,6 +83,7 @@ export function UserList() {
               <TableHead>Email</TableHead>
               <TableHead>Họ tên</TableHead>
               <TableHead>Vai trò hiện tại</TableHead>
+              <TableHead>Nhân viên liên kết</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead className="text-right">Thao tác</TableHead>
             </TableRow>
@@ -90,7 +92,7 @@ export function UserList() {
             {users.length === 0 && !isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-8 text-muted-foreground"
                 >
                   Chưa có người dùng nào
@@ -113,8 +115,29 @@ export function UserList() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {user.employee ? (
+                      <span className="text-sm">
+                        <span className="font-mono text-xs text-blue-600 mr-1">
+                          {user.employee.employeeCode}
+                        </span>
+                        {user.employee.fullName}
+                      </span>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Chưa liên kết
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${user.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        user.status === "ACTIVE"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
                     >
                       {user.status}
                     </span>
@@ -144,4 +167,3 @@ export function UserList() {
     </div>
   );
 }
-

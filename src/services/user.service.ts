@@ -7,7 +7,12 @@ export interface User {
   fullName: string;
   role: Role | string;
   status: string;
-  permissions?: any[];
+  permissions?: string[];
+  employee?: {
+    id: number;
+    fullName: string;
+    employeeCode: string;
+  } | null;
 }
 
 export interface UpdateUserDto {

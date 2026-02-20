@@ -1,7 +1,12 @@
+// cspell:disable
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { employeeService, Employee } from "@/services/employee.service";
+import {
+  employeeService,
+  Employee,
+  AvailableUser,
+} from "@/services/employee.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -49,10 +54,14 @@ const years = Array.from(
 );
 const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
+const NO_USER_VALUE = "__none__";
+
 export default function StaffPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     fullName: "",
     position: "",
@@ -61,6 +70,7 @@ export default function StaffPage() {
     address: "",
     birthDate: "",
     identityCard: "",
+    userId: null as number | null,
   });
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -80,6 +90,19 @@ export default function StaffPage() {
     }
   };
 
+  const loadAvailableUsers = async (excludeEmployeeId?: number) => {
+    setIsLoadingUsers(true);
+    try {
+      const users = await employeeService.getAvailableUsers(excludeEmployeeId);
+      setAvailableUsers(users);
+    } catch (error) {
+      console.error("Failed to load available users:", error);
+      setAvailableUsers([]);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
   const resetForm = () => {
     setNewEmployee({
       fullName: "",
@@ -89,9 +112,17 @@ export default function StaffPage() {
       address: "",
       birthDate: "",
       identityCard: "",
+      userId: null,
     });
     setEditingEmployee(null);
     setIsEditMode(false);
+    setAvailableUsers([]);
+  };
+
+  const handleOpenCreateDialog = () => {
+    resetForm();
+    loadAvailableUsers();
+    setIsDialogOpen(true);
   };
 
   const handleEdit = async (employee: Employee) => {
@@ -107,7 +138,30 @@ export default function StaffPage() {
         address: freshData.address || "",
         birthDate: freshData.birthDate || "",
         identityCard: freshData.identityCard || "",
+        userId: freshData.userId ?? null,
       });
+      // Load available users, exclude this employee so its current user still shows
+      await loadAvailableUsers(freshData.id);
+
+      // If employee already has a user assigned, add that user to the available list
+      // (since it's excluded from the query)
+      if (freshData.user) {
+        setAvailableUsers((prev) => {
+          const alreadyInList = prev.some((u) => u.id === freshData.user!.id);
+          if (!alreadyInList) {
+            return [
+              {
+                id: freshData.user!.id,
+                email: freshData.user!.email,
+                fullName: freshData.user!.fullName,
+              },
+              ...prev,
+            ];
+          }
+          return prev;
+        });
+      }
+
       setIsDialogOpen(true);
     } catch (error) {
       console.error("Failed to load employee details:", error);
@@ -157,6 +211,7 @@ export default function StaffPage() {
         birthDate: newEmployee.birthDate
           ? format(new Date(newEmployee.birthDate), "yyyy-MM-dd")
           : undefined,
+        userId: newEmployee.userId ?? undefined,
       };
 
       if (isEditMode && editingEmployee) {
@@ -167,8 +222,11 @@ export default function StaffPage() {
       resetForm();
       setIsDialogOpen(false);
       loadEmployees();
-    } catch (error) {
-      console.error("Failed to create employee:", error);
+    } catch (error: unknown) {
+      console.error("Failed to save employee:", error);
+      const msg =
+        error instanceof Error ? error.message : "Lưu nhân viên thất bại!";
+      alert(msg);
     }
   };
 
@@ -179,8 +237,12 @@ export default function StaffPage() {
         <Dialog
           open={isDialogOpen}
           onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
+            if (open) {
+              handleOpenCreateDialog();
+            } else {
+              setIsDialogOpen(false);
+              resetForm();
+            }
           }}
         >
           <DialogTrigger asChild>
@@ -439,6 +501,46 @@ export default function StaffPage() {
                   }
                 />
               </div>
+
+              {/* Tài khoản hệ thống */}
+              <div className="grid gap-2">
+                <Label htmlFor="userId">Tài khoản hệ thống</Label>
+                <Select
+                  value={
+                    newEmployee.userId !== null
+                      ? newEmployee.userId.toString()
+                      : NO_USER_VALUE
+                  }
+                  onValueChange={(val) => {
+                    setNewEmployee({
+                      ...newEmployee,
+                      userId: val === NO_USER_VALUE ? null : Number(val),
+                    });
+                  }}
+                  disabled={isLoadingUsers}
+                >
+                  <SelectTrigger id="userId">
+                    <SelectValue
+                      placeholder={
+                        isLoadingUsers
+                          ? "Đang tải..."
+                          : "Chọn tài khoản (tùy chọn)"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_USER_VALUE}>
+                      — Không liên kết —
+                    </SelectItem>
+                    {availableUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.email}
+                        {u.fullName ? ` (${u.fullName})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -470,20 +572,21 @@ export default function StaffPage() {
                 <TableHead>Chức vụ</TableHead>
                 <TableHead>Lương</TableHead>
                 <TableHead>SĐT</TableHead>
+                <TableHead>Tài khoản</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     Đang tải...
                   </TableCell>
                 </TableRow>
               ) : employees.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Chưa có nhân viên nào
@@ -510,6 +613,15 @@ export default function StaffPage() {
                       }).format(emp.salary)}
                     </TableCell>
                     <TableCell>{emp.phone || "—"}</TableCell>
+                    <TableCell>
+                      {emp.user ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          {emp.user.email}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
