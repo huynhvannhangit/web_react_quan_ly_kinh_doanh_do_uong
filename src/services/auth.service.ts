@@ -37,38 +37,59 @@ export const authService = {
     // Set expiration: 7 days if rememberMe is true, otherwise session cookie
     const cookieOptions = rememberMe ? { expires: 7 } : {};
 
-    // Store in cookies for persistence and SSR availability if needed
-    Cookies.set("token", accessToken, cookieOptions);
-    Cookies.set("refreshToken", refreshToken, cookieOptions);
-
-    // Decode token to get user details
-    import("jwt-decode").then(({ jwtDecode }) => {
-      try {
-        const decoded = jwtDecode<{
-          sub: number;
-          email?: string;
-          fullName?: string;
-          role?: unknown;
-        }>(accessToken);
-        const userPayload = {
-          id: decoded.sub,
-          email: decoded.email || email,
-          fullName: decoded.fullName,
-          role: decoded.role,
-        };
-        Cookies.set("user", JSON.stringify(userPayload), cookieOptions);
-      } catch (e) {
-        console.error("Failed to decode token", e);
-        Cookies.set("user", JSON.stringify({ email }), cookieOptions);
-      }
+    // Aggressive cleanup: Clear cookies from potential subpaths and root
+    const pathsToClear = ["/", "/cai-dat", "/ho-so", "/login"];
+    pathsToClear.forEach((path) => {
+      Cookies.remove("token", { path });
+      Cookies.remove("user", { path });
+      Cookies.remove("refreshToken", { path });
     });
+
+    // Store in cookies for persistence and SSR availability if needed
+    Cookies.set("token", accessToken, { ...cookieOptions, path: "/" });
+    Cookies.set("refreshToken", refreshToken, { ...cookieOptions, path: "/" });
+
+    // Decode token to get user details and store in cookie
+    try {
+      const { jwtDecode } = await import("jwt-decode");
+      const decoded = jwtDecode<{
+        sub: number;
+        email?: string;
+        fullName?: string;
+        role?: unknown;
+        avatar?: string | null;
+      }>(accessToken);
+
+      const userPayload = {
+        id: decoded.sub,
+        email: decoded.email || email,
+        fullName: decoded.fullName,
+        role: decoded.role,
+        avatar: decoded.avatar || null,
+      };
+
+      Cookies.set("user", JSON.stringify(userPayload), {
+        ...cookieOptions,
+        path: "/",
+      });
+    } catch (e) {
+      console.error("Failed to decode token", e);
+      Cookies.set("user", JSON.stringify({ email }), {
+        ...cookieOptions,
+        path: "/",
+      });
+    }
 
     return response.data;
   },
 
   logout: () => {
-    Cookies.remove("token");
-    Cookies.remove("user");
+    const pathsToClear = ["/", "/cai-dat", "/ho-so", "/login"];
+    pathsToClear.forEach((path) => {
+      Cookies.remove("token", { path });
+      Cookies.remove("refreshToken", { path });
+      Cookies.remove("user", { path });
+    });
   },
 
   getCurrentUser: () => {
@@ -78,5 +99,21 @@ export const authService = {
 
   isAuthenticated: () => {
     return !!Cookies.get("token");
+  },
+
+  updateUserPayload: (
+    data: Partial<{ fullName: string; avatar: string | null }>,
+  ) => {
+    const user = Cookies.get("user");
+    if (user) {
+      const currentUser = JSON.parse(user);
+      const updatedUser = { ...currentUser, ...data };
+      Cookies.set("user", JSON.stringify(updatedUser), {
+        path: "/",
+        sameSite: "Lax",
+      });
+      return updatedUser;
+    }
+    return null;
   },
 };

@@ -10,6 +10,7 @@ import {
   Settings,
   ChevronDown,
 } from "lucide-react";
+import { getAvatarUrl } from "@/utils/url";
 import { useTheme } from "next-themes";
 import {
   DropdownMenu,
@@ -95,11 +96,17 @@ export function Header() {
               className="flex items-center gap-2 h-9 px-2 ml-2 hover:bg-muted/50"
             >
               <Avatar className="h-8 w-8 border border-border">
-                <AvatarImage src="/avatar.png" alt="User" />
+                <AvatarImage
+                  src={getAvatarUrl(user?.avatar)}
+                  alt="User"
+                  className="object-cover"
+                />
                 <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                  {user?.email
-                    ? user.email.substring(0, 2).toUpperCase()
-                    : "AD"}
+                  {user?.fullName
+                    ? user.fullName.substring(0, 2).toUpperCase()
+                    : user?.email
+                      ? user.email.substring(0, 2).toUpperCase()
+                      : "AD"}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
@@ -120,13 +127,17 @@ export function Header() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
-              <span>Hồ sơ</span>
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link href="/ho-so" className="flex items-center w-full">
+                <User className="mr-2 h-4 w-4" />
+                <span>Hồ sơ</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Cài đặt</span>
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link href="/cai-dat" className="flex items-center w-full">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Cài đặt</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">

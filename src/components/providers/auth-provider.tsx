@@ -15,6 +15,7 @@ export interface AuthUser {
   email: string;
   fullName?: string;
   role?: unknown;
+  avatar?: string | null;
 }
 
 interface AuthContextType {
@@ -26,6 +27,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  refreshUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,8 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
+  const refreshUser = () => {
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, isLoading, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
