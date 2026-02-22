@@ -82,7 +82,7 @@ export function AiAssistantChat() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="no-print fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {isOpen ? (
         <Card className="w-80 sm:w-96 shadow-2xl border-2 animate-in slide-in-from-bottom-5">
           <CardHeader className="p-4 border-b bg-primary text-primary-foreground rounded-t-lg">

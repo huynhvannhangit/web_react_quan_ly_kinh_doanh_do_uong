@@ -31,7 +31,7 @@ export function Header() {
   const { user } = useAuth() as { user: AuthUser | null };
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background px-6 shadow-sm">
+    <header className="no-print sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background px-6 shadow-sm">
       <div className="flex-1"></div>
 
       <div className="flex items-center gap-2">

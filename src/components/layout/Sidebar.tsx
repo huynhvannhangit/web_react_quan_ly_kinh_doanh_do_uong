@@ -111,7 +111,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-col border-r border-border bg-linear-to-br from-[#006ccf] to-[#00509a] text-white transition-all duration-300",
+        "no-print relative flex h-full flex-col border-r border-border bg-linear-to-br from-[#006ccf] to-[#00509a] text-white transition-all duration-300",
         collapsed ? "w-20" : "w-64",
       )}
     >

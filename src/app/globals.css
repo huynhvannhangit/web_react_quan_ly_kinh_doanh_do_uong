@@ -143,3 +143,57 @@
     @apply bg-zinc-400; /* Fallback/approximation for border-base */
   }
 }
+
+@media print {
+  /* Hide typical layout components from being seen by the print engine */
+  .no-print,
+  header,
+  aside,
+  nav,
+  footer,
+  .ai-assistant-chat,
+  button:not(.printable-area button),
+  [role="dialog"]:not(:has(.printable-area)),
+  [role="presentation"]:not(:has(.printable-area)) {
+    display: none !important;
+  }
+
+  /*
+    Hiding the body via visibility: hidden instead of display: none.
+    This allows descendants (the invoice) to override and become visible
+    even if their ancestors are hidden.
+  */
+  body {
+    visibility: hidden !important;
+    background: white !important;
+  }
+
+  /* Forces the printable area to show up */
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
+  }
+
+  .printable-area {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}
+
+/* Screen visibility - keep it hidden but alive */
+.printable-area {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  visibility: hidden;
+}

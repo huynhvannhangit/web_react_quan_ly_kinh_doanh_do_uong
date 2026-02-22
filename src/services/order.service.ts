@@ -42,6 +42,13 @@ export interface CreateOrderDto {
   status?: OrderStatus;
 }
 
+export interface AppendedOrderItem {
+  productId: number;
+  quantity: number;
+  price: number;
+  notes?: string;
+}
+
 export const orderService = {
   getAll: async () => {
     const response = await api.get<{ data: Order[] }>("/order");
@@ -58,6 +65,21 @@ export const orderService = {
     return response.data.data;
   },
 
+  getActiveByTable: async (tableId: number) => {
+    const response = await api.get<{ data: Order | null }>(
+      `/order/active/table/${tableId}`,
+    );
+    return response.data.data;
+  },
+
+  addItems: async (orderId: number, items: AppendedOrderItem[]) => {
+    const response = await api.patch<{ data: Order }>(
+      `/order/${orderId}/add-items`,
+      { items },
+    );
+    return response.data.data;
+  },
+
   updateStatus: async (id: number, status: OrderStatus) => {
     const response = await api.patch<{ data: Order }>(`/order/${id}/status`, {
       status,
@@ -67,5 +89,10 @@ export const orderService = {
 
   delete: async (id: number) => {
     await api.delete(`/order/${id}`);
+  },
+
+  cancel: async (id: number) => {
+    const response = await api.post<{ data: Order }>(`/order/${id}/cancel`);
+    return response.data.data;
   },
 };

@@ -16,10 +16,16 @@ export enum PaymentMethod {
 
 export interface InvoiceItem {
   id: number;
-  productName: string;
+  productName?: string;
+  product?: {
+    id: number;
+    name: string;
+    price: number;
+  };
   quantity: number;
   price: number;
-  totalPrice: number;
+  totalPrice?: number;
+  total?: number;
 }
 
 export interface Invoice {
