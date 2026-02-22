@@ -7,6 +7,7 @@ import {
   RevenueStats,
   TopProductStats,
 } from "@/services/statistics.service";
+import dayjs from "dayjs";
 import {
   LineChart,
   Line,
@@ -159,7 +160,11 @@ export default function DashboardPage() {
           <CardContent className="h-80 pt-4">
             {isMounted && (
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <LineChart data={Array.isArray(revenueData) ? revenueData : []}>
+                <LineChart
+                  data={
+                    Array.isArray(revenueData) ? [...revenueData].reverse() : []
+                  }
+                >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
@@ -170,6 +175,7 @@ export default function DashboardPage() {
                     tick={{ fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
+                    tickFormatter={(value) => dayjs(value).format("DD/MM")}
                   />
                   <YAxis
                     tick={{ fontSize: 12 }}
