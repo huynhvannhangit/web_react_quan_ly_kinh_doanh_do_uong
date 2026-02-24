@@ -57,6 +57,7 @@ export const authService = {
         email?: string;
         fullName?: string;
         role?: unknown;
+        permissions?: string[];
         avatar?: string | null;
       }>(accessToken);
 
@@ -65,6 +66,7 @@ export const authService = {
         email: decoded.email || email,
         fullName: decoded.fullName,
         role: decoded.role,
+        permissions: decoded.permissions || [],
         avatar: decoded.avatar || null,
       };
 

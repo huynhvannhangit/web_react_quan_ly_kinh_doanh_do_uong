@@ -1,6 +1,7 @@
+// cspell:disable
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -22,8 +23,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSystemConfig } from "@/components/providers/system-config-provider";
 import Image from "next/image";
 import { getImageUrl } from "@/utils/url";
+import { Permission } from "@/types";
+import { useAuth } from "@/components/providers/auth-provider";
 
-const menuItems = [
+interface MenuItem {
+  title: string;
+  href?: string;
+  icon: React.ElementType;
+  permissions?: Permission[];
+  children?: {
+    title: string;
+    href: string;
+    permissions?: Permission[];
+  }[];
+}
+
+const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -32,33 +47,72 @@ const menuItems = [
   {
     title: "Quản lý tài khoản",
     icon: Users,
+    permissions: [Permission.USER_VIEW, Permission.EMPLOYEE_VIEW],
     children: [
-      { title: "Danh sách nhân viên", href: "/nhan-vien" },
-      { title: "Khách hàng", href: "/khach-hang" },
-      { title: "Phân quyền", href: "/phan-quyen" },
+      {
+        title: "Danh sách nhân viên",
+        href: "/nhan-vien",
+        permissions: [Permission.EMPLOYEE_VIEW],
+      },
+      {
+        title: "Khách hàng",
+        href: "/khach-hang",
+        permissions: [Permission.USER_VIEW],
+      },
+      {
+        title: "Phân quyền",
+        href: "/phan-quyen",
+        permissions: [Permission.USER_MANAGE],
+      },
     ],
   },
   {
     title: "Quản lý cửa hàng",
     icon: Coffee,
     children: [
-      { title: "Khu vực", href: "/khu-vuc" },
-      { title: "Bàn", href: "/ban" },
-      { title: "Danh mục", href: "/danh-muc" },
-      { title: "Sản phẩm", href: "/san-pham" },
+      {
+        title: "Khu vực",
+        href: "/khu-vuc",
+        permissions: [Permission.AREA_VIEW],
+      },
+      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_VIEW] },
+      {
+        title: "Danh mục",
+        href: "/danh-muc",
+        permissions: [Permission.PRODUCT_VIEW],
+      },
+      {
+        title: "Sản phẩm",
+        href: "/san-pham",
+        permissions: [Permission.PRODUCT_VIEW],
+      },
+      {
+        title: "Phê duyệt yêu cầu",
+        href: "/phe-duyet",
+        permissions: [Permission.APPROVAL_VIEW],
+      },
     ],
   },
   {
     title: "Bán hàng",
     icon: CreditCard,
     children: [
-      { title: "Gọi món", href: "/goi-mon" },
-      { title: "Danh sách hoá đơn", href: "/hoa-don" },
+      {
+        title: "Gọi món",
+        href: "/goi-mon",
+        permissions: [Permission.ORDER_CREATE],
+      },
+      {
+        title: "Danh sách hoá đơn",
+        href: "/hoa-don",
+        permissions: [Permission.INVOICE_VIEW],
+      },
     ],
   },
   {
     title: "Báo cáo & Thống kê",
     icon: BarChart3,
+    permissions: [Permission.STATISTICS_VIEW],
     children: [
       { title: "Doanh thu theo ngày", href: "/bao-cao/ngay" },
       { title: "Thống kê theo tuần", href: "/bao-cao/tuan" },
@@ -69,11 +123,13 @@ const menuItems = [
     title: "Trợ lý AI",
     href: "/chat-ai",
     icon: MessageSquare,
+    permissions: [Permission.AI_ASSISTANT_CHAT],
   },
   {
     title: "Cấu hình hệ thống",
     href: "/cau-hinh",
     icon: Settings,
+    permissions: [Permission.SETTING_MANAGE],
   },
 ];
 
@@ -83,6 +139,45 @@ export function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const { config } = useSystemConfig();
+  const { user } = useAuth();
+
+  const userPermissions = useMemo(() => {
+    if (
+      user?.role &&
+      typeof user.role === "object" &&
+      "permissions" in user.role
+    ) {
+      return (user.role as { permissions: string[] }).permissions || [];
+    }
+    return [];
+  }, [user]);
+
+  const hasPermission = useCallback(
+    (required?: Permission[]) => {
+      if (!required || required.length === 0) return true;
+      return required.some((p) => userPermissions.includes(p));
+    },
+    [userPermissions],
+  );
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems
+      .filter((item) => hasPermission(item.permissions))
+      .map((item) => {
+        if (item.children) {
+          return {
+            ...item,
+            children: item.children.filter((child) =>
+              hasPermission(child.permissions),
+            ),
+          };
+        }
+        return item;
+      })
+      .filter(
+        (item) => !item.children || item.children.length > 0 || item.href,
+      );
+  }, [hasPermission]);
 
   const toggleItem = (title: string) => {
     setExpandedItems((prev) =>
@@ -103,14 +198,14 @@ export function Sidebar() {
       return children?.some((child) => pathname.startsWith(child.href));
     };
 
-    menuItems.forEach((item) => {
+    filteredMenuItems.forEach((item) => {
       if (item.children && isChildActive(item.children)) {
         setExpandedItems((prev) =>
           prev.includes(item.title) ? prev : [...prev, item.title],
         );
       }
     });
-  }, [pathname]);
+  }, [pathname, filteredMenuItems]);
 
   return (
     <aside

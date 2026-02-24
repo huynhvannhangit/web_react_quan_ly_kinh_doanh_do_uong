@@ -45,6 +45,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Permission } from "@/types";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 // Helper arrays
 const currentYear = new Date().getFullYear();
@@ -231,422 +233,438 @@ export default function StaffPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Quản lý Nhân viên</h1>
-        <Dialog
-          open={isDialogOpen}
-          onOpenChange={(open) => {
-            if (open) {
-              handleOpenCreateDialog();
-            } else {
-              setIsDialogOpen(false);
-              resetForm();
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground">
-              <Plus className="mr-2 h-4 w-4" /> Thêm nhân viên
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {isEditMode ? "Chỉnh sửa nhân viên" : "Thêm nhân viên mới"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="fullName">Họ và tên</Label>
-                <Input
-                  id="fullName"
-                  value={newEmployee.fullName}
-                  onChange={(e) =>
-                    setNewEmployee({
-                      ...newEmployee,
-                      fullName: e.target.value,
-                    })
-                  }
-                  placeholder="Nhập họ tên nhân viên"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+    <PermissionGuard
+      permissions={[Permission.EMPLOYEE_VIEW]}
+      redirect="/dashboard"
+    >
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Quản lý Nhân viên
+          </h1>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                handleOpenCreateDialog();
+              } else {
+                setIsDialogOpen(false);
+                resetForm();
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground">
+                <Plus className="mr-2 h-4 w-4" /> Thêm nhân viên
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {isEditMode ? "Chỉnh sửa nhân viên" : "Thêm nhân viên mới"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="position">Chức vụ</Label>
+                  <Label htmlFor="fullName">Họ và tên</Label>
                   <Input
-                    id="position"
-                    value={newEmployee.position}
+                    id="fullName"
+                    value={newEmployee.fullName}
                     onChange={(e) =>
                       setNewEmployee({
                         ...newEmployee,
-                        position: e.target.value,
+                        fullName: e.target.value,
                       })
                     }
-                    placeholder="VD: Phục vụ, Thu ngân..."
+                    placeholder="Nhập họ tên nhân viên"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="salary">Lương cơ bản</Label>
-                  <Input
-                    id="salary"
-                    value={formatNumber(newEmployee.salary)}
-                    onChange={(e) =>
-                      setNewEmployee({
-                        ...newEmployee,
-                        salary: parseNumber(e.target.value),
-                      })
-                    }
-                    placeholder="VD: 10.000.000"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="position">Chức vụ</Label>
+                    <Input
+                      id="position"
+                      value={newEmployee.position}
+                      onChange={(e) =>
+                        setNewEmployee({
+                          ...newEmployee,
+                          position: e.target.value,
+                        })
+                      }
+                      placeholder="VD: Phục vụ, Thu ngân..."
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="salary">Lương cơ bản</Label>
+                    <Input
+                      id="salary"
+                      value={formatNumber(newEmployee.salary)}
+                      onChange={(e) =>
+                        setNewEmployee({
+                          ...newEmployee,
+                          salary: parseNumber(e.target.value),
+                        })
+                      }
+                      placeholder="VD: 10.000.000"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="birthDate">Ngày sinh</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !newEmployee.birthDate && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newEmployee.birthDate ? (
-                          format(
-                            new Date(newEmployee.birthDate),
-                            "dd/MM/yyyy",
-                            { locale: vi },
-                          )
-                        ) : (
-                          <span>Chọn ngày sinh</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <div className="flex gap-2 p-3 border-b justify-between">
-                        <Select
-                          value={
-                            newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                                  .getDate()
-                                  .toString()
-                              : undefined
-                          }
-                          onValueChange={(day) => {
-                            const current = newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                              : new Date();
-                            current.setDate(parseInt(day));
-                            setNewEmployee({
-                              ...newEmployee,
-                              birthDate: current.toISOString(),
-                            });
-                          }}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="birthDate">Ngày sinh</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !newEmployee.birthDate && "text-muted-foreground",
+                          )}
                         >
-                          <SelectTrigger className="w-20">
-                            <SelectValue placeholder="Ngày" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-50">
-                            {(() => {
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {newEmployee.birthDate ? (
+                            format(
+                              new Date(newEmployee.birthDate),
+                              "dd/MM/yyyy",
+                              { locale: vi },
+                            )
+                          ) : (
+                            <span>Chọn ngày sinh</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="flex gap-2 p-3 border-b justify-between">
+                          <Select
+                            value={
+                              newEmployee.birthDate
+                                ? new Date(newEmployee.birthDate)
+                                    .getDate()
+                                    .toString()
+                                : undefined
+                            }
+                            onValueChange={(day) => {
                               const current = newEmployee.birthDate
                                 ? new Date(newEmployee.birthDate)
                                 : new Date();
-                              const daysInMonth = new Date(
-                                current.getFullYear(),
-                                current.getMonth() + 1,
-                                0,
-                              ).getDate();
-                              return Array.from(
-                                { length: daysInMonth },
-                                (_, i) => i + 1,
-                              ).map((d) => (
-                                <SelectItem key={d} value={d.toString()}>
-                                  {d}
+                              current.setDate(parseInt(day));
+                              setNewEmployee({
+                                ...newEmployee,
+                                birthDate: current.toISOString(),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="Ngày" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-50">
+                              {(() => {
+                                const current = newEmployee.birthDate
+                                  ? new Date(newEmployee.birthDate)
+                                  : new Date();
+                                const daysInMonth = new Date(
+                                  current.getFullYear(),
+                                  current.getMonth() + 1,
+                                  0,
+                                ).getDate();
+                                return Array.from(
+                                  { length: daysInMonth },
+                                  (_, i) => i + 1,
+                                ).map((d) => (
+                                  <SelectItem key={d} value={d.toString()}>
+                                    {d}
+                                  </SelectItem>
+                                ));
+                              })()}
+                            </SelectContent>
+                          </Select>
+
+                          <Select
+                            value={
+                              newEmployee.birthDate
+                                ? (
+                                    new Date(newEmployee.birthDate).getMonth() +
+                                    1
+                                  ).toString()
+                                : undefined
+                            }
+                            onValueChange={(month) => {
+                              const current = newEmployee.birthDate
+                                ? new Date(newEmployee.birthDate)
+                                : new Date();
+                              current.setMonth(parseInt(month) - 1);
+                              setNewEmployee({
+                                ...newEmployee,
+                                birthDate: current.toISOString(),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-28">
+                              <SelectValue placeholder="Tháng" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-50">
+                              {months.map((m) => (
+                                <SelectItem key={m} value={m.toString()}>
+                                  Tháng {m}
                                 </SelectItem>
-                              ));
-                            })()}
-                          </SelectContent>
-                        </Select>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-                        <Select
-                          value={
+                          <Select
+                            value={
+                              newEmployee.birthDate
+                                ? new Date(newEmployee.birthDate)
+                                    .getFullYear()
+                                    .toString()
+                                : undefined
+                            }
+                            onValueChange={(year) => {
+                              const current = newEmployee.birthDate
+                                ? new Date(newEmployee.birthDate)
+                                : new Date();
+                              current.setFullYear(parseInt(year));
+                              setNewEmployee({
+                                ...newEmployee,
+                                birthDate: current.toISOString(),
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-24">
+                              <SelectValue placeholder="Năm" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-50">
+                              {years.map((y) => (
+                                <SelectItem key={y} value={y.toString()}>
+                                  {y}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={
                             newEmployee.birthDate
-                              ? (
-                                  new Date(newEmployee.birthDate).getMonth() + 1
-                                ).toString()
+                              ? new Date(newEmployee.birthDate)
                               : undefined
                           }
-                          onValueChange={(month) => {
-                            const current = newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                              : new Date();
-                            current.setMonth(parseInt(month) - 1);
+                          onSelect={(date) =>
                             setNewEmployee({
                               ...newEmployee,
-                              birthDate: current.toISOString(),
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="w-28">
-                            <SelectValue placeholder="Tháng" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-50">
-                            {months.map((m) => (
-                              <SelectItem key={m} value={m.toString()}>
-                                Tháng {m}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={
+                              birthDate: date ? date.toISOString() : "",
+                            })
+                          }
+                          month={
                             newEmployee.birthDate
                               ? new Date(newEmployee.birthDate)
-                                  .getFullYear()
-                                  .toString()
                               : undefined
                           }
-                          onValueChange={(year) => {
-                            const current = newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                              : new Date();
-                            current.setFullYear(parseInt(year));
+                          onMonthChange={(date) =>
                             setNewEmployee({
                               ...newEmployee,
-                              birthDate: current.toISOString(),
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue placeholder="Năm" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-50">
-                            {years.map((y) => (
-                              <SelectItem key={y} value={y.toString()}>
-                                {y}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Calendar
-                        mode="single"
-                        selected={
-                          newEmployee.birthDate
-                            ? new Date(newEmployee.birthDate)
-                            : undefined
-                        }
-                        onSelect={(date) =>
+                              birthDate: date.toISOString(),
+                            })
+                          }
+                          initialFocus
+                          locale={vi}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="identityCard">CCCD (12 số)</Label>
+                    <Input
+                      id="identityCard"
+                      value={newEmployee.identityCard || ""}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        if (value.length <= 12) {
                           setNewEmployee({
                             ...newEmployee,
-                            birthDate: date ? date.toISOString() : "",
-                          })
+                            identityCard: value,
+                          });
                         }
-                        month={
-                          newEmployee.birthDate
-                            ? new Date(newEmployee.birthDate)
-                            : undefined
-                        }
-                        onMonthChange={(date) =>
-                          setNewEmployee({
-                            ...newEmployee,
-                            birthDate: date.toISOString(),
-                          })
-                        }
-                        initialFocus
-                        locale={vi}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                      }}
+                      placeholder="Nhập 12 số CCCD"
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="identityCard">CCCD (12 số)</Label>
+                  <Label htmlFor="phone">Số điện thoại</Label>
                   <Input
-                    id="identityCard"
-                    value={newEmployee.identityCard || ""}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "");
-                      if (value.length <= 12) {
-                        setNewEmployee({
-                          ...newEmployee,
-                          identityCard: value,
-                        });
-                      }
-                    }}
-                    placeholder="Nhập 12 số CCCD"
+                    id="phone"
+                    value={newEmployee.phone}
+                    onChange={(e) =>
+                      setNewEmployee({ ...newEmployee, phone: e.target.value })
+                    }
                   />
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Số điện thoại</Label>
-                <Input
-                  id="phone"
-                  value={newEmployee.phone}
-                  onChange={(e) =>
-                    setNewEmployee({ ...newEmployee, phone: e.target.value })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">Địa chỉ</Label>
-                <Input
-                  id="address"
-                  value={newEmployee.address}
-                  onChange={(e) =>
-                    setNewEmployee({ ...newEmployee, address: e.target.value })
-                  }
-                />
-              </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="address">Địa chỉ</Label>
+                  <Input
+                    id="address"
+                    value={newEmployee.address}
+                    onChange={(e) =>
+                      setNewEmployee({
+                        ...newEmployee,
+                        address: e.target.value,
+                      })
+                    }
+                  />
+                </div>
 
-              {/* Tài khoản hệ thống */}
-              <div className="grid gap-2">
-                <Label htmlFor="userId">Tài khoản hệ thống</Label>
-                <Select
-                  value={
-                    newEmployee.userId !== null
-                      ? newEmployee.userId.toString()
-                      : NO_USER_VALUE
-                  }
-                  onValueChange={(val) => {
-                    setNewEmployee({
-                      ...newEmployee,
-                      userId: val === NO_USER_VALUE ? null : Number(val),
-                    });
-                  }}
-                  disabled={isLoadingUsers}
-                >
-                  <SelectTrigger id="userId">
-                    <SelectValue
-                      placeholder={
-                        isLoadingUsers
-                          ? "Đang tải..."
-                          : "Chọn tài khoản (tùy chọn)"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_USER_VALUE}>
-                      — Không liên kết —
-                    </SelectItem>
-                    {availableUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>
-                        {u.email}
-                        {u.fullName ? ` (${u.fullName})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Hủy
-              </Button>
-              <Button
-                onClick={handleCreateEmployee}
-                disabled={!newEmployee.fullName}
-              >
-                {isEditMode ? "Cập nhật" : "Lưu"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách nhân viên</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mã NV</TableHead>
-                <TableHead>Họ tên</TableHead>
-                <TableHead>Ngày sinh</TableHead>
-                <TableHead>CCCD</TableHead>
-                <TableHead>Chức vụ</TableHead>
-                <TableHead>Lương</TableHead>
-                <TableHead>SĐT</TableHead>
-                <TableHead>Tài khoản</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    Đang tải...
-                  </TableCell>
-                </TableRow>
-              ) : employees.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-center py-8 text-muted-foreground"
+                {/* Tài khoản hệ thống */}
+                <div className="grid gap-2">
+                  <Label htmlFor="userId">Tài khoản hệ thống</Label>
+                  <Select
+                    value={
+                      newEmployee.userId !== null
+                        ? newEmployee.userId.toString()
+                        : NO_USER_VALUE
+                    }
+                    onValueChange={(val) => {
+                      setNewEmployee({
+                        ...newEmployee,
+                        userId: val === NO_USER_VALUE ? null : Number(val),
+                      });
+                    }}
+                    disabled={isLoadingUsers}
                   >
-                    Chưa có nhân viên nào
-                  </TableCell>
+                    <SelectTrigger id="userId">
+                      <SelectValue
+                        placeholder={
+                          isLoadingUsers
+                            ? "Đang tải..."
+                            : "Chọn tài khoản (tùy chọn)"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_USER_VALUE}>
+                        — Không liên kết —
+                      </SelectItem>
+                      {availableUsers.map((u) => (
+                        <SelectItem key={u.id} value={u.id.toString()}>
+                          {u.email}
+                          {u.fullName ? ` (${u.fullName})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleCreateEmployee}
+                  disabled={!newEmployee.fullName}
+                >
+                  {isEditMode ? "Cập nhật" : "Lưu"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Danh sách nhân viên</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mã NV</TableHead>
+                  <TableHead>Họ tên</TableHead>
+                  <TableHead>Ngày sinh</TableHead>
+                  <TableHead>CCCD</TableHead>
+                  <TableHead>Chức vụ</TableHead>
+                  <TableHead>Lương</TableHead>
+                  <TableHead>SĐT</TableHead>
+                  <TableHead>Tài khoản</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
-              ) : (
-                employees.map((emp) => (
-                  <TableRow key={emp.id}>
-                    <TableCell className="font-medium text-blue-600 font-mono text-xs">
-                      {emp.employeeCode}
-                    </TableCell>
-                    <TableCell>{emp.fullName}</TableCell>
-                    <TableCell>
-                      {emp.birthDate
-                        ? new Date(emp.birthDate).toLocaleDateString("vi-VN")
-                        : "—"}
-                    </TableCell>
-                    <TableCell>{emp.identityCard || "—"}</TableCell>
-                    <TableCell>{emp.position || "—"}</TableCell>
-                    <TableCell>
-                      {new Intl.NumberFormat("vi-VN", {
-                        style: "currency",
-                        currency: "VND",
-                      }).format(emp.salary)}
-                    </TableCell>
-                    <TableCell>{emp.phone || "—"}</TableCell>
-                    <TableCell>
-                      {emp.user ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                          {emp.user.email}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="mr-2"
-                        onClick={() => handleEdit(emp)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={() => handleDelete(emp.id, emp.fullName)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      Đang tải...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                ) : employees.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      Chưa có nhân viên nào
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  employees.map((emp) => (
+                    <TableRow key={emp.id}>
+                      <TableCell className="font-medium text-blue-600 font-mono text-xs">
+                        {emp.employeeCode}
+                      </TableCell>
+                      <TableCell>{emp.fullName}</TableCell>
+                      <TableCell>
+                        {emp.birthDate
+                          ? new Date(emp.birthDate).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>{emp.identityCard || "—"}</TableCell>
+                      <TableCell>{emp.position || "—"}</TableCell>
+                      <TableCell>
+                        {new Intl.NumberFormat("vi-VN", {
+                          style: "currency",
+                          currency: "VND",
+                        }).format(emp.salary)}
+                      </TableCell>
+                      <TableCell>{emp.phone || "—"}</TableCell>
+                      <TableCell>
+                        {emp.user ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            {emp.user.email}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="mr-2"
+                          onClick={() => handleEdit(emp)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => handleDelete(emp.id, emp.fullName)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </PermissionGuard>
   );
 }

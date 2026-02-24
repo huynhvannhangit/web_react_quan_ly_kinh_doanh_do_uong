@@ -15,6 +15,7 @@ export interface AuthUser {
   email: string;
   fullName?: string;
   role?: unknown;
+  permissions?: string[];
   avatar?: string | null;
 }
 

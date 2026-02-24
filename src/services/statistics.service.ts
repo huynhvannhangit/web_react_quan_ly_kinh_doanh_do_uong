@@ -68,4 +68,19 @@ export const statisticsService = {
     link.click();
     link.remove();
   },
+
+  getDashboardData: async (): Promise<{
+    overview: StatisticsOverview;
+    revenue: RevenueData[];
+    topProducts: TopProduct[];
+  }> => {
+    const response = await api.get<{
+      data: {
+        overview: StatisticsOverview;
+        revenue: RevenueData[];
+        topProducts: TopProduct[];
+      };
+    }>("/statistics/dashboard");
+    return response.data.data;
+  },
 };

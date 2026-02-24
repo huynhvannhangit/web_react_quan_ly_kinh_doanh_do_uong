@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Permission } from "@/types";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 export default function TablePage() {
   const [tables, setTables] = useState<TableType[]>([]);
@@ -175,166 +177,176 @@ export default function TablePage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Quản lý Bàn</h1>
-        <Dialog
-          open={isDialogOpen}
-          onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground">
-              <Plus className="mr-2 h-4 w-4" /> Thêm bàn
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {isEditMode ? "Chỉnh sửa bàn" : "Thêm bàn mới"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tableNumber">Số bàn / Tên bàn</Label>
-                <Input
-                  id="tableNumber"
-                  value={newTable.tableNumber}
-                  onChange={(e) =>
-                    setNewTable({ ...newTable, tableNumber: e.target.value })
-                  }
-                  placeholder="VD: Bàn 01, VIP 02..."
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="capacity">Sức chứa (người)</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={newTable.capacity}
-                  onChange={(e) =>
-                    setNewTable({
-                      ...newTable,
-                      capacity: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="area">Khu vực</Label>
-                <Select
-                  value={newTable.areaId}
-                  onValueChange={(value) =>
-                    setNewTable({ ...newTable, areaId: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Chọn khu vực" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {areas.map((area) => (
-                      <SelectItem key={area.id} value={area.id.toString()}>
-                        {area.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Hủy
+    <PermissionGuard
+      permissions={[Permission.TABLE_VIEW]}
+      redirect="/dashboard"
+    >
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Quản lý Bàn</h1>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground">
+                <Plus className="mr-2 h-4 w-4" /> Thêm bàn
               </Button>
-              <Button
-                onClick={handleCreateTable}
-                disabled={!newTable.areaId || !newTable.tableNumber}
-              >
-                {isEditMode ? "Cập nhật" : "Lưu"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách bàn</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Số bàn</TableHead>
-                <TableHead>Khu vực</TableHead>
-                <TableHead>Sức chứa</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Ngày cập nhật</TableHead>
-                <TableHead>Người cập nhật</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    Đang tải...
-                  </TableCell>
-                </TableRow>
-              ) : tables.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {isEditMode ? "Chỉnh sửa bàn" : "Thêm bàn mới"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="tableNumber">Số bàn / Tên bàn</Label>
+                  <Input
+                    id="tableNumber"
+                    value={newTable.tableNumber}
+                    onChange={(e) =>
+                      setNewTable({ ...newTable, tableNumber: e.target.value })
+                    }
+                    placeholder="VD: Bàn 01, VIP 02..."
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="capacity">Sức chứa (người)</Label>
+                  <Input
+                    id="capacity"
+                    type="number"
+                    value={newTable.capacity}
+                    onChange={(e) =>
+                      setNewTable({
+                        ...newTable,
+                        capacity: parseInt(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="area">Khu vực</Label>
+                  <Select
+                    value={newTable.areaId}
+                    onValueChange={(value) =>
+                      setNewTable({ ...newTable, areaId: value })
+                    }
                   >
-                    Chưa có bàn nào
-                  </TableCell>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn khu vực" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map((area) => (
+                        <SelectItem key={area.id} value={area.id.toString()}>
+                          {area.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleCreateTable}
+                  disabled={!newTable.areaId || !newTable.tableNumber}
+                >
+                  {isEditMode ? "Cập nhật" : "Lưu"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Danh sách bàn</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Số bàn</TableHead>
+                  <TableHead>Khu vực</TableHead>
+                  <TableHead>Sức chứa</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Ngày cập nhật</TableHead>
+                  <TableHead>Người cập nhật</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
-              ) : (
-                tables.map((table) => (
-                  <TableRow key={table.id}>
-                    <TableCell className="font-medium text-blue-600">
-                      {table.tableNumber}
-                    </TableCell>
-                    <TableCell>{table.area?.name || "Khu vực trống"}</TableCell>
-                    <TableCell>{table.capacity} người</TableCell>
-                    <TableCell>{getStatusBadge(table.status)}</TableCell>
-                    <TableCell>
-                      {new Date(table.updatedAt).toLocaleDateString("vi-VN")}
-                    </TableCell>
-                    <TableCell>
-                      {table.updater?.fullName ||
-                        table.creator?.fullName ||
-                        "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="mr-2"
-                        onClick={() => handleEdit(table)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={() =>
-                          handleDelete(table.id, table.tableNumber)
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Đang tải...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                ) : tables.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      Chưa có bàn nào
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  tables.map((table) => (
+                    <TableRow key={table.id}>
+                      <TableCell className="font-medium text-blue-600">
+                        {table.tableNumber}
+                      </TableCell>
+                      <TableCell>
+                        {table.area?.name || "Khu vực trống"}
+                      </TableCell>
+                      <TableCell>{table.capacity} người</TableCell>
+                      <TableCell>{getStatusBadge(table.status)}</TableCell>
+                      <TableCell>
+                        {new Date(table.updatedAt).toLocaleDateString("vi-VN")}
+                      </TableCell>
+                      <TableCell>
+                        {table.updater?.fullName ||
+                          table.creator?.fullName ||
+                          "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="mr-2"
+                          onClick={() => handleEdit(table)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() =>
+                            handleDelete(table.id, table.tableNumber)
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </PermissionGuard>
   );
 }

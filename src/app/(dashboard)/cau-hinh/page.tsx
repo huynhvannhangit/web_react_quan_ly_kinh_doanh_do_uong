@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { Loader2, Save, Upload } from "lucide-react";
 import Image from "next/image";
 import { getImageUrl } from "@/utils/url";
+import { Permission } from "@/types";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 // cspell:disable-line
 export default function SystemConfigPage() {
@@ -101,175 +103,181 @@ export default function SystemConfigPage() {
   };
 
   return (
-    <div className="container max-w-4xl py-10">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Cấu hình hệ thống
-          </h1>
-          <p className="text-muted-foreground">
-            Quản lý thông tin cơ bản, logo và các thiết lập chung của hệ thống.
-          </p>
+    <PermissionGuard
+      permissions={[Permission.SETTING_MANAGE]}
+      redirect="/dashboard"
+    >
+      <div className="container max-w-4xl py-10">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Cấu hình hệ thống
+            </h1>
+            <p className="text-muted-foreground">
+              Quản lý thông tin cơ bản, logo và các thiết lập chung của hệ
+              thống.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin nhận diện</CardTitle>
-              <CardDescription>
-                Tên hệ thống và hình ảnh đại diện (logo).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="systemName">Tên hệ thống</Label>
-                <Input
-                  id="systemName"
-                  name="systemName"
-                  value={formData.systemName}
-                  onChange={handleChange}
-                  placeholder="Ví dụ: QL Đồ Uống"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="logoUrl">URL Logo</Label>
-                <div className="flex gap-2">
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Thông tin nhận diện</CardTitle>
+                <CardDescription>
+                  Tên hệ thống và hình ảnh đại diện (logo).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="systemName">Tên hệ thống</Label>
                   <Input
-                    id="logoUrl"
-                    name="logoUrl"
-                    value={formData.logoUrl}
+                    id="systemName"
+                    name="systemName"
+                    value={formData.systemName}
                     onChange={handleChange}
-                    placeholder="https://example.com/logo.png"
+                    placeholder="Ví dụ: QL Đồ Uống"
+                    required
                   />
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="shrink-0"
-                  >
-                    {isUploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    Tải lên
-                  </Button>
                 </div>
-              </div>
 
-              {formData.logoUrl && (
-                <div className="mt-2 flex items-center gap-4">
-                  <p className="text-sm text-muted-foreground">Xem trước:</p>
-                  <div className="relative h-12 w-12 rounded border bg-muted flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={getImageUrl(formData.logoUrl)}
-                      alt="Logo Preview"
-                      fill
-                      className="object-contain"
-                      unoptimized
+                <div className="space-y-2">
+                  <Label htmlFor="logoUrl">URL Logo</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="logoUrl"
+                      name="logoUrl"
+                      value={formData.logoUrl}
+                      onChange={handleChange}
+                      placeholder="https://example.com/logo.png"
+                    />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="shrink-0"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Tải lên
+                    </Button>
+                  </div>
+                </div>
+
+                {formData.logoUrl && (
+                  <div className="mt-2 flex items-center gap-4">
+                    <p className="text-sm text-muted-foreground">Xem trước:</p>
+                    <div className="relative h-12 w-12 rounded border bg-muted flex items-center justify-center overflow-hidden">
+                      <Image
+                        src={getImageUrl(formData.logoUrl)}
+                        alt="Logo Preview"
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Thông tin liên hệ</CardTitle>
+                <CardDescription>
+                  Email, số điện thoại và địa chỉ hiển thị trên hóa đơn hoặc
+                  footer.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="contact@example.com"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">Số điện thoại</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="0123456789"
                     />
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin liên hệ</CardTitle>
-              <CardDescription>
-                Email, số điện thoại và địa chỉ hiển thị trên hóa đơn hoặc
-                footer.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="address">Địa chỉ</Label>
                   <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
+                    id="address"
+                    name="address"
+                    value={formData.address}
                     onChange={handleChange}
-                    placeholder="contact@example.com"
+                    placeholder="Số 1, Đường ABC, Quận XYZ..."
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Thiết lập khác</CardTitle>
+                <CardDescription>
+                  Văn bản chân trang (Footer) và các thông tin bổ sung.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
+                  <Label htmlFor="footerText">Văn bản chân trang</Label>
+                  <textarea
+                    id="footerText"
+                    name="footerText"
+                    rows={3}
+                    className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData.footerText}
                     onChange={handleChange}
-                    placeholder="0123456789"
+                    placeholder="© 2026 QL Đồ Uống. All rights reserved."
                   />
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">Địa chỉ</Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="Số 1, Đường ABC, Quận XYZ..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Thiết lập khác</CardTitle>
-              <CardDescription>
-                Văn bản chân trang (Footer) và các thông tin bổ sung.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="footerText">Văn bản chân trang</Label>
-                <textarea
-                  id="footerText"
-                  name="footerText"
-                  rows={3}
-                  className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={formData.footerText}
-                  onChange={handleChange}
-                  placeholder="© 2026 QL Đồ Uống. All rights reserved."
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end border-t px-6 py-4">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Đang lưu...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    <span className="ml-2">Lưu cấu hình</span>
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </form>
-    </div>
+              </CardContent>
+              <CardFooter className="flex justify-end border-t px-6 py-4">
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      <span className="ml-2">Lưu cấu hình</span>
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </form>
+      </div>
+    </PermissionGuard>
   );
 }

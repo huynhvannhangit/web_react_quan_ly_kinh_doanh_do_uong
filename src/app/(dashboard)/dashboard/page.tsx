@@ -32,8 +32,8 @@ import {
   ShoppingBag,
   CheckCircle,
   BarChart3,
-  TrendingUp,
   Loader2,
+  Clock,
 } from "lucide-react";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
@@ -52,14 +52,10 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [ov, rev, top] = await Promise.all([
-        statisticsService.getOverview(),
-        statisticsService.getRevenue(),
-        statisticsService.getTopProducts(),
-      ]);
-      setOverview(ov);
-      setRevenueData(rev);
-      setTopProducts(top);
+      const data = await statisticsService.getDashboardData();
+      setOverview(data.overview);
+      setRevenueData(data.revenue);
+      setTopProducts(data.topProducts);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -133,13 +129,13 @@ export default function DashboardPage() {
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-              Tỷ lệ hoàn thành
+              Chờ phê duyệt
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-500" />
+            <Clock className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(overview?.completionRate ?? 0).toFixed(1)}%
+              {overview?.pendingApprovals ?? 0}
             </div>
           </CardContent>
         </Card>

@@ -27,6 +27,7 @@ export function DynamicBranding() {
           "/san-pham": "Sản phẩm",
           "/goi-mon": "Gọi món",
           "/hoa-don": "Hóa đơn",
+          "/phe-duyet": "Phê duyệt yêu cầu",
           "/chat-ai": "Trợ lý AI",
         };
 

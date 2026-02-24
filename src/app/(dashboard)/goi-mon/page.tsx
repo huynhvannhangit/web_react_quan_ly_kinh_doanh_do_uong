@@ -57,6 +57,8 @@ import {
 import { cn } from "@/lib/utils";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { useRef } from "react";
+import { Permission } from "@/types";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -331,576 +333,588 @@ export default function OrderingPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Gọi món tại bàn</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant={statusFilter === "ALL" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("ALL")}
-            className="flex items-center gap-1"
-          >
-            <Filter className="h-3.5 w-3.5" /> Tất cả
-          </Button>
-          <Button
-            variant={
-              statusFilter === TableStatus.AVAILABLE ? "default" : "outline"
-            }
-            size="sm"
-            onClick={() => setStatusFilter(TableStatus.AVAILABLE)}
-            className={cn(
-              "flex items-center gap-1",
-              statusFilter !== TableStatus.AVAILABLE &&
-                "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
-            )}
-          >
-            Trống (
-            {tables.filter((t) => t.status === TableStatus.AVAILABLE).length})
-          </Button>
-          <Button
-            variant={
-              statusFilter === TableStatus.OCCUPIED ? "default" : "outline"
-            }
-            size="sm"
-            onClick={() => setStatusFilter(TableStatus.OCCUPIED)}
-            className={cn(
-              "flex items-center gap-1",
-              statusFilter !== TableStatus.OCCUPIED &&
-                "bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200",
-            )}
-          >
-            Đang ngồi (
-            {tables.filter((t) => t.status === TableStatus.OCCUPIED).length})
-          </Button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {filteredTables.map((table) => (
-            <Card
-              key={table.id}
-              className={cn(
-                "cursor-pointer transition-all hover:scale-105 border-2",
-                getTableStatusColor(table.status),
-              )}
-              onClick={() => handleTableClick(table)}
+    <PermissionGuard
+      permissions={[Permission.ORDER_CREATE]}
+      redirect="/dashboard"
+    >
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">Gọi món tại bàn</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={statusFilter === "ALL" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("ALL")}
+              className="flex items-center gap-1"
             >
-              <CardHeader className="p-4 text-center">
-                <CardTitle className="text-lg">
-                  Bàn {table.tableNumber}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 text-center text-sm font-medium">
-                {table.area?.name || "Khu vực K/X"}
-                <div className="mt-1 text-xs opacity-70">
-                  {table.capacity} chỗ ngồi
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              <Filter className="h-3.5 w-3.5" /> Tất cả
+            </Button>
+            <Button
+              variant={
+                statusFilter === TableStatus.AVAILABLE ? "default" : "outline"
+              }
+              size="sm"
+              onClick={() => setStatusFilter(TableStatus.AVAILABLE)}
+              className={cn(
+                "flex items-center gap-1",
+                statusFilter !== TableStatus.AVAILABLE &&
+                  "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
+              )}
+            >
+              Trống (
+              {tables.filter((t) => t.status === TableStatus.AVAILABLE).length})
+            </Button>
+            <Button
+              variant={
+                statusFilter === TableStatus.OCCUPIED ? "default" : "outline"
+              }
+              size="sm"
+              onClick={() => setStatusFilter(TableStatus.OCCUPIED)}
+              className={cn(
+                "flex items-center gap-1",
+                statusFilter !== TableStatus.OCCUPIED &&
+                  "bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200",
+              )}
+            >
+              Đang ngồi (
+              {tables.filter((t) => t.status === TableStatus.OCCUPIED).length})
+            </Button>
+          </div>
         </div>
-      )}
 
-      {/* Order Dialog */}
-      <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="p-6 pb-2">
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <ShoppingCart className="h-5 w-5" />
-              {activeOrder ? "Chi tiết Hóa đơn" : "Gọi món"} cho Bàn{" "}
-              {selectedTable?.tableNumber}
-            </DialogTitle>
-            <DialogDescription>
-              {activeOrder
-                ? "Xem các món đã gọi và thêm món mới vào đơn hàng."
-                : "Chọn các món đồ uống từ thực đơn bên dưới để thêm vào giỏ hàng."}
-            </DialogDescription>
-          </DialogHeader>
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {filteredTables.map((table) => (
+              <Card
+                key={table.id}
+                className={cn(
+                  "cursor-pointer transition-all hover:scale-105 border-2",
+                  getTableStatusColor(table.status),
+                )}
+                onClick={() => handleTableClick(table)}
+              >
+                <CardHeader className="p-4 text-center">
+                  <CardTitle className="text-lg">
+                    Bàn {table.tableNumber}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 text-center text-sm font-medium">
+                  {table.area?.name || "Khu vực K/X"}
+                  <div className="mt-1 text-xs opacity-70">
+                    {table.capacity} chỗ ngồi
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-          <div className="flex flex-1 overflow-hidden p-6 gap-6">
-            {/* Product Selection */}
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm món ăn, đồ uống..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <ScrollArea className="flex-1 pr-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {filteredProducts.map((product) => (
-                    <Card
-                      key={product.id}
-                      className="cursor-pointer hover:border-primary transition-colors flex flex-col overflow-hidden"
-                      onClick={() => addToOrder(product)}
-                    >
-                      <div className="relative aspect-square bg-muted">
-                        {product.imageUrl ? (
-                          <Image
-                            src={
-                              product.imageUrl.startsWith("http")
-                                ? product.imageUrl
-                                : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
-                            }
-                            alt={product.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            <ImageOff className="h-8 w-8 text-muted-foreground/30" />
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="p-3">
-                        <div className="font-semibold text-sm line-clamp-2 min-h-10">
-                          {product.name}
-                        </div>
-                        <div className="text-primary font-bold mt-1">
-                          {new Intl.NumberFormat("vi-VN").format(product.price)}
-                          đ
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+        {/* Order Dialog */}
+        <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
+            <DialogHeader className="p-6 pb-2">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <ShoppingCart className="h-5 w-5" />
+                {activeOrder ? "Chi tiết Hóa đơn" : "Gọi món"} cho Bàn{" "}
+                {selectedTable?.tableNumber}
+              </DialogTitle>
+              <DialogDescription>
+                {activeOrder
+                  ? "Xem các món đã gọi và thêm món mới vào đơn hàng."
+                  : "Chọn các món đồ uống từ thực đơn bên dưới để thêm vào giỏ hàng."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-1 overflow-hidden p-6 gap-6">
+              {/* Product Selection */}
+              <div className="flex-1 flex flex-col gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Tìm món ăn, đồ uống..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-              </ScrollArea>
-            </div>
-
-            {/* Current Order */}
-            <div className="w-80 flex flex-col border rounded-lg bg-muted/50 p-4">
-              <h3 className="font-bold mb-4 flex items-center justify-between">
-                {activeOrder ? "Hóa đơn tạm tính" : "Đơn hàng mới"}
-                <Badge className="bg-primary text-primary-foreground shadow-sm">
-                  {orderItems.length} món
-                </Badge>
-              </h3>
-              <ScrollArea className="flex-1 -mx-2 px-2">
-                <div className="space-y-4">
-                  {orderItems.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground text-sm italic">
-                      Chưa chọn món nào
-                    </div>
-                  ) : (
-                    orderItems.map((item) => (
-                      <div
-                        key={item.product.id}
-                        className="flex flex-col gap-2"
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {filteredProducts.map((product) => (
+                      <Card
+                        key={product.id}
+                        className="cursor-pointer hover:border-primary transition-colors flex flex-col overflow-hidden"
+                        onClick={() => addToOrder(product)}
                       >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              {item.isExisting && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] h-4 bg-slate-100 text-slate-500 border-slate-200"
-                                >
-                                  Đã có
-                                </Badge>
-                              )}
-                              <p className="font-medium text-sm truncate">
-                                {item.product.name}
+                        <div className="relative aspect-square bg-muted">
+                          {product.imageUrl ? (
+                            <Image
+                              src={
+                                product.imageUrl.startsWith("http")
+                                  ? product.imageUrl
+                                  : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                              }
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ImageOff className="h-8 w-8 text-muted-foreground/30" />
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-3">
+                          <div className="font-semibold text-sm line-clamp-2 min-h-10">
+                            {product.name}
+                          </div>
+                          <div className="text-primary font-bold mt-1">
+                            {new Intl.NumberFormat("vi-VN").format(
+                              product.price,
+                            )}
+                            đ
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Current Order */}
+              <div className="w-80 flex flex-col border rounded-lg bg-muted/50 p-4">
+                <h3 className="font-bold mb-4 flex items-center justify-between">
+                  {activeOrder ? "Hóa đơn tạm tính" : "Đơn hàng mới"}
+                  <Badge className="bg-primary text-primary-foreground shadow-sm">
+                    {orderItems.length} món
+                  </Badge>
+                </h3>
+                <ScrollArea className="flex-1 -mx-2 px-2">
+                  <div className="space-y-4">
+                    {orderItems.length === 0 ? (
+                      <div className="text-center py-10 text-muted-foreground text-sm italic">
+                        Chưa chọn món nào
+                      </div>
+                    ) : (
+                      orderItems.map((item) => (
+                        <div
+                          key={item.product.id}
+                          className="flex flex-col gap-2"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                {item.isExisting && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] h-4 bg-slate-100 text-slate-500 border-slate-200"
+                                  >
+                                    Đã có
+                                  </Badge>
+                                )}
+                                <p className="font-medium text-sm truncate">
+                                  {item.product.name}
+                                </p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {new Intl.NumberFormat("vi-VN").format(
+                                  item.product.price,
+                                )}
+                                đ
                               </p>
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <span className="text-sm font-bold">
                               {new Intl.NumberFormat("vi-VN").format(
-                                item.product.price,
+                                item.product.price * item.quantity,
                               )}
                               đ
-                            </p>
+                            </span>
                           </div>
-                          <span className="text-sm font-bold">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7 rounded-sm"
+                              onClick={() => removeFromOrder(item.product.id)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="text-sm font-bold w-6 text-center">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7 rounded-sm"
+                              onClick={() => addToOrder(item.product)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+                <div className="mt-4 pt-4 border-t space-y-4">
+                  <div className="flex justify-between items-center font-bold text-lg mb-2">
+                    <span>Tổng cộng:</span>
+                    <span className="text-primary">
+                      {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={orderItems.length === 0 || isSubmitting}
+                      onClick={() => handleSubmitOrder(false)}
+                    >
+                      Gọi món
+                    </Button>
+                    <Button
+                      className="w-full"
+                      disabled={orderItems.length === 0 || isSubmitting}
+                      onClick={() => {
+                        setDiscountPercent(0);
+                        handleSubmitOrder(true);
+                      }}
+                    >
+                      Thanh toán
+                    </Button>
+                  </div>
+                  {activeOrder && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={isSubmitting}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Huỷ đơn hàng
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Xác nhận huỷ đơn hàng?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại
+                            của bàn {selectedTable?.tableNumber} và trả bàn về
+                            trạng thái trống. Bạn không thể hoàn tác hành động
+                            này.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleCancelOrder}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Xác nhận huỷ
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog
+          open={isPaymentDialogOpen}
+          onOpenChange={(open) => {
+            if (!open && !isSubmitting) setIsPaymentDialogOpen(false);
+          }}
+        >
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto print:hidden">
+            <DialogHeader>
+              <DialogTitle className="text-center text-xl">
+                Thanh toán hóa đơn
+              </DialogTitle>
+              <DialogDescription className="text-center">
+                Bàn {selectedTable?.tableNumber} -{" "}
+                {new Date().toLocaleDateString("vi-VN")}
+              </DialogDescription>
+            </DialogHeader>
+
+            {paymentSuccess ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center space-y-6">
+                <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Check className="h-10 w-10 text-emerald-600" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-emerald-700">
+                    Thanh toán thành công!
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Hoá đơn <strong>{lastInvoice?.invoiceNumber}</strong> đã
+                    được quyết toán.
+                  </p>
+                </div>
+                <div className="flex gap-4 w-full max-w-sm pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setIsPaymentDialogOpen(false);
+                      setPaymentSuccess(false);
+                      setCreatedOrder(null);
+                      setDiscountPercent(0);
+                    }}
+                  >
+                    Đóng
+                  </Button>
+                  <Button className="flex-1" onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    In hoá đơn
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                {/* Payment Methods */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm uppercase text-muted-foreground">
+                    Phương thức thanh toán
+                  </h4>
+                  <div className="grid gap-2">
+                    <Button
+                      variant={
+                        paymentMethod === PaymentMethod.CASH
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-16 justify-start text-base"
+                      onClick={() => setPaymentMethod(PaymentMethod.CASH)}
+                    >
+                      <Banknote className="mr-3 h-5 w-5 text-emerald-500" />
+                      Tiền mặt
+                    </Button>
+                    <Button
+                      variant={
+                        paymentMethod === PaymentMethod.QR
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-16 justify-start text-base"
+                      onClick={() => setPaymentMethod(PaymentMethod.QR)}
+                    >
+                      <QrCode className="mr-3 h-5 w-5 text-amber-500" />
+                      Chuyển khoản / QR
+                    </Button>
+                    <Button
+                      variant={
+                        paymentMethod === PaymentMethod.CARD
+                          ? "default"
+                          : "outline"
+                      }
+                      className="h-16 justify-start text-base"
+                      onClick={() => setPaymentMethod(PaymentMethod.CARD)}
+                    >
+                      <CreditCard className="mr-3 h-5 w-5 text-blue-500" />
+                      Thẻ ngân hàng
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm uppercase text-muted-foreground">
+                        Giảm giá hoá đơn (%)
+                      </h4>
+                      <Badge variant="outline" className="font-mono">
+                        -{discountPercent}%
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      {[0, 5, 10, 15, 20, 50].map((val) => (
+                        <Button
+                          key={val}
+                          variant={
+                            discountPercent === val ? "default" : "outline"
+                          }
+                          size="sm"
+                          className="flex-1 h-8 text-xs"
+                          onClick={() => setDiscountPercent(val)}
+                        >
+                          {val}%
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="Nhập % giảm..."
+                        value={discountPercent || ""}
+                        onChange={(e) =>
+                          setDiscountPercent(
+                            Math.min(100, Math.max(0, Number(e.target.value))),
+                          )
+                        }
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <h4 className="font-semibold text-sm uppercase text-muted-foreground">
+                      Tổng hợp đơn hàng
+                    </h4>
+                    <div className="p-4 bg-muted rounded-lg border border-dashed space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Tạm tính:</span>
+                        <span>
+                          {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
+                        </span>
+                      </div>
+                      {discountPercent > 0 && (
+                        <div className="flex justify-between items-center text-sm text-destructive italic">
+                          <span>Giảm giá ({discountPercent}%):</span>
+                          <span>
+                            -
                             {new Intl.NumberFormat("vi-VN").format(
-                              item.product.price * item.quantity,
+                              (totalPrice * discountPercent) / 100,
                             )}
                             đ
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                      )}
+                      <div className="flex justify-between items-center font-bold text-lg pt-2 border-t border-muted-foreground/20">
+                        <span>Tổng cộng:</span>
+                        <span className="text-primary">
+                          {new Intl.NumberFormat("vi-VN").format(
+                            discountedPrice,
+                          )}
+                          đ
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Area */}
+                <div className="flex flex-col gap-4">
+                  {paymentMethod === PaymentMethod.CASH && (
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-sm uppercase text-muted-foreground">
+                        Bảng gợi ý tiền mặt
+                      </h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {VN_DENOMINATIONS.map((den) => (
                           <Button
+                            key={den}
                             variant="outline"
-                            size="icon"
-                            className="h-7 w-7 rounded-sm"
-                            onClick={() => removeFromOrder(item.product.id)}
+                            size="sm"
+                            className={cn(
+                              "text-xs h-10 font-bold border-none",
+                              getDenominationStyle(den),
+                            )}
+                            onClick={() => setCashAmount((prev) => prev + den)}
                           >
-                            <Minus className="h-3 w-3" />
+                            {den >= 1000 ? den / 1000 : den}k
                           </Button>
-                          <span className="text-sm font-bold w-6 text-center">
-                            {item.quantity}
+                        ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-10 text-destructive border border-destructive/20"
+                          onClick={() => setCashAmount(0)}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                      <div className="space-y-2 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="flex justify-between items-center text-sm">
+                          <span>Khách đưa:</span>
+                          <span className="font-bold">
+                            {new Intl.NumberFormat("vi-VN").format(cashAmount)}đ
                           </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 rounded-sm"
-                            onClick={() => addToOrder(item.product)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                        </div>
+                        <div className="flex justify-between items-center text-lg font-bold border-t pt-2 mt-2">
+                          <span>Tiền thừa:</span>
+                          <span className="text-emerald-600">
+                            {new Intl.NumberFormat("vi-VN").format(
+                              Math.max(0, cashAmount - discountedPrice),
+                            )}
+                            đ
+                          </span>
                         </div>
                       </div>
-                    ))
+                    </div>
                   )}
-                </div>
-              </ScrollArea>
-              <div className="mt-4 pt-4 border-t space-y-4">
-                <div className="flex justify-between items-center font-bold text-lg mb-2">
-                  <span>Tổng cộng:</span>
-                  <span className="text-primary">
-                    {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    disabled={orderItems.length === 0 || isSubmitting}
-                    onClick={() => handleSubmitOrder(false)}
-                  >
-                    Gọi món
-                  </Button>
-                  <Button
-                    className="w-full"
-                    disabled={orderItems.length === 0 || isSubmitting}
-                    onClick={() => {
-                      setDiscountPercent(0);
-                      handleSubmitOrder(true);
-                    }}
-                  >
-                    Thanh toán
-                  </Button>
-                </div>
-                {activeOrder && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                        disabled={isSubmitting}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Huỷ đơn hàng
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Xác nhận huỷ đơn hàng?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại của
-                          bàn {selectedTable?.tableNumber} và trả bàn về trạng
-                          thái trống. Bạn không thể hoàn tác hành động này.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleCancelOrder}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Xác nhận huỷ
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Payment Dialog */}
-      <Dialog
-        open={isPaymentDialogOpen}
-        onOpenChange={(open) => {
-          if (!open && !isSubmitting) setIsPaymentDialogOpen(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto print:hidden">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">
-              Thanh toán hóa đơn
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Bàn {selectedTable?.tableNumber} -{" "}
-              {new Date().toLocaleDateString("vi-VN")}
-            </DialogDescription>
-          </DialogHeader>
+                  {paymentMethod === PaymentMethod.QR && (
+                    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border space-y-4">
+                      <h4 className="font-semibold text-sm text-center">
+                        Quét mã để thanh toán VNPay/Momo
+                      </h4>
+                      <div className="relative h-40 w-40 bg-muted flex items-center justify-center border-2 border-primary/20 p-2 rounded-xl">
+                        <QrCode className="h-24 w-24 text-primary opacity-80" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px] opacity-0 hover:opacity-100 transition-opacity">
+                          <span className="text-xs font-bold text-primary">
+                            QR MÔ PHỎNG
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        Sử dụng ứng dụng ngân hàng hoặc ví điện tử để quét
+                      </p>
+                    </div>
+                  )}
 
-          {paymentSuccess ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-6">
-              <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center">
-                <Check className="h-10 w-10 text-emerald-600" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-emerald-700">
-                  Thanh toán thành công!
-                </h3>
-                <p className="text-muted-foreground">
-                  Hoá đơn <strong>{lastInvoice?.invoiceNumber}</strong> đã được
-                  quyết toán.
-                </p>
-              </div>
-              <div className="flex gap-4 w-full max-w-sm pt-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setIsPaymentDialogOpen(false);
-                    setPaymentSuccess(false);
-                    setCreatedOrder(null);
-                    setDiscountPercent(0);
-                  }}
-                >
-                  Đóng
-                </Button>
-                <Button className="flex-1" onClick={handlePrint}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  In hoá đơn
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-              {/* Payment Methods */}
-              <div className="space-y-4">
-                <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                  Phương thức thanh toán
-                </h4>
-                <div className="grid gap-2">
-                  <Button
-                    variant={
-                      paymentMethod === PaymentMethod.CASH
-                        ? "default"
-                        : "outline"
-                    }
-                    className="h-16 justify-start text-base"
-                    onClick={() => setPaymentMethod(PaymentMethod.CASH)}
-                  >
-                    <Banknote className="mr-3 h-5 w-5 text-emerald-500" />
-                    Tiền mặt
-                  </Button>
-                  <Button
-                    variant={
-                      paymentMethod === PaymentMethod.QR ? "default" : "outline"
-                    }
-                    className="h-16 justify-start text-base"
-                    onClick={() => setPaymentMethod(PaymentMethod.QR)}
-                  >
-                    <QrCode className="mr-3 h-5 w-5 text-amber-500" />
-                    Chuyển khoản / QR
-                  </Button>
-                  <Button
-                    variant={
-                      paymentMethod === PaymentMethod.CARD
-                        ? "default"
-                        : "outline"
-                    }
-                    className="h-16 justify-start text-base"
-                    onClick={() => setPaymentMethod(PaymentMethod.CARD)}
-                  >
-                    <CreditCard className="mr-3 h-5 w-5 text-blue-500" />
-                    Thẻ ngân hàng
-                  </Button>
-                </div>
+                  {paymentMethod === PaymentMethod.CARD && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-lg border border-slate-200">
+                      <CreditCard className="h-16 w-16 text-slate-400 mb-4" />
+                      <p className="text-sm font-medium text-slate-600 text-center">
+                        Vui lòng sử dụng máy quẹt thẻ POS
+                      </p>
+                    </div>
+                  )}
 
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                      Giảm giá hoá đơn (%)
-                    </h4>
-                    <Badge variant="outline" className="font-mono">
-                      -{discountPercent}%
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2">
-                    {[0, 5, 10, 15, 20, 50].map((val) => (
-                      <Button
-                        key={val}
-                        variant={
-                          discountPercent === val ? "default" : "outline"
-                        }
-                        size="sm"
-                        className="flex-1 h-8 text-xs"
-                        onClick={() => setDiscountPercent(val)}
-                      >
-                        {val}%
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="Nhập % giảm..."
-                      value={discountPercent || ""}
-                      onChange={(e) =>
-                        setDiscountPercent(
-                          Math.min(100, Math.max(0, Number(e.target.value))),
-                        )
+                  <div className="mt-auto pt-4 flex gap-2">
+                    <Button
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => setIsPaymentDialogOpen(false)}
+                      disabled={isSubmitting}
+                    >
+                      Hủy
+                    </Button>
+                    <Button
+                      className="flex-2 hover:bg-primary/90"
+                      disabled={
+                        isSubmitting ||
+                        (paymentMethod === PaymentMethod.CASH &&
+                          cashAmount < totalPrice)
                       }
-                      className="h-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 mt-4">
-                  <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                    Tổng hợp đơn hàng
-                  </h4>
-                  <div className="p-4 bg-muted rounded-lg border border-dashed space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Tạm tính:</span>
-                      <span>
-                        {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
-                      </span>
-                    </div>
-                    {discountPercent > 0 && (
-                      <div className="flex justify-between items-center text-sm text-destructive italic">
-                        <span>Giảm giá ({discountPercent}%):</span>
-                        <span>
-                          -
-                          {new Intl.NumberFormat("vi-VN").format(
-                            (totalPrice * discountPercent) / 100,
-                          )}
-                          đ
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center font-bold text-lg pt-2 border-t border-muted-foreground/20">
-                      <span>Tổng cộng:</span>
-                      <span className="text-primary">
-                        {new Intl.NumberFormat("vi-VN").format(discountedPrice)}
-                        đ
-                      </span>
-                    </div>
+                      onClick={handleProcessPayment}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="mr-2 h-4 w-4" />
+                      )}
+                      Xác nhận thanh toán
+                    </Button>
                   </div>
                 </div>
               </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
-              {/* Action Area */}
-              <div className="flex flex-col gap-4">
-                {paymentMethod === PaymentMethod.CASH && (
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                      Bảng gợi ý tiền mặt
-                    </h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {VN_DENOMINATIONS.map((den) => (
-                        <Button
-                          key={den}
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "text-xs h-10 font-bold border-none",
-                            getDenominationStyle(den),
-                          )}
-                          onClick={() => setCashAmount((prev) => prev + den)}
-                        >
-                          {den >= 1000 ? den / 1000 : den}k
-                        </Button>
-                      ))}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-10 text-destructive border border-destructive/20"
-                        onClick={() => setCashAmount(0)}
-                      >
-                        Reset
-                      </Button>
-                    </div>
-                    <div className="space-y-2 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <div className="flex justify-between items-center text-sm">
-                        <span>Khách đưa:</span>
-                        <span className="font-bold">
-                          {new Intl.NumberFormat("vi-VN").format(cashAmount)}đ
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-lg font-bold border-t pt-2 mt-2">
-                        <span>Tiền thừa:</span>
-                        <span className="text-emerald-600">
-                          {new Intl.NumberFormat("vi-VN").format(
-                            Math.max(0, cashAmount - discountedPrice),
-                          )}
-                          đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {paymentMethod === PaymentMethod.QR && (
-                  <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border space-y-4">
-                    <h4 className="font-semibold text-sm text-center">
-                      Quét mã để thanh toán VNPay/Momo
-                    </h4>
-                    <div className="relative h-40 w-40 bg-muted flex items-center justify-center border-2 border-primary/20 p-2 rounded-xl">
-                      <QrCode className="h-24 w-24 text-primary opacity-80" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px] opacity-0 hover:opacity-100 transition-opacity">
-                        <span className="text-xs font-bold text-primary">
-                          QR MÔ PHỎNG
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      Sử dụng ứng dụng ngân hàng hoặc ví điện tử để quét
-                    </p>
-                  </div>
-                )}
-
-                {paymentMethod === PaymentMethod.CARD && (
-                  <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-lg border border-slate-200">
-                    <CreditCard className="h-16 w-16 text-slate-400 mb-4" />
-                    <p className="text-sm font-medium text-slate-600 text-center">
-                      Vui lòng sử dụng máy quẹt thẻ POS
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-auto pt-4 flex gap-2">
-                  <Button
-                    variant="ghost"
-                    className="flex-1"
-                    onClick={() => setIsPaymentDialogOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Hủy
-                  </Button>
-                  <Button
-                    className="flex-2 hover:bg-primary/90"
-                    disabled={
-                      isSubmitting ||
-                      (paymentMethod === PaymentMethod.CASH &&
-                        cashAmount < totalPrice)
-                    }
-                    onClick={handleProcessPayment}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    Xác nhận thanh toán
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <PrintableInvoice ref={printRef} invoice={lastInvoice} />
-    </div>
+        <PrintableInvoice ref={printRef} invoice={lastInvoice} />
+      </div>
+    </PermissionGuard>
   );
 }
