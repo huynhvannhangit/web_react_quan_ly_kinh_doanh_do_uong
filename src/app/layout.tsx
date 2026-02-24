@@ -3,6 +3,8 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { SystemConfigProvider } from "@/components/providers/system-config-provider";
+import { DynamicBranding } from "@/components/shared/DynamicBranding";
 import { Toaster } from "sonner";
 
 const montserrat = Montserrat({
@@ -35,7 +37,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
+          <SystemConfigProvider>
+            <DynamicBranding />
+            <AuthProvider>{children}</AuthProvider>
+          </SystemConfigProvider>
           <Toaster />
         </ThemeProvider>
       </body>

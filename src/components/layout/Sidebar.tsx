@@ -19,6 +19,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSystemConfig } from "@/components/providers/system-config-provider";
+import Image from "next/image";
+import { getImageUrl } from "@/utils/url";
 
 const menuItems = [
   {
@@ -79,6 +82,7 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
+  const { config } = useSystemConfig();
 
   const toggleItem = (title: string) => {
     setExpandedItems((prev) =>
@@ -119,11 +123,29 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
         {!collapsed && (
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-white text-primary font-bold shrink-0">
-              QL
+            {config?.logoUrl ? (
+              <div className="relative h-8 w-8 shrink-0">
+                <Image
+                  src={getImageUrl(config.logoUrl)}
+                  alt="Logo"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+            ) : null}
+            <div
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded bg-white text-[#006ccf] font-bold shrink-0",
+                config?.logoUrl && "hidden",
+              )}
+            >
+              {config?.systemName
+                ? config.systemName.substring(0, 2).toUpperCase()
+                : "QL"}
             </div>
             <span className="text-lg font-semibold whitespace-nowrap">
-              QL Đồ Uống
+              {config?.systemName || "QL Đồ Uống"}
             </span>
           </div>
         )}
@@ -250,7 +272,9 @@ export function Sidebar() {
       {/* Footer */}
       {!collapsed && (
         <div className="border-t border-white/10 p-4">
-          <p className="text-xs text-white/60 text-center">© 2026 QLDO</p>
+          <p className="text-xs text-white/60 text-center">
+            {config?.footerText || `© ${new Date().getFullYear()} QLDO`}
+          </p>
         </div>
       )}
     </aside>

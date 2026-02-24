@@ -14,10 +14,15 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useSystemConfig } from "@/components/providers/system-config-provider";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { getImageUrl } from "@/utils/url";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { config } = useSystemConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,15 +51,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-full items-center justify-center px-4 bg-muted/40">
+    <div className="flex h-screen w-full items-center justify-center px-4 bg-muted/40 font-montserrat">
       <Card className="w-full max-w-md shadow-lg border-2 border-primary/10">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">
-              QL
+            {config?.logoUrl ? (
+              <div className="relative h-12 w-12 shrink-0">
+                <Image
+                  src={getImageUrl(config.logoUrl)}
+                  alt="Logo"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+            ) : null}
+            <div
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl",
+                config?.logoUrl && "hidden",
+              )}
+            >
+              {config?.systemName
+                ? config.systemName.substring(0, 2).toUpperCase()
+                : "QL"}
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Quản lý Đồ Uống</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {config?.systemName || "Quản lý Đồ Uống"}
+          </CardTitle>
           <CardDescription>
             Đăng nhập để quản lý cửa hàng của bạn
           </CardDescription>
