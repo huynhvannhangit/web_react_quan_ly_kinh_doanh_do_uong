@@ -34,11 +34,13 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
 // Helper for type translation
-const typeLabels: Record<ApprovalType, string> = {
+const typeLabels: Record<string, string> = {
   [ApprovalType.INVOICE_CANCEL]: "Huỷ hoá đơn",
   [ApprovalType.INVOICE_MERGE]: "Gộp hoá đơn",
   [ApprovalType.PRODUCT_DELETE]: "Xoá sản phẩm",
   [ApprovalType.EMPLOYEE_DELETE]: "Xoá nhân viên",
+  [ApprovalType.UPDATE]: "Cập nhật",
+  [ApprovalType.DELETE]: "Xoá",
 };
 
 // Helper for status styling
@@ -66,6 +68,130 @@ const statusConfig: Record<
     icon: XCircle,
   },
 };
+
+/** Map field names to Vietnamese labels */
+const fieldLabels: Record<string, string> = {
+  // Product
+  name: "Tên",
+  price: "Giá bán (VNĐ)",
+  description: "Mô tả",
+  isAvailable: "Trạng thái kinh doanh",
+  imageUrl: "Hình ảnh",
+  categoryId: "Danh mục (ID)",
+  // Employee
+  fullName: "Họ và tên",
+  phone: "Số điện thoại",
+  address: "Địa chỉ",
+  baseSalary: "Lương cơ bản",
+  position: "Chức vụ",
+  startDate: "Ngày bắt đầu",
+  email: "Email",
+  // Area / Table
+  capacity: "Sức chứa",
+  status: "Trạng thái",
+  areaId: "Khu vực (ID)",
+  tableNumber: "Số bàn",
+  floor: "Tầng",
+  // Invoice
+  totalAmount: "Tổng tiền",
+  note: "Ghi chú",
+  paymentMethod: "Phương thức thanh toán",
+};
+
+/** Render a table comparing old vs new data from metadata */
+function DataComparisonTable({
+  metadata,
+}: {
+  metadata: Record<string, unknown> | undefined;
+}) {
+  if (!metadata) return null;
+  const oldData = metadata.oldData as Record<string, unknown> | undefined;
+  const newData = metadata.newData as Record<string, unknown> | undefined;
+
+  if (!oldData && !newData) return null;
+
+  // Skip internal/relation fields
+  const skipKeys = new Set([
+    "id",
+    "createdAt",
+    "updatedAt",
+    "deletedAt",
+    "createdBy",
+    "updatedBy",
+    "deletedBy",
+    "creator",
+    "updater",
+    "tables",
+    "area",
+    "items",
+    "category",
+    "requestedBy",
+    "reviewedBy",
+    "role",
+    "permissions",
+    "user",
+    "employee",
+  ]);
+
+  const allKeys = Array.from(
+    new Set([...Object.keys(oldData ?? {}), ...Object.keys(newData ?? {})]),
+  ).filter((k) => !skipKeys.has(k));
+
+  if (allKeys.length === 0) return null;
+
+  const formatValue = (v: unknown): string => {
+    if (v === null || v === undefined) return "—";
+    if (typeof v === "boolean") return v ? "Có" : "Không";
+    if (typeof v === "object") return JSON.stringify(v);
+    if (typeof v === "number" && String(v).length > 4) {
+      return new Intl.NumberFormat("vi-VN").format(v);
+    }
+    return String(v);
+  };
+
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-muted">
+          <tr>
+            <th className="text-left px-3 py-2 font-medium w-1/3">Trường</th>
+            <th className="text-left px-3 py-2 font-medium w-1/3 text-muted-foreground">
+              Giá trị cũ
+            </th>
+            <th className="text-left px-3 py-2 font-medium w-1/3 text-primary">
+              Giá trị mới
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {allKeys.map((key) => {
+            const oldVal = formatValue(oldData?.[key]);
+            const newVal = formatValue(newData?.[key]);
+            const changed = oldVal !== newVal;
+            return (
+              <tr
+                key={String(key)}
+                className={changed ? "bg-amber-50 dark:bg-amber-950/20" : ""}
+              >
+                <td className="px-3 py-1.5 text-sm font-medium border-t">
+                  {fieldLabels[key] ?? key}
+                </td>
+                <td className="px-3 py-1.5 border-t line-through text-muted-foreground">
+                  {oldVal}
+                </td>
+                <td
+                  className={`px-3 py-1.5 border-t font-medium ${changed ? "text-primary" : ""}`}
+                >
+                  {newVal}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function ApprovalPage() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([]);
@@ -113,6 +239,10 @@ export default function ApprovalPage() {
     setReviewNote(request.reviewNote || "");
     setIsDetailOpen(true);
   };
+
+  const metadata = selectedRequest?.metadata as
+    | Record<string, unknown>
+    | undefined;
 
   return (
     <PermissionGuard
@@ -207,12 +337,13 @@ export default function ApprovalPage() {
         </Card>
 
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Chi tiết yêu cầu phê duyệt</DialogTitle>
             </DialogHeader>
             {selectedRequest && (
               <div className="grid gap-4 py-4">
+                {/* Header info */}
                 <div className="grid grid-cols-2 gap-4 border-b pb-4">
                   <div>
                     <Label className="text-muted-foreground">Mã yêu cầu</Label>
@@ -228,8 +359,25 @@ export default function ApprovalPage() {
                       {typeLabels[selectedRequest.type] || selectedRequest.type}
                     </div>
                   </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Người yêu cầu
+                    </Label>
+                    <div>{selectedRequest.requestedBy?.fullName || "—"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Thời gian</Label>
+                    <div>
+                      {format(
+                        new Date(selectedRequest.createdAt),
+                        "dd/MM/yyyy HH:mm",
+                        { locale: vi },
+                      )}
+                    </div>
+                  </div>
                 </div>
 
+                {/* Reason */}
                 <div>
                   <Label className="text-muted-foreground">Lý do yêu cầu</Label>
                   <div className="mt-1 p-2 bg-muted rounded-md text-sm italic">
@@ -237,6 +385,28 @@ export default function ApprovalPage() {
                   </div>
                 </div>
 
+                {/* Data comparison */}
+                {metadata &&
+                  (Boolean(metadata.oldData) || Boolean(metadata.newData)) && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">
+                        So sánh dữ liệu
+                      </Label>
+                      <DataComparisonTable metadata={metadata} />
+                      {Boolean(metadata.newData) && (
+                        <p className="text-xs text-muted-foreground">
+                          * Các dòng nền vàng là trường có thay đổi
+                        </p>
+                      )}
+                      {!metadata.newData && Boolean(metadata.oldData) && (
+                        <p className="text-xs text-amber-600 font-medium">
+                          ⚠ Yêu cầu xóa bản ghi này
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                {/* Reviewer info (if already reviewed) */}
                 {selectedRequest.status !== ApprovalStatus.PENDING && (
                   <div className="grid grid-cols-2 gap-4 border-t pt-4">
                     <div>
@@ -262,6 +432,7 @@ export default function ApprovalPage() {
                   </div>
                 )}
 
+                {/* Review note */}
                 <div className="grid gap-2">
                   <Label htmlFor="reviewNote">Ghi chú duyệt</Label>
                   <textarea

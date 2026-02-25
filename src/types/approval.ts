@@ -5,6 +5,8 @@ export enum ApprovalType {
   INVOICE_MERGE = "INVOICE_MERGE",
   PRODUCT_DELETE = "PRODUCT_DELETE",
   EMPLOYEE_DELETE = "EMPLOYEE_DELETE",
+  UPDATE = "UPDATE",
+  DELETE = "DELETE",
 }
 
 export enum ApprovalStatus {

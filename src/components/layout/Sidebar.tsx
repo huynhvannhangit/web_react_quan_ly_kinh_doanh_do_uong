@@ -142,14 +142,7 @@ export function Sidebar() {
   const { user } = useAuth();
 
   const userPermissions = useMemo(() => {
-    if (
-      user?.role &&
-      typeof user.role === "object" &&
-      "permissions" in user.role
-    ) {
-      return (user.role as { permissions: string[] }).permissions || [];
-    }
-    return [];
+    return user?.permissions || [];
   }, [user]);
 
   const hasPermission = useCallback(
@@ -219,7 +212,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2 overflow-hidden">
             {config?.logoUrl ? (
-              <div className="relative h-8 w-8 shrink-0">
+              <div className="relative h-10 w-10 shrink-0">
                 <Image
                   src={getImageUrl(config.logoUrl)}
                   alt="Logo"
@@ -278,7 +271,7 @@ export function Sidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1">
         <nav className="space-y-1 p-4">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expandedItems.includes(item.title);

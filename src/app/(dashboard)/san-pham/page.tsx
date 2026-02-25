@@ -1,3 +1,4 @@
+// cspell:disable
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -41,6 +42,9 @@ import { Upload } from "lucide-react";
 import { formatNumber, parseNumber } from "@/lib/utils";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
+import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -62,6 +66,16 @@ export default function ProductPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  // Approval reason dialog state
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [approvalActionTitle, setApprovalActionTitle] = useState("");
+  const [pendingAction, setPendingAction] = useState<
+    ((reason: string) => Promise<void>) | null
+  >(null);
+  const [imageEditorOpen, setImageEditorOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const { user } = useAuth();
+  const isAdmin = (user?.role as { name?: string } | null)?.name === "ADMIN";
 
   useEffect(() => {
     loadData();
@@ -85,13 +99,20 @@ export default function ProductPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        setRawImageSrc(reader.result as string);
+        setImageEditorOpen(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleImageEditConfirm = async (blob: Blob) => {
+    setImageEditorOpen(false);
+    const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(blob));
   };
 
   const resetForm = () => {
@@ -137,6 +158,17 @@ export default function ProductPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
+    if (!isAdmin) {
+      // Non-admin: show approval reason dialog
+      setApprovalActionTitle(`Xóa sản phẩm "${name}"`);
+      setPendingAction(() => async (reason: string) => {
+        await productService.delete(id, reason);
+        setApprovalDialogOpen(false);
+        loadData();
+      });
+      setApprovalDialogOpen(true);
+      return;
+    }
     if (confirm(`Bạn có chắc muốn xóa sản phẩm "${name}"?`)) {
       try {
         await productService.delete(id);
@@ -148,7 +180,7 @@ export default function ProductPage() {
     }
   };
 
-  const handleCreateProduct = async () => {
+  const handleCreateProduct = async (reason?: string) => {
     try {
       if (!newProduct.categoryId) return;
 
@@ -165,18 +197,38 @@ export default function ProductPage() {
           imageUrl = await productService.uploadImage(selectedFile);
         } catch (uploadError) {
           console.error("Failed to upload image:", uploadError);
-          // Continue with creation but maybe without image or with old URL
         }
       }
 
       if (isEditMode && editingProduct) {
-        // Update existing product
+        if (!isAdmin && !reason) {
+          // Show reason dialog
+          setApprovalActionTitle(`Cập nhật sản phẩm "${editingProduct.name}"`);
+          setPendingAction(() => async (r: string) => {
+            await productService.update(editingProduct.id, {
+              ...newProduct,
+              imageUrl,
+              categoryId: parseInt(newProduct.categoryId),
+              price: Number(newProduct.price),
+              reason: r,
+            } as Parameters<typeof productService.update>[1] & {
+              reason?: string;
+            });
+            setApprovalDialogOpen(false);
+            resetForm();
+            setIsDialogOpen(false);
+            loadData();
+          });
+          setApprovalDialogOpen(true);
+          return;
+        }
         await productService.update(editingProduct.id, {
           ...newProduct,
           imageUrl,
           categoryId: parseInt(newProduct.categoryId),
           price: Number(newProduct.price),
-        });
+          ...(reason ? { reason } : {}),
+        } as Parameters<typeof productService.update>[1] & { reason?: string });
       } else {
         // Create new product
         await productService.create({
@@ -338,7 +390,7 @@ export default function ProductPage() {
                   Hủy
                 </Button>
                 <Button
-                  onClick={handleCreateProduct}
+                  onClick={() => void handleCreateProduct()}
                   disabled={!newProduct.name || !newProduct.categoryId}
                 >
                   {isEditMode ? "Cập nhật" : "Lưu"}
@@ -462,6 +514,28 @@ export default function ProductPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Approval reason dialog for non-admin users */}
+      <ApprovalReasonDialog
+        open={approvalDialogOpen}
+        onOpenChange={setApprovalDialogOpen}
+        actionTitle={approvalActionTitle}
+        onConfirm={async (reason: string) => {
+          if (pendingAction) {
+            await pendingAction(reason);
+          }
+        }}
+      />
+      {/* Image Editor Dialog */}
+      <ImageEditorDialog
+        open={imageEditorOpen}
+        imageSrc={rawImageSrc || ""}
+        onClose={() => {
+          setImageEditorOpen(false);
+          setRawImageSrc(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }}
+        onConfirm={handleImageEditConfirm}
+      />
     </PermissionGuard>
   );
 }

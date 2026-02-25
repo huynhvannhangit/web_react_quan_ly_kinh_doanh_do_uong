@@ -20,6 +20,7 @@ import Image from "next/image";
 import { getImageUrl } from "@/utils/url";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
 
 // cspell:disable-line
 export default function SystemConfigPage() {
@@ -35,6 +36,9 @@ export default function SystemConfigPage() {
     address: "",
     footerText: "",
   });
+
+  const [imageEditorOpen, setImageEditorOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -66,6 +70,22 @@ export default function SystemConfigPage() {
       return;
     }
 
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRawImageSrc(reader.result as string);
+      setImageEditorOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageEditConfirm = async (blob: Blob) => {
+    setImageEditorOpen(false);
+    const file = new File([blob], "logo.png", { type: "image/png" });
+
     setIsUploading(true);
     try {
       const updatedConfig = await systemConfigService.uploadLogo(file);
@@ -80,9 +100,7 @@ export default function SystemConfigPage() {
       toast.error("Không thể tải logo lên. Vui lòng thử lại.");
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setRawImageSrc(null);
     }
   };
 
@@ -107,8 +125,8 @@ export default function SystemConfigPage() {
       permissions={[Permission.SETTING_MANAGE]}
       redirect="/dashboard"
     >
-      <div className="container max-w-4xl py-10">
-        <div className="flex items-center justify-between mb-8">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
               Cấu hình hệ thống
@@ -278,6 +296,16 @@ export default function SystemConfigPage() {
           </div>
         </form>
       </div>
+
+      <ImageEditorDialog
+        open={imageEditorOpen}
+        imageSrc={rawImageSrc || ""}
+        onClose={() => {
+          setImageEditorOpen(false);
+          setRawImageSrc(null);
+        }}
+        onConfirm={handleImageEditConfirm}
+      />
     </PermissionGuard>
   );
 }

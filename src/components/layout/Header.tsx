@@ -19,6 +19,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuArrow,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,7 +32,7 @@ export function Header() {
   const { user } = useAuth() as { user: AuthUser | null };
 
   return (
-    <header className="no-print sticky top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background px-6 shadow-sm">
+    <header className="no-print sticky top-0 z-50 flex h-16 items-center justify-between bg-background px-6 shadow-sm">
       <div className="flex-1"></div>
 
       <div className="flex items-center gap-2">
@@ -95,7 +96,7 @@ export function Header() {
               variant="ghost"
               className="flex items-center gap-2 h-9 px-2 ml-2 hover:bg-muted/50"
             >
-              <Avatar className="h-8 w-8 border border-border">
+              <Avatar className="h-10 w-10 border border-border">
                 <AvatarImage
                   src={getAvatarUrl(user?.avatar)}
                   alt="User"
@@ -113,37 +114,44 @@ export function Header() {
                 <div className="text-sm font-medium leading-none">
                   {user?.fullName || user?.email?.split("@")[0] || "User"}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1 max-w-37.5 truncate">
-                  {user?.role &&
-                  typeof user.role === "object" &&
-                  "name" in user.role
-                    ? (user.role as { name: string }).name
-                    : (user?.role as string) || user?.email || "Chưa đăng nhập"}
-                </div>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" asChild>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 p-2 rounded-xl"
+            sideOffset={12}
+          >
+            <DropdownMenuArrow className="fill-popover" />
+            <DropdownMenuItem
+              className="cursor-pointer py-3 rounded-lg hover:bg-muted"
+              asChild
+            >
               <Link href="/ho-so" className="flex items-center w-full">
-                <User className="mr-2 h-4 w-4" />
-                <span>Hồ sơ</span>
+                <User className="mr-3 h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Hồ sơ cá nhân</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" asChild>
+            <DropdownMenuItem
+              className="cursor-pointer py-3 rounded-lg hover:bg-muted"
+              asChild
+            >
               <Link href="/cai-dat" className="flex items-center w-full">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Cài đặt</span>
+                <Settings className="mr-3 h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Cài đặt</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <Link href="/login" className="w-full">
-                Đăng xuất
+
+            <DropdownMenuSeparator className="my-2" />
+
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive cursor-pointer py-3 rounded-lg hover:bg-destructive/10"
+              asChild
+            >
+              <Link href="/login" className="flex items-center w-full">
+                <LogOut className="mr-3 h-4 w-4" />
+                <span className="font-medium">Đăng xuất</span>
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

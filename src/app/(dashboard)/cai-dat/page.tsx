@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Upload, Save, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
+import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
 
 export default function CaiDatPage() {
   const { user, refreshUser } = useAuth() as {
@@ -35,6 +36,10 @@ export default function CaiDatPage() {
   // Form states
   const [fullName, setFullName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
+
+  // Editor states
+  const [imageEditorOpen, setImageEditorOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserDetail = async () => {
@@ -74,6 +79,24 @@ export default function CaiDatPage() {
       return;
     }
 
+    // Đọc file ra base64 để truyền vào Cropper
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRawImageSrc(reader.result as string);
+      setImageEditorOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input ngay lập tức để nếu user chọn lại file y hệt vẫn fire onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImageEditConfirm = async (blob: Blob) => {
+    setImageEditorOpen(false);
+    if (!user?.id) return;
+
+    const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+
     try {
       setIsUploading(true);
       const updatedUser = await userService.uploadAvatar(
@@ -96,9 +119,7 @@ export default function CaiDatPage() {
       );
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setRawImageSrc(null);
     }
   };
 
@@ -149,7 +170,7 @@ export default function CaiDatPage() {
   const avatarInitials = (fullName || "AD").substring(0, 2).toUpperCase();
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Cài đặt</h1>
         <p className="text-muted-foreground mt-1">
@@ -273,6 +294,16 @@ export default function CaiDatPage() {
           </CardFooter>
         </Card>
       </div>
+
+      <ImageEditorDialog
+        open={imageEditorOpen}
+        imageSrc={rawImageSrc || ""}
+        onClose={() => {
+          setImageEditorOpen(false);
+          setRawImageSrc(null);
+        }}
+        onConfirm={handleImageEditConfirm}
+      />
     </div>
   );
 }

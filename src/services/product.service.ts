@@ -68,13 +68,17 @@ export const productService = {
   },
   update: async (
     id: number,
-    data: Partial<Omit<Product, "id" | "createdAt" | "updatedAt" | "category">>,
+    data: Partial<
+      Omit<Product, "id" | "createdAt" | "updatedAt" | "category">
+    > & { reason?: string },
   ) => {
     const response = await api.patch<{ data: Product }>(`/product/${id}`, data);
     return response.data.data;
   },
-  delete: async (id: number) => {
-    const response = await api.delete<{ data: Product }>(`/product/${id}`);
+  delete: async (id: number, reason?: string) => {
+    const response = await api.delete<{ data: Product }>(`/product/${id}`, {
+      data: reason ? { reason } : undefined,
+    });
     return response.data.data;
   },
   uploadImage: async (file: File) => {
