@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { categoryService, Category } from "@/services/product.service";
-import { Button } from "@/components/ui/button";
+import { Trash2, Plus, Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -12,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -33,12 +34,16 @@ export default function CategoryPage() {
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   useEffect(() => {
     loadCategories();
   }, []);
 
   const loadCategories = async () => {
+    setIsLoading(true);
+    setSelectedIds([]);
     try {
       const data = await categoryService.getAll();
       setCategories(data);
@@ -78,6 +83,40 @@ export default function CategoryPage() {
       } catch (error) {
         console.error("Failed to delete category:", error);
         alert("Xóa danh mục thất bại!");
+      }
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(categories.map((c) => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((prevId) => prevId !== id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (
+      confirm(`Bạn có chắc muốn xóa ${selectedIds.length} danh mục đã chọn?`)
+    ) {
+      setIsDeletingBulk(true);
+      try {
+        await Promise.all(selectedIds.map((id) => categoryService.delete(id)));
+        setSelectedIds([]);
+        loadCategories();
+      } catch (error) {
+        console.error("Failed to bulk delete categories:", error);
+        alert("Xóa hàng loạt thất bại!");
+      } finally {
+        setIsDeletingBulk(false);
       }
     }
   };
@@ -171,13 +210,36 @@ export default function CategoryPage() {
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>Danh sách danh mục</CardTitle>
+            {selectedIds.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={isDeletingBulk}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Xóa {selectedIds.length} mục
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12.5 text-center">
+                    <Checkbox
+                      checked={
+                        categories.length > 0 &&
+                        selectedIds.length === categories.length
+                      }
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead className="w-15 text-center">STT</TableHead>
                   <TableHead>Tên danh mục</TableHead>
                   <TableHead>Mô tả</TableHead>
                   <TableHead>Ngày cập nhật</TableHead>
@@ -188,22 +250,41 @@ export default function CategoryPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       Đang tải...
                     </TableCell>
                   </TableRow>
                 ) : categories.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={7}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Chưa có danh mục nào
                     </TableCell>
                   </TableRow>
                 ) : (
-                  categories.map((category) => (
-                    <TableRow key={category.id}>
+                  categories.map((category, index) => (
+                    <TableRow
+                      key={category.id}
+                      data-state={
+                        selectedIds.includes(category.id)
+                          ? "selected"
+                          : undefined
+                      }
+                    >
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={selectedIds.includes(category.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectRow(category.id, !!checked)
+                          }
+                          aria-label={`Select row ${category.id}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center font-medium">
+                        {index + 1}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {category.name}
                       </TableCell>
