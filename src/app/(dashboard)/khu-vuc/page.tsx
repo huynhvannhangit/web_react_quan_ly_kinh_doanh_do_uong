@@ -26,6 +26,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import {
+  collectErrors,
+  required,
+  noSpecialChars,
+  inputErrorClass,
+} from "@/lib/validators";
 
 export default function AreaPage() {
   const [areas, setAreas] = useState<Area[]>([]);
@@ -36,6 +42,8 @@ export default function AreaPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadAreas();
@@ -58,6 +66,8 @@ export default function AreaPage() {
     setNewArea({ name: "", description: "" });
     setEditingArea(null);
     setIsEditMode(false);
+    setFormErrors({});
+    setApiError(null);
   };
 
   const handleEdit = async (area: Area) => {
@@ -122,17 +132,34 @@ export default function AreaPage() {
   };
 
   const handleCreateArea = async () => {
+    const errors = collectErrors({
+      name: required(newArea.name) || noSpecialChars(newArea.name),
+      description: noSpecialChars(newArea.description),
+    });
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+    setApiError(null);
     try {
+      const payload = {
+        name: newArea.name.trim(),
+        description: newArea.description.trim(),
+      };
       if (isEditMode && editingArea) {
-        await areaService.update(editingArea.id, newArea);
+        await areaService.update(editingArea.id, payload);
       } else {
-        await areaService.create(newArea);
+        await areaService.create(payload);
       }
       resetForm();
       setIsDialogOpen(false);
       loadAreas();
     } catch (error) {
-      console.error("Failed to create area:", error);
+      console.error("Failed to save area:", error);
+      const msg =
+        error instanceof Error ? error.message : "Lưu khu vực thất bại!";
+      setApiError(msg);
     }
   };
 
@@ -160,27 +187,50 @@ export default function AreaPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {apiError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Tên khu vực</Label>
+                  <Label htmlFor="name">
+                    Tên khu vực <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={newArea.name}
-                    onChange={(e) =>
-                      setNewArea({ ...newArea, name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewArea({ ...newArea, name: e.target.value });
+                      if (formErrors.name)
+                        setFormErrors((p) => ({ ...p, name: "" }));
+                    }}
                     placeholder="VD: Tầng 1, Sân thượng..."
+                    className={inputErrorClass(formErrors.name)}
                   />
+                  {formErrors.name && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.name}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="description">Mô tả</Label>
                   <Input
                     id="description"
                     value={newArea.description}
-                    onChange={(e) =>
-                      setNewArea({ ...newArea, description: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewArea({ ...newArea, description: e.target.value });
+                      if (formErrors.description)
+                        setFormErrors((p) => ({ ...p, description: "" }));
+                    }}
                     placeholder="Mô tả ngắn gọn về khu vực"
+                    className={inputErrorClass(formErrors.description)}
                   />
+                  {formErrors.description && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.description}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>

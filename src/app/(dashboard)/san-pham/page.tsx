@@ -46,6 +46,13 @@ import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
 import { useAuth } from "@/components/providers/auth-provider";
+import {
+  collectErrors,
+  required,
+  noSpecialChars,
+  positiveNumber,
+  inputErrorClass,
+} from "@/lib/validators";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -79,6 +86,8 @@ export default function ProductPage() {
   const isAdmin = (user?.role as { name?: string } | null)?.name === "ADMIN";
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -133,6 +142,8 @@ export default function ProductPage() {
     setPreviewUrl(null);
     setEditingProduct(null);
     setIsEditMode(false);
+    setFormErrors({});
+    setApiError(null);
   };
 
   const handleEdit = async (product: Product) => {
@@ -241,13 +252,22 @@ export default function ProductPage() {
   };
 
   const handleCreateProduct = async (reason?: string) => {
-    try {
-      if (!newProduct.categoryId) return;
-
-      if (newProduct.price < 0) {
-        alert("Giá sản phẩm không được nhập số âm!");
+    // Only validate when NOT called from ApprovalReasonDialog (reason is provided)
+    if (!reason) {
+      const errors = collectErrors({
+        name: required(newProduct.name) || noSpecialChars(newProduct.name),
+        price: positiveNumber(newProduct.price),
+        categoryId: required(newProduct.categoryId),
+      });
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
         return;
       }
+      setFormErrors({});
+    }
+    setApiError(null);
+    try {
+      if (!newProduct.categoryId) return;
 
       let imageUrl = newProduct.imageUrl;
 
@@ -303,7 +323,10 @@ export default function ProductPage() {
       setIsDialogOpen(false);
       loadData();
     } catch (error) {
-      console.error("Failed to create product:", error);
+      console.error("Failed to save product:", error);
+      const msg =
+        error instanceof Error ? error.message : "Lưu sản phẩm thất bại!";
+      setApiError(msg);
     }
   };
 
@@ -336,41 +359,72 @@ export default function ProductPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {apiError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Tên sản phẩm</Label>
+                  <Label htmlFor="name">
+                    Tên sản phẩm <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={newProduct.name}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewProduct({ ...newProduct, name: e.target.value });
+                      if (formErrors.name)
+                        setFormErrors((p) => ({ ...p, name: "" }));
+                    }}
                     placeholder="VD: Cà phê đá, Matcha..."
+                    className={inputErrorClass(formErrors.name)}
                   />
+                  {formErrors.name && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.name}
+                    </p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="price">Giá bán (VNĐ)</Label>
+                    <Label htmlFor="price">
+                      Giá bán (VNĐ) <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="price"
                       value={formatNumber(newProduct.price)}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setNewProduct({
                           ...newProduct,
                           price: parseNumber(e.target.value),
-                        })
-                      }
+                        });
+                        if (formErrors.price)
+                          setFormErrors((p) => ({ ...p, price: "" }));
+                      }}
                       placeholder="VD: 20.000"
+                      className={inputErrorClass(formErrors.price)}
                     />
+                    {formErrors.price && (
+                      <p className="text-xs text-destructive mt-1">
+                        {formErrors.price}
+                      </p>
+                    )}
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="category">Danh mục</Label>
+                    <Label htmlFor="category">
+                      Danh mục <span className="text-destructive">*</span>
+                    </Label>
                     <Select
                       value={newProduct.categoryId}
-                      onValueChange={(value) =>
-                        setNewProduct({ ...newProduct, categoryId: value })
-                      }
+                      onValueChange={(value) => {
+                        setNewProduct({ ...newProduct, categoryId: value });
+                        if (formErrors.categoryId)
+                          setFormErrors((p) => ({ ...p, categoryId: "" }));
+                      }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger
+                        className={inputErrorClass(formErrors.categoryId)}
+                      >
                         <SelectValue placeholder="Chọn danh mục" />
                       </SelectTrigger>
                       <SelectContent>
@@ -381,6 +435,11 @@ export default function ProductPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {formErrors.categoryId && (
+                      <p className="text-xs text-destructive mt-1">
+                        {formErrors.categoryId}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid gap-2">
@@ -449,10 +508,7 @@ export default function ProductPage() {
                 >
                   Hủy
                 </Button>
-                <Button
-                  onClick={() => void handleCreateProduct()}
-                  disabled={!newProduct.name || !newProduct.categoryId}
-                >
+                <Button onClick={() => void handleCreateProduct()}>
                   {isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>

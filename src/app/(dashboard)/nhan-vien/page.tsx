@@ -48,6 +48,15 @@ import {
 } from "@/components/ui/select";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import {
+  collectErrors,
+  required,
+  phone,
+  cccd,
+  positiveNumber,
+  noSpecialChars,
+  inputErrorClass,
+} from "@/lib/validators";
 
 // Helper arrays
 const currentYear = new Date().getFullYear();
@@ -79,6 +88,8 @@ export default function StaffPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -124,6 +135,8 @@ export default function StaffPage() {
     setEditingEmployee(null);
     setIsEditMode(false);
     setAvailableUsers([]);
+    setFormErrors({});
+    setApiError(null);
   };
 
   const handleOpenCreateDialog = () => {
@@ -222,39 +235,43 @@ export default function StaffPage() {
   };
 
   const handleCreateEmployee = async () => {
+    // Age check
+    let ageError = "";
+    if (newEmployee.birthDate) {
+      const birthDate = new Date(newEmployee.birthDate);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+      if (age < 18) ageError = "Nhân viên phải từ đủ 18 tuổi.";
+    }
+    const errors = collectErrors({
+      fullName:
+        required(newEmployee.fullName) || noSpecialChars(newEmployee.fullName),
+      salary: positiveNumber(newEmployee.salary),
+      identityCard: cccd(newEmployee.identityCard),
+      phone: phone(newEmployee.phone),
+      birthDate: ageError,
+    });
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+    setApiError(null);
     try {
-      if (newEmployee.salary < 0) {
-        alert("Lương không được nhập số âm!");
-        return;
-      }
-      if (newEmployee.identityCard && newEmployee.identityCard.length !== 12) {
-        alert("CCCD phải đúng 12 số!");
-        return;
-      }
-
-      if (newEmployee.birthDate) {
-        const birthDate = new Date(newEmployee.birthDate);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        if (age < 18) {
-          alert("Nhân viên phải từ đủ 18 tuổi!");
-          return;
-        }
-      }
-
       const payload = {
         ...newEmployee,
+        fullName: newEmployee.fullName.trim(),
+        position: newEmployee.position.trim(),
+        phone: newEmployee.phone.trim(),
+        address: newEmployee.address.trim(),
         salary: Number(newEmployee.salary),
         birthDate: newEmployee.birthDate
           ? format(new Date(newEmployee.birthDate), "yyyy-MM-dd")
           : undefined,
         userId: newEmployee.userId ?? undefined,
       };
-
       if (isEditMode && editingEmployee) {
         await employeeService.update(editingEmployee.id, payload);
       } else {
@@ -267,7 +284,7 @@ export default function StaffPage() {
       console.error("Failed to save employee:", error);
       const msg =
         error instanceof Error ? error.message : "Lưu nhân viên thất bại!";
-      alert(msg);
+      setApiError(msg);
     }
   };
 
@@ -304,19 +321,34 @@ export default function StaffPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {apiError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="fullName">Họ và tên</Label>
+                  <Label htmlFor="fullName">
+                    Họ và tên <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="fullName"
                     value={newEmployee.fullName}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewEmployee({
                         ...newEmployee,
                         fullName: e.target.value,
-                      })
-                    }
+                      });
+                      if (formErrors.fullName)
+                        setFormErrors((p) => ({ ...p, fullName: "" }));
+                    }}
                     placeholder="Nhập họ tên nhân viên"
+                    className={inputErrorClass(formErrors.fullName)}
                   />
+                  {formErrors.fullName && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.fullName}
+                    </p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -338,14 +370,22 @@ export default function StaffPage() {
                     <Input
                       id="salary"
                       value={formatNumber(newEmployee.salary)}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setNewEmployee({
                           ...newEmployee,
                           salary: parseNumber(e.target.value),
-                        })
-                      }
+                        });
+                        if (formErrors.salary)
+                          setFormErrors((p) => ({ ...p, salary: "" }));
+                      }}
                       placeholder="VD: 10.000.000"
+                      className={inputErrorClass(formErrors.salary)}
                     />
+                    {formErrors.salary && (
+                      <p className="text-xs text-destructive mt-1">
+                        {formErrors.salary}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -510,6 +550,11 @@ export default function StaffPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    {formErrors.birthDate && (
+                      <p className="text-xs text-destructive mt-1">
+                        {formErrors.birthDate}
+                      </p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="identityCard">CCCD (12 số)</Label>
@@ -523,10 +568,18 @@ export default function StaffPage() {
                             ...newEmployee,
                             identityCard: value,
                           });
+                          if (formErrors.identityCard)
+                            setFormErrors((p) => ({ ...p, identityCard: "" }));
                         }
                       }}
                       placeholder="Nhập 12 số CCCD"
+                      className={inputErrorClass(formErrors.identityCard)}
                     />
+                    {formErrors.identityCard && (
+                      <p className="text-xs text-destructive mt-1">
+                        {formErrors.identityCard}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid gap-2">
@@ -534,10 +587,19 @@ export default function StaffPage() {
                   <Input
                     id="phone"
                     value={newEmployee.phone}
-                    onChange={(e) =>
-                      setNewEmployee({ ...newEmployee, phone: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewEmployee({ ...newEmployee, phone: e.target.value });
+                      if (formErrors.phone)
+                        setFormErrors((p) => ({ ...p, phone: "" }));
+                    }}
+                    placeholder="VD: 0912345678"
+                    className={inputErrorClass(formErrors.phone)}
                   />
+                  {formErrors.phone && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.phone}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Địa chỉ</Label>

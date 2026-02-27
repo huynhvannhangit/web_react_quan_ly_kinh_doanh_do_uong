@@ -39,6 +39,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import {
+  collectErrors,
+  required,
+  noSpecialChars,
+  positiveNumber,
+  inputErrorClass,
+} from "@/lib/validators";
 
 export default function TablePage() {
   const [tables, setTables] = useState<TableType[]>([]);
@@ -55,6 +62,8 @@ export default function TablePage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -86,6 +95,8 @@ export default function TablePage() {
     });
     setEditingTable(null);
     setIsEditMode(false);
+    setFormErrors({});
+    setApiError(null);
   };
 
   const handleEdit = async (table: TableType) => {
@@ -150,32 +161,37 @@ export default function TablePage() {
   };
 
   const handleCreateTable = async () => {
+    const errors = collectErrors({
+      tableNumber:
+        required(newTable.tableNumber) || noSpecialChars(newTable.tableNumber),
+      capacity: positiveNumber(newTable.capacity),
+      areaId: required(newTable.areaId),
+    });
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+    setApiError(null);
     try {
-      if (!newTable.areaId) return;
-
-      if (newTable.capacity < 0) {
-        alert("Sức chứa không được nhập số âm!");
-        return;
-      }
-
+      const payload = {
+        tableNumber: newTable.tableNumber.trim(),
+        areaId: parseInt(newTable.areaId),
+        capacity: Number(newTable.capacity),
+        status: newTable.status,
+      };
       if (isEditMode && editingTable) {
-        await tableService.update(editingTable.id, {
-          ...newTable,
-          areaId: parseInt(newTable.areaId),
-          capacity: Number(newTable.capacity),
-        });
+        await tableService.update(editingTable.id, payload);
       } else {
-        await tableService.create({
-          ...newTable,
-          areaId: parseInt(newTable.areaId),
-          capacity: Number(newTable.capacity),
-        });
+        await tableService.create(payload);
       }
       resetForm();
       setIsDialogOpen(false);
       loadData();
     } catch (error) {
-      console.error("Failed to create table:", error);
+      console.error("Failed to save table:", error);
+      const msg = error instanceof Error ? error.message : "Lưu bàn thất bại!";
+      setApiError(msg);
     }
   };
 
@@ -240,40 +256,71 @@ export default function TablePage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {apiError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="tableNumber">Số bàn / Tên bàn</Label>
+                  <Label htmlFor="tableNumber">
+                    Số bàn / Tên bàn <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="tableNumber"
                     value={newTable.tableNumber}
-                    onChange={(e) =>
-                      setNewTable({ ...newTable, tableNumber: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewTable({ ...newTable, tableNumber: e.target.value });
+                      if (formErrors.tableNumber)
+                        setFormErrors((p) => ({ ...p, tableNumber: "" }));
+                    }}
                     placeholder="VD: Bàn 01, VIP 02..."
+                    className={inputErrorClass(formErrors.tableNumber)}
                   />
+                  {formErrors.tableNumber && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.tableNumber}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="capacity">Sức chứa (người)</Label>
+                  <Label htmlFor="capacity">
+                    Sức chứa (người) <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="capacity"
                     type="number"
                     value={newTable.capacity}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewTable({
                         ...newTable,
-                        capacity: parseInt(e.target.value),
-                      })
-                    }
+                        capacity: parseInt(e.target.value) || 0,
+                      });
+                      if (formErrors.capacity)
+                        setFormErrors((p) => ({ ...p, capacity: "" }));
+                    }}
+                    className={inputErrorClass(formErrors.capacity)}
                   />
+                  {formErrors.capacity && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.capacity}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="area">Khu vực</Label>
+                  <Label htmlFor="area">
+                    Khu vực <span className="text-destructive">*</span>
+                  </Label>
                   <Select
                     value={newTable.areaId}
-                    onValueChange={(value) =>
-                      setNewTable({ ...newTable, areaId: value })
-                    }
+                    onValueChange={(value) => {
+                      setNewTable({ ...newTable, areaId: value });
+                      if (formErrors.areaId)
+                        setFormErrors((p) => ({ ...p, areaId: "" }));
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      className={inputErrorClass(formErrors.areaId)}
+                    >
                       <SelectValue placeholder="Chọn khu vực" />
                     </SelectTrigger>
                     <SelectContent>
@@ -284,6 +331,11 @@ export default function TablePage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.areaId && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.areaId}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -293,10 +345,7 @@ export default function TablePage() {
                 >
                   Hủy
                 </Button>
-                <Button
-                  onClick={handleCreateTable}
-                  disabled={!newTable.areaId || !newTable.tableNumber}
-                >
+                <Button onClick={handleCreateTable}>
                   {isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>

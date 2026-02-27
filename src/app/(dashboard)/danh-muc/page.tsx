@@ -26,6 +26,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import {
+  collectErrors,
+  required,
+  noSpecialChars,
+  inputErrorClass,
+} from "@/lib/validators";
 
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,6 +42,8 @@ export default function CategoryPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadCategories();
@@ -58,6 +66,8 @@ export default function CategoryPage() {
     setNewCategory({ name: "", description: "" });
     setEditingCategory(null);
     setIsEditMode(false);
+    setFormErrors({});
+    setApiError(null);
   };
 
   const handleEdit = async (category: Category) => {
@@ -122,17 +132,33 @@ export default function CategoryPage() {
   };
 
   const handleCreateCategory = async () => {
+    const errors = collectErrors({
+      name: required(newCategory.name) || noSpecialChars(newCategory.name),
+      description: noSpecialChars(newCategory.description),
+    });
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     try {
+      const payload = {
+        name: newCategory.name.trim(),
+        description: newCategory.description.trim(),
+      };
       if (isEditMode && editingCategory) {
-        await categoryService.update(editingCategory.id, newCategory);
+        await categoryService.update(editingCategory.id, payload);
       } else {
-        await categoryService.create(newCategory);
+        await categoryService.create(payload);
       }
       resetForm();
       setIsDialogOpen(false);
       loadCategories();
     } catch (error) {
       console.error("Failed to create category:", error);
+      const msg =
+        error instanceof Error ? error.message : "Lưu danh mục thất bại!";
+      setApiError(msg);
     }
   };
 
@@ -165,30 +191,53 @@ export default function CategoryPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {apiError && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                    {apiError}
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Tên danh mục</Label>
+                  <Label htmlFor="name">
+                    Tên danh mục <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={newCategory.name}
-                    onChange={(e) =>
-                      setNewCategory({ ...newCategory, name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewCategory({ ...newCategory, name: e.target.value });
+                      if (formErrors.name)
+                        setFormErrors((p) => ({ ...p, name: "" }));
+                    }}
                     placeholder="VD: Cà phê, Nước ép, Trà sữa..."
+                    className={inputErrorClass(formErrors.name)}
                   />
+                  {formErrors.name && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.name}
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="description">Mô tả</Label>
                   <Input
                     id="description"
                     value={newCategory.description}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewCategory({
                         ...newCategory,
                         description: e.target.value,
-                      })
-                    }
+                      });
+                      if (formErrors.description)
+                        setFormErrors((p) => ({ ...p, description: "" }));
+                    }}
                     placeholder="Mô tả cho nhóm sản phẩm này"
+                    className={inputErrorClass(formErrors.description)}
                   />
+                  {formErrors.description && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.description}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -198,10 +247,7 @@ export default function CategoryPage() {
                 >
                   Hủy
                 </Button>
-                <Button
-                  onClick={handleCreateCategory}
-                  disabled={!newCategory.name}
-                >
+                <Button onClick={handleCreateCategory}>
                   {isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
