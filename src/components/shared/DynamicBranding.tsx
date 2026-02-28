@@ -32,28 +32,32 @@ export function DynamicBranding() {
         };
 
         const pageTitle = routeToTitle[pathname];
-        if (pageTitle) {
-          document.title = `${config.systemName} - ${pageTitle}`;
-        } else {
-          document.title = config.systemName;
-        }
-      }
+        const newTitle = pageTitle
+          ? `${config.systemName} - ${pageTitle}`
+          : config.systemName;
 
-      // Update Favicon
-      if (config.logoUrl) {
-        const fullLogoUrl = getImageUrl(config.logoUrl);
+        // Use setTimeout to ensure this runs after Next.js applies its own metadata changes
+        setTimeout(() => {
+          document.title = newTitle;
 
-        let link = document.querySelector(
-          "link[rel*='icon']",
-        ) as HTMLLinkElement;
+          // Update Favicon
+          if (config.logoUrl) {
+            const fullLogoUrl = getImageUrl(config.logoUrl);
 
-        if (!link) {
-          link = document.createElement("link");
-          link.rel = "icon";
-          document.getElementsByTagName("head")[0].appendChild(link);
-        }
-
-        link.href = fullLogoUrl;
+            // Avoid removing DOM nodes directly as it conflicts with React's virtual DOM
+            const links = document.querySelectorAll("link[rel*='icon']");
+            if (links.length > 0) {
+              links.forEach((link) => {
+                (link as HTMLLinkElement).href = fullLogoUrl;
+              });
+            } else {
+              const newLink = document.createElement("link");
+              newLink.rel = "icon";
+              newLink.href = fullLogoUrl;
+              document.head.appendChild(newLink);
+            }
+          }
+        }, 50);
       }
     }
   }, [config, pathname]);

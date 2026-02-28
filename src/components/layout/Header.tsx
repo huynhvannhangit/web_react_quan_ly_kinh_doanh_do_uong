@@ -26,10 +26,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAuth, AuthUser } from "@/components/providers/auth-provider";
+import { useNotificationContext } from "@/components/providers/notification-provider";
+
+const formatTime = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - d.getTime()) / 60000);
+  if (diffInMinutes < 1) return "Vừa xong";
+  if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours} giờ trước`;
+  return d.toLocaleDateString("vi-VN");
+};
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth() as { user: AuthUser | null };
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotificationContext();
 
   return (
     <header className="no-print sticky top-0 z-50 flex h-16 items-center justify-between bg-background px-6 shadow-sm">
@@ -51,40 +65,66 @@ export function Header() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative h-9 w-9">
               <Bell className="h-4 w-4" />
-              <Badge
-                variant="destructive"
-                className="absolute -right-1 -top-1 h-4 w-4 rounded-full p-0 text-[10px] flex items-center justify-center"
-              >
-                3
-              </Badge>
+              {unreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -right-1 -top-1 h-4 w-4 rounded-full p-0 text-[10px] flex items-center justify-center"
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Badge>
+              )}
               <span className="sr-only">Notifications</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Thông báo</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="max-h-96 overflow-y-auto">
-              <DropdownMenuItem className="flex-col items-start py-3 cursor-pointer">
-                <div className="font-medium">Đơn hàng mới #1234</div>
-                <div className="text-xs text-muted-foreground">
-                  5 phút trước
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex-col items-start py-3 cursor-pointer">
-                <div className="font-medium">
-                  Cảnh báo tồn kho thấp: Café hạt
-                </div>
-                <div className="text-xs text-muted-foreground">1 giờ trước</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex-col items-start py-3 cursor-pointer">
-                <div className="font-medium">
-                  Báo cáo doanh thu ngày đã sẵn sàng
-                </div>
-                <div className="text-xs text-muted-foreground">2 giờ trước</div>
-              </DropdownMenuItem>
+            <div className="flex items-center justify-between px-2 pt-1">
+              <DropdownMenuLabel>Thông báo</DropdownMenuLabel>
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  className="h-auto p-1 text-[11px] text-primary hover:bg-transparent"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    markAllAsRead();
+                  }}
+                >
+                  Đã đọc tất cả
+                </Button>
+              )}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-primary cursor-pointer">
+            <div className="max-h-96 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  Không có thông báo mới
+                </div>
+              ) : (
+                notifications.map((notif, index) => (
+                  <DropdownMenuItem
+                    key={notif.id || `notif-${index}`}
+                    className={`flex-col items-start py-3 cursor-pointer ${
+                      notif.read ? "opacity-70" : "bg-muted/30 font-medium"
+                    }`}
+                    onClick={() => {
+                      if (!notif.read && notif.id) markAsRead(notif.id);
+                    }}
+                  >
+                    <div className="text-sm font-semibold">{notif.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {notif.message}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1.5 font-medium">
+                      {formatTime(notif.createdAt)}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="justify-center text-primary cursor-pointer font-medium"
+              disabled
+            >
               Xem tất cả thông báo
             </DropdownMenuItem>
           </DropdownMenuContent>

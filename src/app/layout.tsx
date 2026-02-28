@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { SystemConfigProvider } from "@/components/providers/system-config-provider";
+import { NotificationProvider } from "@/components/providers/notification-provider";
 import { DynamicBranding } from "@/components/shared/DynamicBranding";
 import { Toaster } from "sonner";
 
@@ -39,7 +40,9 @@ export default function RootLayout({
         >
           <SystemConfigProvider>
             <DynamicBranding />
-            <AuthProvider>{children}</AuthProvider>
+            <NotificationProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </NotificationProvider>
           </SystemConfigProvider>
           <Toaster />
         </ThemeProvider>
