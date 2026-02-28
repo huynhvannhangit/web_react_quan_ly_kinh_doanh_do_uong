@@ -15,6 +15,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Role, roleService } from "@/services/role.service";
 import { Permission } from "@/types";
 import { toast } from "sonner";
+import {
+  collectErrors,
+  required,
+  maxLength,
+  noHtml,
+  inputErrorClass,
+} from "@/lib/validators";
 
 interface RoleDialogProps {
   open: boolean;
@@ -96,6 +103,7 @@ export function RoleDialog({
   const [description, setDescription] = useState("");
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (role) {
@@ -107,12 +115,20 @@ export function RoleDialog({
       setDescription("");
       setPermissions([]);
     }
+    setFormErrors({});
   }, [role, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-
+    const errors = collectErrors({
+      name: required(name),
+      description: maxLength(description, 1000) || noHtml(description),
+    });
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     setIsLoading(true);
     try {
       if (role) {
@@ -166,28 +182,49 @@ export function RoleDialog({
           className="flex-1 overflow-hidden flex flex-col gap-4"
         >
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Tên vai trò
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="name" className="text-right mt-2">
+                Tên vai trò <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="col-span-3"
-                required
-              />
+              <div className="col-span-3">
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (formErrors.name)
+                      setFormErrors((p) => ({ ...p, name: "" }));
+                  }}
+                  className={inputErrorClass(formErrors.name)}
+                />
+                {formErrors.name && (
+                  <p className="text-xs text-destructive mt-1">
+                    {formErrors.name}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="description" className="text-right mt-2">
                 Mô tả
               </Label>
-              <Input
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3"
-              />
+              <div className="col-span-3">
+                <Input
+                  id="description"
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (formErrors.description)
+                      setFormErrors((p) => ({ ...p, description: "" }));
+                  }}
+                  className={inputErrorClass(formErrors.description)}
+                />
+                {formErrors.description && (
+                  <p className="text-xs text-destructive mt-1">
+                    {formErrors.description}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

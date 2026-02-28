@@ -30,6 +30,8 @@ import {
   collectErrors,
   required,
   noSpecialChars,
+  maxLength,
+  noHtml,
   inputErrorClass,
 } from "@/lib/validators";
 
@@ -44,6 +46,7 @@ export default function CategoryPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -134,13 +137,17 @@ export default function CategoryPage() {
   const handleCreateCategory = async () => {
     const errors = collectErrors({
       name: required(newCategory.name) || noSpecialChars(newCategory.name),
-      description: noSpecialChars(newCategory.description),
+      description:
+        noSpecialChars(newCategory.description) ||
+        maxLength(newCategory.description, 1000) ||
+        noHtml(newCategory.description),
     });
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
     setFormErrors({});
+    setIsSaving(true);
     try {
       const payload = {
         name: newCategory.name.trim(),
@@ -159,6 +166,8 @@ export default function CategoryPage() {
       const msg =
         error instanceof Error ? error.message : "Lưu danh mục thất bại!";
       setApiError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -247,8 +256,8 @@ export default function CategoryPage() {
                 >
                   Hủy
                 </Button>
-                <Button onClick={handleCreateCategory}>
-                  {isEditMode ? "Cập nhật" : "Lưu"}
+                <Button onClick={handleCreateCategory} disabled={isSaving}>
+                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
             </DialogContent>

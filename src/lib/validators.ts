@@ -46,8 +46,7 @@ export function email(value: string): string {
  */
 export function noSpecialChars(value: string): string {
   if (!value) return "";
-  // Allow anything that is NOT a "special" symbol
-  if (/[!@#$%^&*+=[\]{};'"\\|<>?~`]/.test(value))
+  if (/[!@#$%^&*+={}\[\];'"\\|<>?~`]/.test(value))
     return "Không được chứa ký tự đặc biệt.";
   return "";
 }
@@ -55,6 +54,37 @@ export function noSpecialChars(value: string): string {
 /** Number must be ≥ 0 */
 export function positiveNumber(value: number): string {
   if (value < 0) return "Giá trị không được nhỏ hơn 0.";
+  return "";
+}
+  
+/** String must not exceed max characters */
+export function maxLength(value: string, max: number): string {
+  if (!value) return "";
+  if (value.length > max) return `Không được vượt quá ${max} ký tự.`;
+  return "";
+}
+
+/**
+ * Detect HTML / script tags.
+ * Covers: <script>, <h1>, <b>, <img>, etc.
+ * Matches BE rule: "Không render HTML / Không chứa script".
+ */
+export function noHtml(value: string): string {
+  if (!value) return "";
+  if (/<[a-z!/?][^>]*>/i.test(value))
+    return "Nội dung không được chứa thẻ HTML.";
+  return "";
+}
+
+/** Number must be ≥ min */
+export function minValue(value: number, min: number): string {
+  if (value < min) return `Giá trị phải ít nhất là ${min}.`;
+  return "";
+}
+
+/** Value must be an integer (no decimals) */
+export function isInteger(value: number): string {
+  if (!Number.isInteger(value)) return "Giá trị phải là số nguyên.";
   return "";
 }
 

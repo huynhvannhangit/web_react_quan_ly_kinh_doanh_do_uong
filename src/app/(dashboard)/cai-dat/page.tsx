@@ -21,6 +21,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Upload, Save, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
+import {
+  required,
+  noSpecialChars,
+  maxLength,
+  inputErrorClass,
+} from "@/lib/validators";
 
 export default function CaiDatPage() {
   const { user, refreshUser } = useAuth() as {
@@ -36,6 +42,7 @@ export default function CaiDatPage() {
   // Form states
   const [fullName, setFullName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [fullNameError, setFullNameError] = useState("");
 
   // Editor states
   const [imageEditorOpen, setImageEditorOpen] = useState(false);
@@ -124,10 +131,16 @@ export default function CaiDatPage() {
   };
 
   const handleSaveInfo = async () => {
-    if (!user?.id || !fullName.trim()) {
-      toast.error("Họ và tên không được để trống");
+    const err =
+      required(fullName) ||
+      noSpecialChars(fullName) ||
+      maxLength(fullName, 100);
+    if (err) {
+      setFullNameError(err);
       return;
     }
+    setFullNameError("");
+    if (!user?.id) return;
 
     try {
       setIsSaving(true);
@@ -266,11 +279,17 @@ export default function CaiDatPage() {
                   id="fullName"
                   placeholder="Nhập họ và tên"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="pl-10"
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (fullNameError) setFullNameError("");
+                  }}
+                  className={`pl-10 ${inputErrorClass(fullNameError)}`}
                 />
                 <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               </div>
+              {fullNameError && (
+                <p className="text-xs text-destructive mt-1">{fullNameError}</p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2 border-t pt-4">

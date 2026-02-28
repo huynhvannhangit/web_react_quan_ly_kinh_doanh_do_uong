@@ -55,6 +55,7 @@ import {
   cccd,
   positiveNumber,
   noSpecialChars,
+  maxLength,
   inputErrorClass,
 } from "@/lib/validators";
 
@@ -90,6 +91,7 @@ export default function StaffPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -247,11 +249,14 @@ export default function StaffPage() {
     }
     const errors = collectErrors({
       fullName:
-        required(newEmployee.fullName) || noSpecialChars(newEmployee.fullName),
+        required(newEmployee.fullName) ||
+        noSpecialChars(newEmployee.fullName) ||
+        maxLength(newEmployee.fullName, 100),
       salary: positiveNumber(newEmployee.salary),
       identityCard: cccd(newEmployee.identityCard),
       phone: phone(newEmployee.phone),
       birthDate: ageError,
+      address: maxLength(newEmployee.address, 255),
     });
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -259,6 +264,7 @@ export default function StaffPage() {
     }
     setFormErrors({});
     setApiError(null);
+    setIsSaving(true);
     try {
       const payload = {
         ...newEmployee,
@@ -285,6 +291,8 @@ export default function StaffPage() {
       const msg =
         error instanceof Error ? error.message : "Lưu nhân viên thất bại!";
       setApiError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -662,11 +670,8 @@ export default function StaffPage() {
                 >
                   Hủy
                 </Button>
-                <Button
-                  onClick={handleCreateEmployee}
-                  disabled={!newEmployee.fullName}
-                >
-                  {isEditMode ? "Cập nhật" : "Lưu"}
+                <Button onClick={handleCreateEmployee} disabled={isSaving}>
+                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
             </DialogContent>

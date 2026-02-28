@@ -51,6 +51,8 @@ import {
   required,
   noSpecialChars,
   positiveNumber,
+  maxLength,
+  noHtml,
   inputErrorClass,
 } from "@/lib/validators";
 
@@ -88,6 +90,7 @@ export default function ProductPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -252,12 +255,14 @@ export default function ProductPage() {
   };
 
   const handleCreateProduct = async (reason?: string) => {
-    // Only validate when NOT called from ApprovalReasonDialog (reason is provided)
     if (!reason) {
       const errors = collectErrors({
         name: required(newProduct.name) || noSpecialChars(newProduct.name),
         price: positiveNumber(newProduct.price),
         categoryId: required(newProduct.categoryId),
+        description:
+          maxLength(newProduct.description, 1000) ||
+          noHtml(newProduct.description),
       });
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
@@ -266,6 +271,7 @@ export default function ProductPage() {
       setFormErrors({});
     }
     setApiError(null);
+    setIsSaving(true);
     try {
       if (!newProduct.categoryId) return;
 
@@ -327,6 +333,8 @@ export default function ProductPage() {
       const msg =
         error instanceof Error ? error.message : "Lưu sản phẩm thất bại!";
       setApiError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -492,13 +500,21 @@ export default function ProductPage() {
                   <Input
                     id="description"
                     value={newProduct.description}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setNewProduct({
                         ...newProduct,
                         description: e.target.value,
-                      })
-                    }
+                      });
+                      if (formErrors.description)
+                        setFormErrors((p) => ({ ...p, description: "" }));
+                    }}
+                    className={inputErrorClass(formErrors.description)}
                   />
+                  {formErrors.description && (
+                    <p className="text-xs text-destructive mt-1">
+                      {formErrors.description}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -508,8 +524,11 @@ export default function ProductPage() {
                 >
                   Hủy
                 </Button>
-                <Button onClick={() => void handleCreateProduct()}>
-                  {isEditMode ? "Cập nhật" : "Lưu"}
+                <Button
+                  onClick={() => void handleCreateProduct()}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
             </DialogContent>

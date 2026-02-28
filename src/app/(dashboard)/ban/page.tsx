@@ -44,6 +44,8 @@ import {
   required,
   noSpecialChars,
   positiveNumber,
+  minValue,
+  isInteger,
   inputErrorClass,
 } from "@/lib/validators";
 
@@ -64,6 +66,7 @@ export default function TablePage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -164,7 +167,10 @@ export default function TablePage() {
     const errors = collectErrors({
       tableNumber:
         required(newTable.tableNumber) || noSpecialChars(newTable.tableNumber),
-      capacity: positiveNumber(newTable.capacity),
+      capacity:
+        isInteger(newTable.capacity) ||
+        minValue(newTable.capacity, 1) ||
+        positiveNumber(newTable.capacity),
       areaId: required(newTable.areaId),
     });
     if (Object.keys(errors).length > 0) {
@@ -173,6 +179,7 @@ export default function TablePage() {
     }
     setFormErrors({});
     setApiError(null);
+    setIsSaving(true);
     try {
       const payload = {
         tableNumber: newTable.tableNumber.trim(),
@@ -192,6 +199,8 @@ export default function TablePage() {
       console.error("Failed to save table:", error);
       const msg = error instanceof Error ? error.message : "Lưu bàn thất bại!";
       setApiError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -345,8 +354,8 @@ export default function TablePage() {
                 >
                   Hủy
                 </Button>
-                <Button onClick={handleCreateTable}>
-                  {isEditMode ? "Cập nhật" : "Lưu"}
+                <Button onClick={handleCreateTable} disabled={isSaving}>
+                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
             </DialogContent>

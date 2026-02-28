@@ -30,6 +30,8 @@ import {
   collectErrors,
   required,
   noSpecialChars,
+  maxLength,
+  noHtml,
   inputErrorClass,
 } from "@/lib/validators";
 
@@ -44,6 +46,7 @@ export default function AreaPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadAreas();
@@ -134,7 +137,10 @@ export default function AreaPage() {
   const handleCreateArea = async () => {
     const errors = collectErrors({
       name: required(newArea.name) || noSpecialChars(newArea.name),
-      description: noSpecialChars(newArea.description),
+      description:
+        noSpecialChars(newArea.description) ||
+        maxLength(newArea.description, 1000) ||
+        noHtml(newArea.description),
     });
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -142,6 +148,7 @@ export default function AreaPage() {
     }
     setFormErrors({});
     setApiError(null);
+    setIsSaving(true);
     try {
       const payload = {
         name: newArea.name.trim(),
@@ -160,6 +167,8 @@ export default function AreaPage() {
       const msg =
         error instanceof Error ? error.message : "Lưu khu vực thất bại!";
       setApiError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -240,8 +249,8 @@ export default function AreaPage() {
                 >
                   Hủy
                 </Button>
-                <Button onClick={handleCreateArea}>
-                  {isEditMode ? "Cập nhật" : "Lưu"}
+                <Button onClick={handleCreateArea} disabled={isSaving}>
+                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
                 </Button>
               </DialogFooter>
             </DialogContent>
