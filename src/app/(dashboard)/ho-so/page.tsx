@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import Image from "next/image";
+import {
   User as UserIcon,
   Mail,
   Shield,
@@ -27,6 +34,7 @@ export default function HoSoPage() {
   const { user } = useAuth() as { user: AuthUser | null };
   const [userDetail, setUserDetail] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAvatarPreview, setShowAvatarPreview] = useState(false);
 
   useEffect(() => {
     const fetchUserDetail = async () => {
@@ -122,16 +130,28 @@ export default function HoSoPage() {
       <Card className="shadow-sm">
         <CardContent className="pt-8 pb-6">
           <div className="flex flex-col items-center gap-4">
-            <Avatar className="h-24 w-24 border-4 border-primary/20 shadow-md">
-              <AvatarImage
-                src={avatarDisplayUrl}
-                alt={displayName}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                {avatarInitials}
-              </AvatarFallback>
-            </Avatar>
+            <button
+              type="button"
+              className="focus:outline-none group relative"
+              onClick={() => avatarDisplayUrl && setShowAvatarPreview(true)}
+              title={avatarDisplayUrl ? "Nhấp để xem ảnh" : undefined}
+            >
+              <Avatar className="h-24 w-24 border-4 border-primary/20 shadow-md transition-opacity group-hover:opacity-80">
+                <AvatarImage
+                  src={avatarDisplayUrl}
+                  alt={displayName}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                  {avatarInitials}
+                </AvatarFallback>
+              </Avatar>
+              {avatarDisplayUrl && (
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                  Xem ảnh
+                </span>
+              )}
+            </button>
             <div className="text-center">
               <h2 className="text-xl font-semibold">{displayName}</h2>
               <p className="text-sm text-muted-foreground">{displayEmail}</p>
@@ -224,6 +244,27 @@ export default function HoSoPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog xem ảnh đại diện */}
+      <Dialog open={showAvatarPreview} onOpenChange={setShowAvatarPreview}>
+        <DialogContent className="sm:max-w-md p-4 flex flex-col items-center gap-4">
+          <DialogHeader>
+            <DialogTitle>Ảnh đại diện</DialogTitle>
+          </DialogHeader>
+          {avatarDisplayUrl && (
+            <div className="w-full flex justify-center">
+              <Image
+                src={avatarDisplayUrl}
+                alt={displayName}
+                width={400}
+                height={400}
+                className="rounded-full object-cover w-64 h-64 border-4 border-primary/20 shadow-lg"
+              />
+            </div>
+          )}
+          <p className="text-sm font-semibold text-center">{displayName}</p>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

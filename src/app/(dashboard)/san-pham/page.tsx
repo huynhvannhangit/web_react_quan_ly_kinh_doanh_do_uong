@@ -91,6 +91,7 @@ export default function ProductPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -616,17 +617,29 @@ export default function ProductPage() {
                       </TableCell>
                       <TableCell>
                         {product.imageUrl ? (
-                          <Image
-                            src={
-                              product.imageUrl.startsWith("http")
-                                ? product.imageUrl
-                                : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                          <button
+                            type="button"
+                            className="focus:outline-none"
+                            onClick={() =>
+                              setPreviewImageUrl(
+                                product.imageUrl!.startsWith("http")
+                                  ? product.imageUrl!
+                                  : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`,
+                              )
                             }
-                            alt={product.name}
-                            width={40}
-                            height={40}
-                            className="h-10 w-10 rounded-md object-cover"
-                          />
+                          >
+                            <Image
+                              src={
+                                product.imageUrl.startsWith("http")
+                                  ? product.imageUrl
+                                  : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                              }
+                              alt={product.name}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 rounded-md object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            />
+                          </button>
                         ) : (
                           <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
                             <ImageOff className="h-4 w-4 text-muted-foreground" />
@@ -713,6 +726,29 @@ export default function ProductPage() {
         }}
         onConfirm={handleImageEditConfirm}
       />
+      {/* Preview image dialog */}
+      <Dialog
+        open={!!previewImageUrl}
+        onOpenChange={(open) => !open && setPreviewImageUrl(null)}
+      >
+        <DialogContent className="sm:max-w-lg p-4 flex flex-col items-center gap-4">
+          <DialogHeader>
+            <DialogTitle>Xem ảnh sản phẩm</DialogTitle>
+          </DialogHeader>
+          {previewImageUrl && (
+            <div className="relative w-full" style={{ maxHeight: "70vh" }}>
+              <Image
+                src={previewImageUrl}
+                alt="Xem ảnh sản phẩm"
+                width={500}
+                height={500}
+                className="w-full h-auto object-contain rounded-md"
+                style={{ maxHeight: "65vh" }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
   );
 }

@@ -709,9 +709,9 @@ export default function StaffPage() {
                     />
                   </TableHead>
                   <TableHead className="w-15 text-center">STT</TableHead>
-                  <TableHead>Mã NV</TableHead>
+                  <TableHead className="whitespace-nowrap">Mã NV</TableHead>
                   <TableHead>Họ tên</TableHead>
-                  <TableHead>Ngày sinh</TableHead>
+                  <TableHead className="whitespace-nowrap">Ngày sinh</TableHead>
                   <TableHead>CCCD</TableHead>
                   <TableHead>Chức vụ</TableHead>
                   <TableHead>Lương</TableHead>

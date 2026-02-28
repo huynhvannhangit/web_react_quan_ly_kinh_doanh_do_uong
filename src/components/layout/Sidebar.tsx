@@ -212,7 +212,10 @@ export function Sidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2 overflow-hidden">
             {config?.logoUrl ? (
-              <div className="relative h-10 w-10 shrink-0">
+              <Link
+                href="/dashboard"
+                className="relative h-10 w-10 shrink-0 hover:opacity-80 transition-opacity"
+              >
                 <Image
                   src={getImageUrl(config.logoUrl)}
                   alt="Logo"
@@ -220,18 +223,19 @@ export function Sidebar() {
                   className="object-contain"
                   unoptimized
                 />
-              </div>
-            ) : null}
-            <div
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded bg-white text-[#006ccf] font-bold shrink-0",
-                config?.logoUrl && "hidden",
-              )}
-            >
-              {config?.systemName
-                ? config.systemName.substring(0, 2).toUpperCase()
-                : "QL"}
-            </div>
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded bg-white text-[#006ccf] font-bold shrink-0 hover:opacity-80 transition-opacity",
+                )}
+              >
+                {config?.systemName
+                  ? config.systemName.substring(0, 2).toUpperCase()
+                  : "QL"}
+              </Link>
+            )}
             <span className="text-lg font-semibold whitespace-nowrap">
               {config?.systemName || "QL Đồ Uống"}
             </span>
