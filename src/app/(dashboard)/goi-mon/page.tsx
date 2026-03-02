@@ -348,6 +348,14 @@ export default function OrderingPage() {
         return;
       }
 
+      if (paymentMethod === PaymentMethod.MOMO) {
+        const url = await paymentService.createMomoUrl(invoice.id);
+        setVnpayQrUrl(url); // Reusing state for simplicity
+        setPendingInvoiceId(invoice.id);
+        setIsPaymentDialogOpen(false);
+        return;
+      }
+
       const updatedInvoice = await invoiceService.processPayment(invoice.id, {
         paymentMethod: paymentMethod,
       });
@@ -980,44 +988,110 @@ export default function OrderingPage() {
           </DialogContent>
         </Dialog>
 
-        {/* VNPAY QR Code Dialog */}
+        {/* VNPAY/MoMo QR Code Dialog */}
         <Dialog
-          open={!!vnpayQrUrl}
+          open={!!vnpayQrUrl || (isPaymentDialogOpen && paymentSuccess)}
           onOpenChange={(open) => {
             if (!open) {
               setVnpayQrUrl(null);
               setPendingInvoiceId(null);
+              if (paymentSuccess) {
+                setIsPaymentDialogOpen(false);
+                setPaymentSuccess(false);
+                setCreatedOrder(null);
+                setDiscountPercent(0);
+              }
             }
           }}
         >
-          <DialogContent className="sm:max-w-md flex flex-col items-center justify-center p-6 text-center">
-            <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl">Thanh toán VNPAY QR</DialogTitle>
-              <DialogDescription>
-                Mở ứng dụng ngân hàng hoặc ví điện tử để quét mã.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="bg-white p-4 rounded-xl border border-blue-200 shadow-sm">
-              {vnpayQrUrl && (
-                <QRCodeSVG value={vnpayQrUrl} size={256} className="mx-auto" />
-              )}
-            </div>
-            <div className="mt-6 flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <p className="text-sm font-medium text-muted-foreground animate-pulse">
-                Đang chờ khách thanh toán...
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="mt-4 w-full"
-              onClick={() => {
-                setVnpayQrUrl(null);
-                setPendingInvoiceId(null);
-              }}
-            >
-              Hủy chờ / Đóng
-            </Button>
+          <DialogContent className="sm:max-w-md flex flex-col items-center justify-center p-6 text-center print:hidden">
+            {paymentSuccess ? (
+              <div className="py-6 flex flex-col items-center justify-center text-center space-y-6 w-full">
+                <DialogHeader className="mb-0">
+                  <DialogTitle className="text-xl">
+                    Thanh toán hóa đơn
+                  </DialogTitle>
+                  <DialogDescription>
+                    Bàn {selectedTable?.tableNumber} - {new Date().toLocaleDateString("vi-VN")}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center my-2">
+                  <Check className="h-10 w-10 text-emerald-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-emerald-700">
+                    Thanh toán thành công!
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Hoá đơn <strong>{lastInvoice?.invoiceNumber}</strong> đã được quyết toán.
+                  </p>
+                </div>
+                
+                <div className="flex gap-4 w-full pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setVnpayQrUrl(null);
+                      setIsPaymentDialogOpen(false);
+                      setPaymentSuccess(false);
+                      setCreatedOrder(null);
+                      setDiscountPercent(0);
+                    }}
+                  >
+                    Đóng
+                  </Button>
+                  <Button className="flex-1" onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    In hoá đơn
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <DialogHeader className="mb-4">
+                  <DialogTitle className="text-xl">
+                    Thanh toán{" "}
+                    {paymentMethod === PaymentMethod.MOMO ? "MoMo" : "VNPAY"} QR
+                  </DialogTitle>
+                  <DialogDescription>
+                    Mở ứng dụng{" "}
+                    {paymentMethod === PaymentMethod.MOMO ? "MoMo" : "ngân hàng"} để
+                    quét mã thanh toán.
+                  </DialogDescription>
+                </DialogHeader>
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border shadow-sm bg-white",
+                    paymentMethod === PaymentMethod.MOMO
+                      ? "border-pink-200"
+                      : "border-blue-200",
+                  )}
+                >
+                  {vnpayQrUrl && (
+                    <QRCodeSVG value={vnpayQrUrl} size={256} className="mx-auto" />
+                  )}
+                </div>
+                <div className="mt-6 flex flex-col items-center gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                    Đang chờ khách thanh toán...
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="mt-4 w-full"
+                  onClick={() => {
+                    setVnpayQrUrl(null);
+                    setPendingInvoiceId(null);
+                  }}
+                >
+                  Hủy chờ / Đóng
+                </Button>
+              </>
+            )}
           </DialogContent>
         </Dialog>
 

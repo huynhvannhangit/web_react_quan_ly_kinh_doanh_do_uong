@@ -10,4 +10,14 @@ export const paymentService = {
     );
     return response.data.data.url;
   },
+
+  createMomoUrl: async (invoiceId: number) => {
+    const response = await api.post<{ data: { url: string } }>(
+      "/payment/momo/create-url",
+      {
+        invoiceId,
+      },
+    );
+    return response.data.data.url;
+  },
 };
