@@ -27,9 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  CreditCard,
   Banknote,
-  QrCode,
   Eye,
   CheckCircle2,
   Loader2,
@@ -164,10 +162,18 @@ export default function InvoicePage() {
     switch (method) {
       case PaymentMethod.CASH:
         return <Banknote className="h-4 w-4 mr-2" />;
-      case PaymentMethod.CARD:
-        return <CreditCard className="h-4 w-4 mr-2" />;
-      case PaymentMethod.QR:
-        return <QrCode className="h-4 w-4 mr-2" />;
+      case PaymentMethod.VNPAY:
+        return (
+          <div className="mr-2 h-4 w-6 bg-blue-600 rounded-[2px] flex items-center justify-center text-[7px] font-bold text-white">
+            VNP
+          </div>
+        );
+      case PaymentMethod.MOMO:
+        return (
+          <div className="mr-2 h-4 w-6 bg-pink-500 rounded-[2px] flex items-center justify-center text-[7px] font-bold text-white">
+            MM
+          </div>
+        );
       default:
         return null;
     }
@@ -177,10 +183,10 @@ export default function InvoicePage() {
     switch (method) {
       case PaymentMethod.CASH:
         return "Tiền mặt";
-      case PaymentMethod.CARD:
-        return "Thẻ";
-      case PaymentMethod.QR:
-        return "Chuyển khoản / QR";
+      case PaymentMethod.VNPAY:
+        return "VNPAY";
+      case PaymentMethod.MOMO:
+        return "MoMo";
       default:
         return "—";
     }
@@ -375,7 +381,7 @@ export default function InvoicePage() {
             if (!open && !processingPayment) setIsPaymentDialogOpen(false);
           }}
         >
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto print:hidden">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto print:hidden">
             <DialogHeader>
               <DialogTitle className="text-center text-xl">
                 Thanh toán hóa đơn
@@ -407,25 +413,31 @@ export default function InvoicePage() {
                   </Button>
                   <Button
                     variant={
-                      paymentMethod === PaymentMethod.QR ? "default" : "outline"
-                    }
-                    className="h-16 justify-start text-base"
-                    onClick={() => setPaymentMethod(PaymentMethod.QR)}
-                  >
-                    <QrCode className="mr-3 h-5 w-5 text-amber-500" />
-                    Chuyển khoản / QR
-                  </Button>
-                  <Button
-                    variant={
-                      paymentMethod === PaymentMethod.CARD
+                      paymentMethod === PaymentMethod.VNPAY
                         ? "default"
                         : "outline"
                     }
-                    className="h-16 justify-start text-base"
-                    onClick={() => setPaymentMethod(PaymentMethod.CARD)}
+                    className="h-16 justify-start text-base border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    onClick={() => setPaymentMethod(PaymentMethod.VNPAY)}
                   >
-                    <CreditCard className="mr-3 h-5 w-5 text-blue-500" />
-                    Thẻ ngân hàng
+                    <div className="mr-3 h-6 w-8 bg-blue-600 rounded-[2px] flex items-center justify-center text-[10px] font-bold text-white">
+                      VNPAY
+                    </div>
+                    Thanh toán VNPAY
+                  </Button>
+                  <Button
+                    variant={
+                      paymentMethod === PaymentMethod.MOMO
+                        ? "default"
+                        : "outline"
+                    }
+                    className="h-16 justify-start text-base border-pink-200 hover:bg-pink-50 hover:text-pink-700"
+                    onClick={() => setPaymentMethod(PaymentMethod.MOMO)}
+                  >
+                    <div className="mr-3 h-6 w-8 bg-[#A50064] rounded-[2px] flex items-center justify-center text-[10px] font-bold text-white">
+                      MoMo
+                    </div>
+                    Thanh toán MoMo
                   </Button>
                 </div>
 
@@ -496,30 +508,26 @@ export default function InvoicePage() {
                   </div>
                 )}
 
-                {paymentMethod === PaymentMethod.QR && (
-                  <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border space-y-4">
-                    <h4 className="font-semibold text-sm text-center">
-                      Quét mã để thanh toán VNPay/Momo
-                    </h4>
-                    <div className="relative h-40 w-40 bg-muted flex items-center justify-center border-2 border-primary/20 p-2 rounded-xl">
-                      <QrCode className="h-24 w-24 text-primary opacity-80" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px] opacity-0 hover:opacity-100 transition-opacity">
-                        <span className="text-xs font-bold text-primary">
-                          QR MÔ PHỎNG
-                        </span>
-                      </div>
+                {paymentMethod === PaymentMethod.VNPAY && (
+                  <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
+                      VNP
                     </div>
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      Sử dụng ứng dụng ngân hàng hoặc ví điện tử để quét
+                    <p className="text-sm font-medium text-blue-800 text-center">
+                      Hệ thống sẽ cập nhật trạng thái tự động sau khi khách quét
+                      mã
                     </p>
                   </div>
                 )}
 
-                {paymentMethod === PaymentMethod.CARD && (
-                  <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-lg border border-slate-200">
-                    <CreditCard className="h-16 w-16 text-slate-400 mb-4" />
-                    <p className="text-sm font-medium text-slate-600 text-center">
-                      Vui lòng sử dụng máy quẹt thẻ POS
+                {paymentMethod === PaymentMethod.MOMO && (
+                  <div className="flex flex-col items-center justify-center p-8 bg-pink-50 rounded-lg border border-pink-200">
+                    <div className="h-16 w-16 bg-[#A50064] rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
+                      MoMo
+                    </div>
+                    <p className="text-sm font-medium text-pink-800 text-center">
+                      Màn hình mã QR MoMo sẽ hiển thị để khách hàng quét thanh
+                      toán
                     </p>
                   </div>
                 )}

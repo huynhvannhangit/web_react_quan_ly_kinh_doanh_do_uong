@@ -12,6 +12,8 @@ export enum PaymentMethod {
   CASH = "CASH",
   CARD = "CARD",
   QR = "QR",
+  VNPAY = "VNPAY",
+  MOMO = "MOMO",
 }
 
 export interface InvoiceItem {

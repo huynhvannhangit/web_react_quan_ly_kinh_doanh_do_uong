@@ -15,7 +15,9 @@ import {
   invoiceService,
   PaymentMethod,
   Invoice,
+  InvoiceStatus,
 } from "@/services/invoice.service";
+import { paymentService } from "@/services/payment.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -48,8 +50,6 @@ import {
   ImageOff,
   Filter,
   Banknote,
-  CreditCard,
-  QrCode,
   Check,
   Trash2,
   Printer,
@@ -57,6 +57,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { useRef } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
@@ -84,6 +85,8 @@ export default function OrderingPage() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [vnpayQrUrl, setVnpayQrUrl] = useState<string | null>(null);
+  const [pendingInvoiceId, setPendingInvoiceId] = useState<number | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   const VN_DENOMINATIONS = [
@@ -93,25 +96,83 @@ export default function OrderingPage() {
   const getDenominationStyle = (den: number) => {
     switch (den) {
       case 500000:
-        return "bg-[#006E8C] text-white hover:bg-[#005a73] shadow-inner";
+        return "bg-[#096e83] text-white hover:bg-[#065b6e] shadow-inner";
       case 200000:
-        return "bg-[#B34D26] text-white hover:bg-[#943f1f] shadow-inner";
+        return "bg-[#b8532f] text-white hover:bg-[#974526] shadow-inner";
       case 100000:
-        return "bg-[#5D8233] text-white hover:bg-[#4d6b2a] shadow-inner";
+        return "bg-[#5E8233] text-white hover:bg-[#4d6b2a] shadow-inner";
       case 50000:
-        return "bg-[#A3527D] text-white hover:bg-[#854366] shadow-inner";
+        return "bg-[#A95180] text-white hover:bg-[#8f446c] shadow-inner";
       case 20000:
-        return "bg-[#2D4B73] text-white hover:bg-[#253e5f] shadow-inner";
+        return "bg-[#2b5175] text-white hover:bg-[#234261] shadow-inner";
       case 10000:
-        return "bg-[#967B4F] text-white hover:bg-[#7a6440] shadow-inner";
+        return "bg-[#9B7D4E] text-white hover:bg-[#856b43] shadow-inner";
       default:
-        return "bg-slate-500 text-white hover:bg-slate-600 shadow-inner";
+        return "bg-[#64748b] text-white hover:bg-[#475569] shadow-inner";
     }
   };
 
   useEffect(() => {
     loadData();
+
+    // Handle VNPAY return params
+    const searchParams = new URLSearchParams(window.location.search);
+    const paymentIdStr = searchParams.get("paymentId");
+    const successStr = searchParams.get("success");
+    const messageStr = searchParams.get("message");
+
+    if (paymentIdStr && successStr) {
+      const paymentId = parseInt(paymentIdStr, 10);
+      exportVnpayReturn(paymentId, successStr === "true", messageStr || "");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!vnpayQrUrl || !pendingInvoiceId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const invoice = await invoiceService.getById(pendingInvoiceId);
+        if (invoice.status === InvoiceStatus.PAID) {
+          setVnpayQrUrl(null);
+          setPendingInvoiceId(null);
+          setIsOrderDialogOpen(false);
+          setLastInvoice(invoice);
+          setPaymentSuccess(true);
+          setIsPaymentDialogOpen(true);
+          loadData();
+        }
+      } catch (error) {
+        console.error("Lỗi khi kiểm tra hóa đơn VNPAY: ", error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [vnpayQrUrl, pendingInvoiceId]);
+
+  const exportVnpayReturn = async (
+    invoiceId: number,
+    isSuccess: boolean,
+    message: string,
+  ) => {
+    if (isSuccess) {
+      try {
+        const invoice = await invoiceService.getById(invoiceId);
+        setLastInvoice(invoice);
+        setPaymentSuccess(true);
+        setIsPaymentDialogOpen(true);
+        loadData();
+      } catch (error) {
+        console.error("Lỗi khi tải hóa đơn VNPAY: ", error);
+        alert(message);
+      }
+    } else {
+      alert("Thanh toán VNPAY thất bại: " + message);
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -279,6 +340,14 @@ export default function OrderingPage() {
         discountPercent: discountPercent,
       });
 
+      if (paymentMethod === PaymentMethod.VNPAY) {
+        const url = await paymentService.createVnpayUrl(invoice.id);
+        setVnpayQrUrl(url);
+        setPendingInvoiceId(invoice.id);
+        setIsPaymentDialogOpen(false);
+        return;
+      }
+
       const updatedInvoice = await invoiceService.processPayment(invoice.id, {
         paymentMethod: paymentMethod,
       });
@@ -419,7 +488,7 @@ export default function OrderingPage() {
             <DialogHeader className="p-6 pb-2">
               <DialogTitle className="flex items-center gap-2 text-xl">
                 <ShoppingCart className="h-5 w-5" />
-                {activeOrder ? "Chi tiết Hóa đơn" : "Gọi món"} cho Bàn{" "}
+                {activeOrder ? "Chi tiết Hóa đơn" : "Gọi món"} cho{" "}
                 {selectedTable?.tableNumber}
               </DialogTitle>
               <DialogDescription>
@@ -635,7 +704,7 @@ export default function OrderingPage() {
             if (!open && !isSubmitting) setIsPaymentDialogOpen(false);
           }}
         >
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto print:hidden">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto print:hidden">
             <DialogHeader>
               <DialogTitle className="text-center text-xl">
                 Thanh toán hóa đơn
@@ -701,27 +770,31 @@ export default function OrderingPage() {
                     </Button>
                     <Button
                       variant={
-                        paymentMethod === PaymentMethod.QR
+                        paymentMethod === PaymentMethod.VNPAY
                           ? "default"
                           : "outline"
                       }
-                      className="h-16 justify-start text-base"
-                      onClick={() => setPaymentMethod(PaymentMethod.QR)}
+                      className="h-16 justify-start text-base border-blue-200"
+                      onClick={() => setPaymentMethod(PaymentMethod.VNPAY)}
                     >
-                      <QrCode className="mr-3 h-5 w-5 text-amber-500" />
-                      Chuyển khoản / QR
+                      <div className="mr-3 h-6 w-8 bg-blue-600 rounded-sm flex items-center justify-center text-[10px] font-bold text-white">
+                        VNPAY
+                      </div>
+                      Thanh toán VNPAY
                     </Button>
                     <Button
                       variant={
-                        paymentMethod === PaymentMethod.CARD
+                        paymentMethod === PaymentMethod.MOMO
                           ? "default"
                           : "outline"
                       }
-                      className="h-16 justify-start text-base"
-                      onClick={() => setPaymentMethod(PaymentMethod.CARD)}
+                      className="h-16 justify-start text-base border-pink-200"
+                      onClick={() => setPaymentMethod(PaymentMethod.MOMO)}
                     >
-                      <CreditCard className="mr-3 h-5 w-5 text-blue-500" />
-                      Thẻ ngân hàng
+                      <div className="mr-3 h-6 w-8 bg-[#A50064] rounded-sm flex items-center justify-center text-[10px] font-bold text-white">
+                        MoMo
+                      </div>
+                      Thanh toán MoMo
                     </Button>
                   </div>
 
@@ -734,7 +807,7 @@ export default function OrderingPage() {
                         -{discountPercent}%
                       </Badge>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {[0, 5, 10, 15, 20, 50].map((val) => (
                         <Button
                           key={val}
@@ -742,7 +815,7 @@ export default function OrderingPage() {
                             discountPercent === val ? "default" : "outline"
                           }
                           size="sm"
-                          className="flex-1 h-8 text-xs"
+                          className="flex-1 h-8 text-xs px-1"
                           onClick={() => setDiscountPercent(val)}
                         >
                           {val}%
@@ -853,30 +926,24 @@ export default function OrderingPage() {
                     </div>
                   )}
 
-                  {paymentMethod === PaymentMethod.QR && (
-                    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border space-y-4">
-                      <h4 className="font-semibold text-sm text-center">
-                        Quét mã để thanh toán VNPay/Momo
-                      </h4>
-                      <div className="relative h-40 w-40 bg-muted flex items-center justify-center border-2 border-primary/20 p-2 rounded-xl">
-                        <QrCode className="h-24 w-24 text-primary opacity-80" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px] opacity-0 hover:opacity-100 transition-opacity">
-                          <span className="text-xs font-bold text-primary">
-                            QR MÔ PHỎNG
-                          </span>
-                        </div>
+                  {paymentMethod === PaymentMethod.VNPAY && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
+                        VNP
                       </div>
-                      <p className="text-[10px] text-muted-foreground text-center">
-                        Sử dụng ứng dụng ngân hàng hoặc ví điện tử để quét
+                      <p className="text-sm font-medium text-blue-800 text-center">
+                        Màn hình QR VNPAY sẽ hiển thị sau khi bạn bấm Xác nhận
                       </p>
                     </div>
                   )}
 
-                  {paymentMethod === PaymentMethod.CARD && (
-                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-lg border border-slate-200">
-                      <CreditCard className="h-16 w-16 text-slate-400 mb-4" />
-                      <p className="text-sm font-medium text-slate-600 text-center">
-                        Vui lòng sử dụng máy quẹt thẻ POS
+                  {paymentMethod === PaymentMethod.MOMO && (
+                    <div className="flex flex-col items-center justify-center p-8 bg-pink-50 rounded-lg border border-pink-200">
+                      <div className="h-16 w-16 bg-[#A50064] rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
+                        MoMo
+                      </div>
+                      <p className="text-sm font-medium text-pink-800 text-center">
+                        Màn hình QR MoMo sẽ hiển thị sau khi bạn bấm Xác nhận
                       </p>
                     </div>
                   )}
@@ -910,6 +977,47 @@ export default function OrderingPage() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* VNPAY QR Code Dialog */}
+        <Dialog
+          open={!!vnpayQrUrl}
+          onOpenChange={(open) => {
+            if (!open) {
+              setVnpayQrUrl(null);
+              setPendingInvoiceId(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md flex flex-col items-center justify-center p-6 text-center">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-xl">Thanh toán VNPAY QR</DialogTitle>
+              <DialogDescription>
+                Mở ứng dụng ngân hàng hoặc ví điện tử để quét mã.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="bg-white p-4 rounded-xl border border-blue-200 shadow-sm">
+              {vnpayQrUrl && (
+                <QRCodeSVG value={vnpayQrUrl} size={256} className="mx-auto" />
+              )}
+            </div>
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                Đang chờ khách thanh toán...
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="mt-4 w-full"
+              onClick={() => {
+                setVnpayQrUrl(null);
+                setPendingInvoiceId(null);
+              }}
+            >
+              Hủy chờ / Đóng
+            </Button>
           </DialogContent>
         </Dialog>
 

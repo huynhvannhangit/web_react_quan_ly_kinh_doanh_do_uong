@@ -710,7 +710,7 @@ export default function StaffPage() {
                   </TableHead>
                   <TableHead className="w-15 text-center">STT</TableHead>
                   <TableHead className="whitespace-nowrap">Mã NV</TableHead>
-                  <TableHead>Họ tên</TableHead>
+                  <TableHead className="whitespace-nowrap">Họ tên</TableHead>
                   <TableHead className="whitespace-nowrap">Ngày sinh</TableHead>
                   <TableHead>CCCD</TableHead>
                   <TableHead>Chức vụ</TableHead>
@@ -759,7 +759,9 @@ export default function StaffPage() {
                       <TableCell className="font-medium text-blue-600 font-mono text-xs">
                         {emp.employeeCode}
                       </TableCell>
-                      <TableCell>{emp.fullName}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {emp.fullName}
+                      </TableCell>
                       <TableCell>
                         {emp.birthDate
                           ? new Date(emp.birthDate).toLocaleDateString("vi-VN")
@@ -786,22 +788,24 @@ export default function StaffPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="mr-2"
-                          onClick={() => handleEdit(emp)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => handleDelete(emp.id, emp.fullName)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="mr-2"
+                            onClick={() => handleEdit(emp)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => handleDelete(emp.id, emp.fullName)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
