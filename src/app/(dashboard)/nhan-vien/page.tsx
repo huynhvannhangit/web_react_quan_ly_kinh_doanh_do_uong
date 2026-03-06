@@ -35,6 +35,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -92,7 +94,20 @@ export default function StaffPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
 
@@ -194,15 +209,24 @@ export default function StaffPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (confirm(`Bạn có chắc muốn xóa nhân viên "${name}"?`)) {
-      try {
-        await employeeService.delete(id);
-        loadEmployees();
-      } catch (error) {
-        console.error("Failed to delete employee:", error);
-        alert("Xóa nhân viên thất bại!");
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa nhân viên",
+      description: `Bạn có chắc muốn xóa nhân viên "${name}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await employeeService.delete(id);
+          toast.success("Xóa nhân viên thành công");
+          loadEmployees();
+        } catch (error) {
+          console.error("Failed to delete employee:", error);
+          toast.error("Xóa nhân viên thất bại!");
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -222,21 +246,27 @@ export default function StaffPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (
-      confirm(`Bạn có chắc muốn xóa ${selectedIds.length} nhân viên đã chọn?`)
-    ) {
-      setIsDeletingBulk(true);
-      try {
-        await Promise.all(selectedIds.map((id) => employeeService.delete(id)));
-        setSelectedIds([]);
-        loadEmployees();
-      } catch (error) {
-        console.error("Failed to bulk delete employees:", error);
-        alert("Xóa hàng loạt thất bại!");
-      } finally {
-        setIsDeletingBulk(false);
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa hàng loạt",
+      description: `Bạn có chắc muốn xóa ${selectedIds.length} nhân viên đã chọn?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setIsDeletingBulk(true);
+        try {
+          await employeeService.deleteMany(selectedIds);
+          setSelectedIds([]);
+          toast.success("Xóa hàng loạt thành công");
+          loadEmployees();
+        } catch (error) {
+          console.error("Failed to bulk delete employees:", error);
+          toast.error("Xóa hàng loạt thất bại!");
+        } finally {
+          setIsDeletingBulk(false);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleCreateEmployee = async () => {
@@ -312,10 +342,10 @@ export default function StaffPage() {
 
   const handleSearch = () => {
     setCurrentPage(1);
-    void loadEmployees(searchInput);
+    void loadEmployees(searchTerm);
   };
   const handleReset = () => {
-    setSearchInput("");
+    setSearchTerm("");
     setCurrentPage(1);
     void loadEmployees();
   };
@@ -346,8 +376,8 @@ export default function StaffPage() {
               <Input
                 placeholder="Tìm kiếm..."
                 className="bg-background border-border rounded-lg h-10 w-full"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleSearch();
@@ -1049,6 +1079,17 @@ export default function StaffPage() {
               </div>
             </div>
           )}
+          <ConfirmDialog
+            isOpen={confirmState.isOpen}
+            onClose={() =>
+              setConfirmState((prev) => ({ ...prev, isOpen: false }))
+            }
+            onConfirm={confirmState.onConfirm}
+            title={confirmState.title}
+            description={confirmState.description}
+            isDanger={confirmState.isDanger}
+            isLoading={isDeletingBulk}
+          />
         </CardContent>
       </Card>
     </PermissionGuard>

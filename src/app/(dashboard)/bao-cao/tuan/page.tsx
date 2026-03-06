@@ -11,9 +11,7 @@ export default function WeeklyReportPage() {
       permissions={[Permission.STATISTICS_VIEW]}
       redirect="/dashboard"
     >
-      <div className="p-6">
-        <StatisticsView defaultGroupBy="week" title="Thống kê theo tuần" />
-      </div>
+      <StatisticsView defaultGroupBy="week" title="Thống kê theo tuần" />
     </PermissionGuard>
   );
 }

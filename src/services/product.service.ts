@@ -52,6 +52,12 @@ export const categoryService = {
     const response = await api.delete<{ data: Category }>(`/category/${id}`);
     return response.data.data;
   },
+  deleteMany: async (ids: number[]) => {
+    const response = await api.delete<{ data: Category[] }>("/category/bulk", {
+      data: { ids },
+    });
+    return response.data.data;
+  },
 };
 
 export const productService = {
@@ -84,6 +90,12 @@ export const productService = {
   delete: async (id: number, reason?: string) => {
     const response = await api.delete<{ data: Product }>(`/product/${id}`, {
       data: reason ? { reason } : undefined,
+    });
+    return response.data.data;
+  },
+  deleteMany: async (ids: number[], reason?: string) => {
+    const response = await api.delete<{ data: Product[] }>("/product/bulk", {
+      data: { ids, reason },
     });
     return response.data.data;
   },

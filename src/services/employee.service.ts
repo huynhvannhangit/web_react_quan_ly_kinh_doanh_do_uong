@@ -58,6 +58,12 @@ export const employeeService = {
     await api.delete(`/employee/${id}`);
   },
 
+  deleteMany: async (ids: number[], reason?: string) => {
+    await api.delete("/employee/bulk", {
+      data: { ids, reason },
+    });
+  },
+
   getAvailableUsers: async (
     excludeEmployeeId?: number,
   ): Promise<AvailableUser[]> => {

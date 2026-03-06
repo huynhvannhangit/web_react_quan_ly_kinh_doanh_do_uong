@@ -11,12 +11,10 @@ export default function DailyReportPage() {
       permissions={[Permission.STATISTICS_VIEW]}
       redirect="/dashboard"
     >
-      <div className="p-6">
-        <StatisticsView
-          defaultGroupBy="day"
-          title="Báo cáo Doanh thu theo ngày"
-        />
-      </div>
+      <StatisticsView
+        defaultGroupBy="day"
+        title="Báo cáo Doanh thu theo ngày"
+      />
     </PermissionGuard>
   );
 }

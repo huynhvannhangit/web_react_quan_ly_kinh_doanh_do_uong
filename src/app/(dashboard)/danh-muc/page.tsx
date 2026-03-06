@@ -35,6 +35,8 @@ import {
   noHtml,
   inputErrorClass,
 } from "@/lib/validators";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -49,6 +51,19 @@ export default function CategoryPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
   const filteredCategories = categories;
 
@@ -93,15 +108,24 @@ export default function CategoryPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (confirm(`Bạn có chắc muốn xóa danh mục "${name}"?`)) {
-      try {
-        await categoryService.delete(id);
-        loadCategories();
-      } catch (error) {
-        console.error("Failed to delete category:", error);
-        alert("Xóa danh mục thất bại!");
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa danh mục",
+      description: `Bạn có chắc muốn xóa danh mục "${name}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await categoryService.delete(id);
+          toast.success("Xóa danh mục thành công");
+          loadCategories();
+        } catch (error) {
+          console.error("Failed to delete category:", error);
+          toast.error("Xóa danh mục thất bại!");
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -121,21 +145,27 @@ export default function CategoryPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (
-      confirm(`Bạn có chắc muốn xóa ${selectedIds.length} danh mục đã chọn?`)
-    ) {
-      setIsDeletingBulk(true);
-      try {
-        await Promise.all(selectedIds.map((id) => categoryService.delete(id)));
-        setSelectedIds([]);
-        loadCategories();
-      } catch (error) {
-        console.error("Failed to bulk delete categories:", error);
-        alert("Xóa hàng loạt thất bại!");
-      } finally {
-        setIsDeletingBulk(false);
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa hàng loạt",
+      description: `Bạn có chắc muốn xóa ${selectedIds.length} danh mục đã chọn?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setIsDeletingBulk(true);
+        try {
+          await categoryService.deleteMany(selectedIds);
+          setSelectedIds([]);
+          toast.success("Xóa hàng loạt thành công");
+          loadCategories();
+        } catch (error) {
+          console.error("Failed to bulk delete categories:", error);
+          toast.error("Xóa hàng loạt thất bại!");
+        } finally {
+          setIsDeletingBulk(false);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleCreateCategory = async () => {
@@ -424,6 +454,17 @@ export default function CategoryPage() {
               </div>
             </CardContent>
           </Card>
+          <ConfirmDialog
+            isOpen={confirmState.isOpen}
+            onClose={() =>
+              setConfirmState((prev) => ({ ...prev, isOpen: false }))
+            }
+            onConfirm={confirmState.onConfirm}
+            title={confirmState.title}
+            description={confirmState.description}
+            isDanger={confirmState.isDanger}
+            isLoading={isDeletingBulk}
+          />
         </CardContent>
       </Card>
     </PermissionGuard>

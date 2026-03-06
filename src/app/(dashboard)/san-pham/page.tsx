@@ -64,6 +64,7 @@ import {
   inputErrorClass,
 } from "@/lib/validators";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ImageEditorDialog } from "@/components/shared/ImageEditorDialog";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -99,6 +100,19 @@ export default function ProductPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -226,15 +240,25 @@ export default function ProductPage() {
       setApprovalDialogOpen(true);
       return;
     }
-    if (confirm(`Bạn có chắc muốn xóa sản phẩm "${name}"?`)) {
-      try {
-        await productService.delete(id);
-        loadData();
-      } catch (error) {
-        console.error("Failed to delete product:", error);
-        alert("Xóa sản phẩm thất bại!");
-      }
-    }
+
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa sản phẩm",
+      description: `Bạn có chắc muốn xóa sản phẩm "${name}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await productService.delete(id);
+          toast.success("Xóa sản phẩm thành công");
+          loadData();
+        } catch (error) {
+          console.error("Failed to delete product:", error);
+          toast.error("Xóa sản phẩm thất bại!");
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -259,9 +283,7 @@ export default function ProductPage() {
       setPendingAction(() => async (reason: string) => {
         setIsDeletingBulk(true);
         try {
-          await Promise.all(
-            selectedIds.map((id) => productService.delete(id, reason)),
-          );
+          await productService.deleteMany(selectedIds, reason);
           setSelectedIds([]);
           setApprovalDialogOpen(false);
           loadData();
@@ -275,21 +297,28 @@ export default function ProductPage() {
       setApprovalDialogOpen(true);
       return;
     }
-    if (
-      confirm(`Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đã chọn?`)
-    ) {
-      setIsDeletingBulk(true);
-      try {
-        await Promise.all(selectedIds.map((id) => productService.delete(id)));
-        setSelectedIds([]);
-        loadData();
-      } catch (error) {
-        console.error("Failed to bulk delete products:", error);
-        alert("Xóa hàng loạt thất bại!");
-      } finally {
-        setIsDeletingBulk(false);
-      }
-    }
+
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa hàng loạt",
+      description: `Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đã chọn?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setIsDeletingBulk(true);
+        try {
+          await productService.deleteMany(selectedIds);
+          setSelectedIds([]);
+          toast.success("Xóa hàng loạt thành công");
+          loadData();
+        } catch (error) {
+          console.error("Failed to bulk delete products:", error);
+          toast.error("Xóa hàng loạt thất bại!");
+        } finally {
+          setIsDeletingBulk(false);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleCreateProduct = async (reason?: string) => {
@@ -840,7 +869,6 @@ export default function ProductPage() {
               )}
             </DialogContent>
           </Dialog>
-
           <ImageEditorDialog
             open={imageEditorOpen}
             imageSrc={rawImageSrc || ""}
@@ -849,6 +877,18 @@ export default function ProductPage() {
               setRawImageSrc(null);
             }}
             onConfirm={handleImageEditConfirm}
+          />
+
+          <ConfirmDialog
+            isOpen={confirmState.isOpen}
+            onClose={() =>
+              setConfirmState((prev) => ({ ...prev, isOpen: false }))
+            }
+            onConfirm={confirmState.onConfirm}
+            title={confirmState.title}
+            description={confirmState.description}
+            isDanger={confirmState.isDanger}
+            isLoading={isDeletingBulk}
           />
         </>
       )}

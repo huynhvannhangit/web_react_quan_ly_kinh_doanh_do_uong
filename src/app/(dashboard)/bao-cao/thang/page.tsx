@@ -11,9 +11,7 @@ export default function MonthlyReportPage() {
       permissions={[Permission.STATISTICS_VIEW]}
       redirect="/dashboard"
     >
-      <div className="p-6">
-        <StatisticsView defaultGroupBy="month" title="Thống kê theo tháng" />
-      </div>
+      <StatisticsView defaultGroupBy="month" title="Thống kê theo tháng" />
     </PermissionGuard>
   );
 }

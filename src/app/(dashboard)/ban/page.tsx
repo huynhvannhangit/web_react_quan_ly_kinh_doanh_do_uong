@@ -48,6 +48,8 @@ import {
   isInteger,
   inputErrorClass,
 } from "@/lib/validators";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export default function TablePage() {
   const [tables, setTables] = useState<TableType[]>([]);
@@ -68,6 +70,19 @@ export default function TablePage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     void loadData();
@@ -121,15 +136,24 @@ export default function TablePage() {
   };
 
   const handleDelete = async (id: number, tableNumber: string) => {
-    if (confirm(`Bạn có chắc muốn xóa bàn "${tableNumber}"?`)) {
-      try {
-        await tableService.delete(id);
-        loadData();
-      } catch (error) {
-        console.error("Failed to delete table:", error);
-        alert("Xóa bàn thất bại!");
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa bàn",
+      description: `Bạn có chắc muốn xóa bàn "${tableNumber}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await tableService.delete(id);
+          toast.success("Xóa bàn thành công");
+          loadData();
+        } catch (error) {
+          console.error("Failed to delete table:", error);
+          toast.error("Xóa bàn thất bại!");
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -149,19 +173,27 @@ export default function TablePage() {
   };
 
   const handleBulkDelete = async () => {
-    if (confirm(`Bạn có chắc muốn xóa ${selectedIds.length} bàn đã chọn?`)) {
-      setIsDeletingBulk(true);
-      try {
-        await Promise.all(selectedIds.map((id) => tableService.delete(id)));
-        setSelectedIds([]);
-        loadData();
-      } catch (error) {
-        console.error("Failed to bulk delete tables:", error);
-        alert("Xóa hàng loạt thất bại!");
-      } finally {
-        setIsDeletingBulk(false);
-      }
-    }
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa hàng loạt",
+      description: `Bạn có chắc muốn xóa ${selectedIds.length} bàn đã chọn?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setIsDeletingBulk(true);
+        try {
+          await tableService.deleteMany(selectedIds);
+          setSelectedIds([]);
+          toast.success("Xóa hàng loạt thành công");
+          loadData();
+        } catch (error) {
+          console.error("Failed to bulk delete tables:", error);
+          toast.error("Xóa hàng loạt thất bại!");
+        } finally {
+          setIsDeletingBulk(false);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleCreateTable = async () => {
@@ -511,6 +543,17 @@ export default function TablePage() {
               </div>
             </CardContent>
           </Card>
+          <ConfirmDialog
+            isOpen={confirmState.isOpen}
+            onClose={() =>
+              setConfirmState((prev) => ({ ...prev, isOpen: false }))
+            }
+            onConfirm={confirmState.onConfirm}
+            title={confirmState.title}
+            description={confirmState.description}
+            isDanger={confirmState.isDanger}
+            isLoading={isDeletingBulk}
+          />
         </CardContent>
       </Card>
     </PermissionGuard>

@@ -44,7 +44,16 @@ export default function RootLayout({
               <AuthProvider>{children}</AuthProvider>
             </NotificationProvider>
           </SystemConfigProvider>
-          <Toaster />
+          <Toaster
+            position="top-right"
+            richColors
+            expand
+            closeButton
+            toastOptions={{
+              duration: 5000,
+              className: "font-sans",
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>

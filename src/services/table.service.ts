@@ -56,4 +56,10 @@ export const tableService = {
     const response = await api.delete<{ data: Table }>(`/table/${id}`);
     return response.data.data;
   },
+  deleteMany: async (ids: number[], reason?: string) => {
+    const response = await api.delete<{ data: Table[] }>("/table/bulk", {
+      data: { ids, reason },
+    });
+    return response.data.data;
+  },
 };

@@ -26,14 +26,14 @@ export const useSocket = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Khởi tạo kết nối Socket.IO
+  // Initialize Socket.IO connection
   useEffect(() => {
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999/api";
-    // Tách phần /api ra để lấy gốc domain của backend cho WebSocket
+    // Extract base backend URL from API URL for WebSocket
     const backendUrl = apiUrl.endsWith("/api") ? apiUrl.slice(0, -4) : apiUrl;
 
-    // Kết nối đến namespace /notifications
+    // Connect to /notifications namespace
     const socketInstance = io(`${backendUrl}/notifications`, {
       withCredentials: true,
       autoConnect: true,
@@ -52,17 +52,68 @@ export const useSocket = () => {
       setIsConnected(false);
     });
 
-    // Lắng nghe sự kiện thông báo realtime từ server
+    // Listen for realtime notifications from server
     socketInstance.on("notification", (payload: AppNotification) => {
       console.log("New notification received:", payload);
 
-      // Hiển thị toast
-      toast.info(payload.title, {
-        description: payload.message,
-        duration: 5000,
-      });
+      toast.custom(
+        (t) => (
+          <div
+            className={`
+          flex w-105 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-slate-800/50
+          shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] 
+          rounded-2xl pointer-events-auto overflow-hidden relative group
+          transition-all duration-500 ease-in-out
+          animate-in slide-in-from-right-full
+          data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:slide-out-to-top-full
+        `}
+          >
+            {/* Ambient background glow matching type */}
+            <div
+              className={`
+              absolute -left-20 -top-20 w-40 h-40 blur-[60px] opacity-20 pointer-events-none
+              ${
+                payload.type === "success"
+                  ? "bg-green-500"
+                  : payload.type === "error"
+                    ? "bg-red-500"
+                    : payload.type === "warning"
+                      ? "bg-amber-500"
+                      : "bg-blue-500"
+              }
+            `}
+            />
 
-      // Cập nhật state local ngay lập tức
+            <div className="flex-1 p-5 relative z-10">
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-wide uppercase flex items-center gap-2">
+                  {payload.title}
+                  {payload.type === "success" && (
+                    <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  )}
+                </h4>
+                <p className="mt-1.5 text-[13px] leading-relaxed font-medium text-slate-600 dark:text-slate-400">
+                  {payload.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center p-3 relative z-10 border-l border-slate-100 dark:border-slate-800/50">
+              <button
+                onClick={() => toast.dismiss(t)}
+                className="h-full px-4 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 transition-colors focus:outline-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ),
+        {
+          duration: 5000,
+        },
+      );
+
+      // Update local state immediately
       const newNotification = {
         ...payload,
         id: Date.now().toString(),
@@ -79,11 +130,11 @@ export const useSocket = () => {
     };
   }, []);
 
-  // Sync dữ liệu với Firebase Firestore (lịch sử thông báo)
+  // Sync data with Firebase Firestore (notification history)
   useEffect(() => {
     if (!db) return;
 
-    // Lắng nghe realtime từ collection 'notifications' trên Firestore
+    // Listen for realtime updates from Firebase Firestore (notification history)
     const q = query(
       collection(db, "notifications"),
       orderBy("createdAt", "desc"),
@@ -113,16 +164,16 @@ export const useSocket = () => {
     return () => unsubscribe();
   }, []);
 
-  // Hàm đánh dấu đã đọc
+  // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
-    // Chỉ cập nhật state local, thực tế nên update document Firebase
+    // Update local state (ideally sync with Firebase as well)
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
   }, []);
 
-  // Hàm đánh dấu tất cả đã đọc
+  // Mark all as read
   const markAllAsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);

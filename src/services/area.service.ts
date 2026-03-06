@@ -34,4 +34,10 @@ export const areaService = {
     const response = await api.delete<{ data: Area }>(`/area/${id}`);
     return response.data.data;
   },
+  deleteMany: async (ids: number[], reason?: string) => {
+    const response = await api.delete<{ data: Area[] }>("/area/bulk", {
+      data: { ids, reason },
+    });
+    return response.data.data;
+  },
 };
