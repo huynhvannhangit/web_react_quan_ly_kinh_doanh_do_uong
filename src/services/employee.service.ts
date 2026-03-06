@@ -1,9 +1,21 @@
 import api from "./api";
 
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+  BANNED = "BANNED",
+}
+
+export enum EmployeeStatus {
+  WORKING = "WORKING",
+  RESIGNED = "RESIGNED",
+}
+
 export interface AvailableUser {
   id: number;
   email: string;
   fullName: string;
+  status: UserStatus;
 }
 
 export interface Employee {
@@ -15,6 +27,7 @@ export interface Employee {
   birthDate?: string;
   position?: string;
   salary: number;
+  status: EmployeeStatus;
   identityCard?: string;
   userId?: number | null;
   user?: AvailableUser | null;
@@ -62,6 +75,30 @@ export const employeeService = {
     await api.delete("/employee/bulk", {
       data: { ids, reason },
     });
+  },
+
+  updateAccountStatus: async (
+    id: number,
+    status: UserStatus,
+    reason?: string,
+  ) => {
+    const response = await api.patch<{ data: Employee }>(
+      `/employee/${id}/account-status`,
+      { status, reason },
+    );
+    return response.data.data;
+  },
+
+  updateEmployeeStatus: async (
+    id: number,
+    status: EmployeeStatus,
+    reason?: string,
+  ) => {
+    const response = await api.patch<{ data: Employee }>(
+      `/employee/${id}/status`,
+      { status, reason },
+    );
+    return response.data.data;
   },
 
   getAvailableUsers: async (

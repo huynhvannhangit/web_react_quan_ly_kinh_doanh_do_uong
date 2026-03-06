@@ -6,6 +6,7 @@ import {
   employeeService,
   Employee,
   AvailableUser,
+  EmployeeStatus,
 } from "@/services/employee.service";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, UserCheck, UserMinus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +87,7 @@ export default function StaffPage() {
     birthDate: "",
     identityCard: "",
     userId: null as number | null,
+    status: EmployeeStatus.WORKING,
   });
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -151,6 +153,7 @@ export default function StaffPage() {
       birthDate: "",
       identityCard: "",
       userId: null,
+      status: EmployeeStatus.WORKING,
     });
     setEditingEmployee(null);
     setIsEditMode(false);
@@ -179,6 +182,7 @@ export default function StaffPage() {
         birthDate: freshData.birthDate || "",
         identityCard: freshData.identityCard || "",
         userId: freshData.userId ?? null,
+        status: freshData.status,
       });
       // Load available users, exclude this employee so its current user still shows
       await loadAvailableUsers(freshData.id);
@@ -194,6 +198,7 @@ export default function StaffPage() {
                 id: freshData.user!.id,
                 email: freshData.user!.email,
                 fullName: freshData.user!.fullName,
+                status: freshData.user!.status,
               },
               ...prev,
             ];
@@ -269,6 +274,38 @@ export default function StaffPage() {
     });
   };
 
+  const handleToggleEmployeeStatus = async (emp: Employee) => {
+    const isCurrentlyWorking = emp.status === EmployeeStatus.WORKING;
+    const newStatus = isCurrentlyWorking
+      ? EmployeeStatus.RESIGNED
+      : EmployeeStatus.WORKING;
+    const actionText = isCurrentlyWorking ? "nghỉ việc" : "đi làm lại";
+
+    setConfirmState({
+      isOpen: true,
+      title: `Xác nhận ${actionText}`,
+      description: `Bạn có chắc muốn chuyển trạng thái nhân viên "${emp.fullName}" thành ${actionText}?`,
+      isDanger: isCurrentlyWorking,
+      onConfirm: async () => {
+        try {
+          await employeeService.updateEmployeeStatus(emp.id, newStatus);
+          toast.success(
+            `${isCurrentlyWorking ? "Cập nhật nghỉ việc" : "Cập nhật đi làm lại"} thành công`,
+          );
+          loadEmployees();
+        } catch (error: unknown) {
+          console.error(`Failed to update employee status:`, error);
+          const msg =
+            (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message || `Thao tác thất bại!`;
+          toast.error(msg);
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
   const handleCreateEmployee = async () => {
     // Age check
     let ageError = "";
@@ -310,6 +347,7 @@ export default function StaffPage() {
           ? format(new Date(newEmployee.birthDate), "yyyy-MM-dd")
           : undefined,
         userId: newEmployee.userId ?? undefined,
+        status: newEmployee.status,
       };
       if (isEditMode && editingEmployee) {
         await employeeService.update(editingEmployee.id, payload);
@@ -878,7 +916,7 @@ export default function StaffPage() {
                     </TableHead>
                     <TableHead>
                       <span className="inline-flex items-center gap-1">
-                        Tài khoản
+                        Trạng thái
                       </span>
                     </TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
@@ -925,7 +963,7 @@ export default function StaffPage() {
                         <TableCell className="font-medium text-blue-600 dark:text-blue-400 font-mono text-xs">
                           {emp.employeeCode}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-foreground">
+                        <TableCell className="whitespace-nowrap text-foreground font-medium">
                           {emp.fullName}
                         </TableCell>
                         <TableCell>
@@ -947,18 +985,38 @@ export default function StaffPage() {
                           {emp.phone || "—"}
                         </TableCell>
                         <TableCell>
-                          {emp.user ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                              {emp.user.email}
+                          {emp.status === EmployeeStatus.WORKING ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                              Đang làm việc
                             </span>
                           ) : (
-                            <span className="text-muted-foreground text-xs">
-                              —
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">
+                              Đã nghỉ việc
                             </span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-3 text-slate-600">
+                            <button
+                              className={cn(
+                                "transition-colors",
+                                emp.status === EmployeeStatus.WORKING
+                                  ? "text-slate-400 hover:text-red-500"
+                                  : "text-slate-400 hover:text-green-500",
+                              )}
+                              onClick={() => handleToggleEmployeeStatus(emp)}
+                              title={
+                                emp.status === EmployeeStatus.WORKING
+                                  ? "Đánh dấu nghỉ việc"
+                                  : "Đánh dấu đi làm lại"
+                              }
+                            >
+                              {emp.status === EmployeeStatus.WORKING ? (
+                                <UserMinus className="h-4 w-4" />
+                              ) : (
+                                <UserCheck className="h-4 w-4" />
+                              )}
+                            </button>
                             <button
                               className="hover:text-slate-900 transition-colors"
                               onClick={() => handleEdit(emp)}

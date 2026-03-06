@@ -55,6 +55,11 @@ const menuItems: MenuItem[] = [
         permissions: [Permission.EMPLOYEE_VIEW],
       },
       {
+        title: "Danh sách tài khoản",
+        href: "/tai-khoan",
+        permissions: [Permission.USER_MANAGE],
+      },
+      {
         title: "Vai trò & Quyền",
         href: "/phan-quyen/vai-tro",
         permissions: [Permission.USER_MANAGE],

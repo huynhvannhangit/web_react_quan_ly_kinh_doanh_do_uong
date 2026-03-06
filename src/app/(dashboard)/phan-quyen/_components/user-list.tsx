@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-import { Shield, User as UserIcon, Search, RotateCcw } from "lucide-react";
+import { Search, RotateCcw } from "lucide-react";
 import { UserRoleDialog } from "./user-role-dialog";
 import { toast } from "sonner";
 import { Role } from "@/services/role.service";
@@ -177,13 +177,11 @@ export function UserList() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <UserIcon className="w-4 h-4 text-muted-foreground" />
                           {user.fullName}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Shield className="w-3 h-3 text-primary" />
                           {getRoleName(user)}
                         </div>
                       </TableCell>

@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { Plus, Pencil, Trash2, Shield, Search, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, RotateCcw } from "lucide-react";
 import { RoleDialog } from "./RoleDialog";
 import { DeleteRoleDialog } from "./delete-role-dialog";
 import { toast } from "sonner";
@@ -177,7 +177,6 @@ export function RoleList() {
                     <TableRow key={role.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2 text-blue-500">
-                          <Shield className="w-4 h-4" />
                           {role.name}
                         </div>
                       </TableCell>
