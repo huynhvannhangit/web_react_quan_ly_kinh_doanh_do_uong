@@ -103,6 +103,27 @@ export const authService = {
     return !!Cookies.get("token");
   },
 
+  forgotPassword: async (email: string) => {
+    const response = await api.post("/auth/forgot-password", { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await api.post("/auth/reset-password", {
+      token,
+      newPassword,
+    });
+    return response.data;
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string) => {
+    const response = await api.post("/auth/change-password", {
+      oldPassword,
+      newPassword,
+    });
+    return response.data;
+  },
+
   updateUserPayload: (
     data: Partial<{ fullName: string; avatar: string | null }>,
   ) => {

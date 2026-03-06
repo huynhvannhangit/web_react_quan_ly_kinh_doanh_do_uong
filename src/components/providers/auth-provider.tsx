@@ -39,7 +39,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const publicRoutes = useMemo(() => ["/login", "/register"], []);
+  const publicRoutes = useMemo(
+    () => ["/login", "/register", "/reset-password", "/verify-email"],
+    [],
+  );
 
   useEffect(() => {
     const checkAuth = () => {
