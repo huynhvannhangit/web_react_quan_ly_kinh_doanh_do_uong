@@ -28,8 +28,11 @@ export interface Table {
 }
 
 export const tableService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Table[] }>("/table");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Table[] }>("/table", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
   getOne: async (id: number) => {

@@ -47,7 +47,7 @@ const menuItems: MenuItem[] = [
   {
     title: "Quản lý tài khoản",
     icon: Users,
-    permissions: [Permission.USER_VIEW, Permission.EMPLOYEE_VIEW],
+    permissions: [Permission.EMPLOYEE_VIEW, Permission.USER_MANAGE],
     children: [
       {
         title: "Danh sách nhân viên",
@@ -55,13 +55,13 @@ const menuItems: MenuItem[] = [
         permissions: [Permission.EMPLOYEE_VIEW],
       },
       {
-        title: "Khách hàng",
-        href: "/khach-hang",
-        permissions: [Permission.USER_VIEW],
+        title: "Vai trò & Quyền",
+        href: "/phan-quyen/vai-tro",
+        permissions: [Permission.USER_MANAGE],
       },
       {
-        title: "Phân quyền",
-        href: "/phan-quyen",
+        title: "Phân quyền người dùng",
+        href: "/phan-quyen/nguoi-dung",
         permissions: [Permission.USER_MANAGE],
       },
     ],

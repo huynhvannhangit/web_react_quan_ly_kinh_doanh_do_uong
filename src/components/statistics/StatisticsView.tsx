@@ -9,7 +9,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,6 +33,7 @@ import {
 } from "@/services/statistics.service";
 import { Download, TrendingUp, BarChart3, Loader2, Filter } from "lucide-react";
 import dayjs from "dayjs";
+import { DatePicker } from "@/components/shared/DatePicker";
 
 interface StatisticsViewProps {
   defaultGroupBy: "day" | "week" | "month";
@@ -93,7 +93,9 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+            {title}
+          </h1>
           <p className="text-muted-foreground">
             Theo dõi hiệu quả kinh doanh và doanh thu của bạn.
           </p>
@@ -122,33 +124,88 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase text-muted-foreground">
-                Từ ngày
-              </label>
-              <Input
-                type="date"
-                value={query.startDate}
-                onChange={(e) =>
-                  setQuery((prev) => ({ ...prev, startDate: e.target.value }))
-                }
-                className="w-45"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase text-muted-foreground">
-                Đến ngày
-              </label>
-              <Input
-                type="date"
-                value={query.endDate}
-                onChange={(e) =>
-                  setQuery((prev) => ({ ...prev, endDate: e.target.value }))
-                }
-                className="w-45"
-              />
-            </div>
-            <div className="space-y-1.5">
+            {query.groupBy === "month" ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase text-muted-foreground">
+                    Từ ngày
+                  </label>
+                  <DatePicker
+                    value={
+                      query.startDate
+                        ? dayjs(query.startDate).toDate()
+                        : undefined
+                    }
+                    onChange={(date) =>
+                      setQuery((prev) => ({
+                        ...prev,
+                        startDate: date ? dayjs(date).format("YYYY-MM-DD") : "",
+                      }))
+                    }
+                    className="w-45 h-10"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase text-muted-foreground">
+                    Đến ngày
+                  </label>
+                  <DatePicker
+                    value={
+                      query.endDate ? dayjs(query.endDate).toDate() : undefined
+                    }
+                    onChange={(date) =>
+                      setQuery((prev) => ({
+                        ...prev,
+                        endDate: date ? dayjs(date).format("YYYY-MM-DD") : "",
+                      }))
+                    }
+                    className="w-45 h-10"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase text-muted-foreground">
+                  {query.groupBy === "week" ? "Chọn tuần" : "Chọn ngày"}
+                </label>
+                <DatePicker
+                  value={
+                    query.startDate
+                      ? dayjs(query.startDate).toDate()
+                      : undefined
+                  }
+                  onChange={(date) => {
+                    if (date) {
+                      if (query.groupBy === "week") {
+                        setQuery((prev) => ({
+                          ...prev,
+                          startDate: dayjs(date)
+                            .startOf("week")
+                            .format("YYYY-MM-DD"),
+                          endDate: dayjs(date)
+                            .endOf("week")
+                            .format("YYYY-MM-DD"),
+                        }));
+                      } else {
+                        setQuery((prev) => ({
+                          ...prev,
+                          startDate: dayjs(date).format("YYYY-MM-DD"),
+                          endDate: dayjs(date).format("YYYY-MM-DD"),
+                        }));
+                      }
+                    } else {
+                      setQuery((prev) => ({
+                        ...prev,
+                        startDate: "",
+                        endDate: "",
+                      }));
+                    }
+                  }}
+                  className="w-45 h-10"
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase text-muted-foreground">
                 Gộp theo
               </label>
@@ -158,7 +215,7 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
                   setQuery((prev) => ({ ...prev, groupBy: val }))
                 }
               >
-                <SelectTrigger className="w-35">
+                <SelectTrigger className="w-35 h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -189,17 +246,17 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-emerald-50 border-emerald-200">
+        <Card className="bg-emerald-500/10 border-emerald-500/20">
           <CardHeader className="pb-2">
-            <CardDescription className="text-emerald-700/70">
+            <CardDescription className="text-emerald-600/70 dark:text-emerald-400/70">
               Tổng đơn hàng
             </CardDescription>
-            <CardTitle className="text-2xl font-bold text-emerald-700">
+            <CardTitle className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {totalOrders} đơn
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center text-xs text-emerald-600/60">
+            <div className="flex items-center text-xs text-emerald-600/60 dark:text-emerald-400/60">
               <BarChart3 className="h-3 w-3 mr-1" /> Trung bình{" "}
               {data.length > 0 ? (totalOrders / data.length).toFixed(1) : 0}{" "}
               đơn/mốc
@@ -241,7 +298,8 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
-                    stroke="#f0f0f0"
+                    stroke="currentColor"
+                    className="stroke-border"
                   />
                   <XAxis
                     dataKey="date"
@@ -267,9 +325,13 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
                     ]}
                     contentStyle={{
                       borderRadius: "8px",
-                      border: "none",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                      color: "hsl(var(--foreground))",
                       boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                   />
                   <Legend />
                   <Bar

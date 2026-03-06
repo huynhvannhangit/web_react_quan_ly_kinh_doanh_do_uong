@@ -399,11 +399,11 @@ export default function OrderingPage() {
   const getTableStatusColor = (status: TableStatus) => {
     switch (status) {
       case TableStatus.AVAILABLE:
-        return "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-emerald-100/50";
+        return "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 shadow-emerald-500/10";
       case TableStatus.OCCUPIED:
-        return "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 shadow-amber-100/50";
+        return "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-amber-500/10";
       case TableStatus.RESERVED:
-        return "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 shadow-blue-100/50";
+        return "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 shadow-blue-500/10";
       default:
         return "bg-secondary";
     }
@@ -416,7 +416,9 @@ export default function OrderingPage() {
     >
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold tracking-tight">Gọi món tại bàn</h1>
+          <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+            Gọi món tại bàn
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={statusFilter === "ALL" ? "default" : "outline"}
@@ -435,7 +437,7 @@ export default function OrderingPage() {
               className={cn(
                 "flex items-center gap-1",
                 statusFilter !== TableStatus.AVAILABLE &&
-                  "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200",
+                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20",
               )}
             >
               Trống (
@@ -450,7 +452,7 @@ export default function OrderingPage() {
               className={cn(
                 "flex items-center gap-1",
                 statusFilter !== TableStatus.OCCUPIED &&
-                  "bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200",
+                  "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/20",
               )}
             >
               Đang ngồi (
@@ -587,7 +589,7 @@ export default function OrderingPage() {
                                 {item.isExisting && (
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] h-4 bg-slate-100 text-slate-500 border-slate-200"
+                                    className="text-[10px] h-4 bg-muted text-muted-foreground border-border"
                                   >
                                     Đã có
                                   </Badge>
@@ -725,11 +727,11 @@ export default function OrderingPage() {
 
             {paymentSuccess ? (
               <div className="py-12 flex flex-col items-center justify-center text-center space-y-6">
-                <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Check className="h-10 w-10 text-emerald-600" />
+                <div className="h-20 w-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                  <Check className="h-10 w-10 text-emerald-500" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-emerald-700">
+                  <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     Thanh toán thành công!
                   </h3>
                   <p className="text-muted-foreground">
@@ -782,7 +784,7 @@ export default function OrderingPage() {
                           ? "default"
                           : "outline"
                       }
-                      className="h-16 justify-start text-base border-blue-200"
+                      className="h-16 justify-start text-base border-blue-500/20"
                       onClick={() => setPaymentMethod(PaymentMethod.VNPAY)}
                     >
                       <div className="mr-3 h-6 w-8 bg-blue-600 rounded-sm flex items-center justify-center text-[10px] font-bold text-white">
@@ -796,7 +798,7 @@ export default function OrderingPage() {
                           ? "default"
                           : "outline"
                       }
-                      className="h-16 justify-start text-base border-pink-200"
+                      className="h-16 justify-start text-base border-pink-500/20"
                       onClick={() => setPaymentMethod(PaymentMethod.MOMO)}
                     >
                       <div className="mr-3 h-6 w-8 bg-[#A50064] rounded-sm flex items-center justify-center text-[10px] font-bold text-white">
@@ -923,7 +925,7 @@ export default function OrderingPage() {
                         </div>
                         <div className="flex justify-between items-center text-lg font-bold border-t pt-2 mt-2">
                           <span>Tiền thừa:</span>
-                          <span className="text-emerald-600">
+                          <span className="text-emerald-500">
                             {new Intl.NumberFormat("vi-VN").format(
                               Math.max(0, cashAmount - discountedPrice),
                             )}
@@ -935,22 +937,22 @@ export default function OrderingPage() {
                   )}
 
                   {paymentMethod === PaymentMethod.VNPAY && (
-                    <div className="flex flex-col items-center justify-center p-8 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex flex-col items-center justify-center p-8 bg-blue-500/10 rounded-lg border border-blue-500/20">
                       <div className="h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
                         VNP
                       </div>
-                      <p className="text-sm font-medium text-blue-800 text-center">
+                      <p className="text-sm font-medium text-blue-600 dark:text-blue-400 text-center">
                         Màn hình QR VNPAY sẽ hiển thị sau khi bạn bấm Xác nhận
                       </p>
                     </div>
                   )}
 
                   {paymentMethod === PaymentMethod.MOMO && (
-                    <div className="flex flex-col items-center justify-center p-8 bg-pink-50 rounded-lg border border-pink-200">
+                    <div className="flex flex-col items-center justify-center p-8 bg-pink-500/10 rounded-lg border border-pink-500/20">
                       <div className="h-16 w-16 bg-[#A50064] rounded-xl flex items-center justify-center text-white font-bold text-xl mb-4 shadow-sm">
                         MoMo
                       </div>
-                      <p className="text-sm font-medium text-pink-800 text-center">
+                      <p className="text-sm font-medium text-pink-600 dark:text-pink-400 text-center">
                         Màn hình QR MoMo sẽ hiển thị sau khi bạn bấm Xác nhận
                       </p>
                     </div>
@@ -1012,23 +1014,25 @@ export default function OrderingPage() {
                     Thanh toán hóa đơn
                   </DialogTitle>
                   <DialogDescription>
-                    Bàn {selectedTable?.tableNumber} - {new Date().toLocaleDateString("vi-VN")}
+                    Bàn {selectedTable?.tableNumber} -{" "}
+                    {new Date().toLocaleDateString("vi-VN")}
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center my-2">
-                  <Check className="h-10 w-10 text-emerald-600" />
+                <div className="h-20 w-20 bg-emerald-500/20 rounded-full flex items-center justify-center my-2">
+                  <Check className="h-10 w-10 text-emerald-500" />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-emerald-700">
+                  <h3 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     Thanh toán thành công!
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    Hoá đơn <strong>{lastInvoice?.invoiceNumber}</strong> đã được quyết toán.
+                    Hoá đơn <strong>{lastInvoice?.invoiceNumber}</strong> đã
+                    được quyết toán.
                   </p>
                 </div>
-                
+
                 <div className="flex gap-4 w-full pt-4">
                   <Button
                     variant="outline"
@@ -1058,20 +1062,26 @@ export default function OrderingPage() {
                   </DialogTitle>
                   <DialogDescription>
                     Mở ứng dụng{" "}
-                    {paymentMethod === PaymentMethod.MOMO ? "MoMo" : "ngân hàng"} để
-                    quét mã thanh toán.
+                    {paymentMethod === PaymentMethod.MOMO
+                      ? "MoMo"
+                      : "ngân hàng"}{" "}
+                    để quét mã thanh toán.
                   </DialogDescription>
                 </DialogHeader>
                 <div
                   className={cn(
-                    "p-4 rounded-xl border shadow-sm bg-white",
+                    "p-4 rounded-xl border shadow-sm bg-white dark:bg-slate-900",
                     paymentMethod === PaymentMethod.MOMO
-                      ? "border-pink-200"
-                      : "border-blue-200",
+                      ? "border-pink-500/20"
+                      : "border-blue-500/20",
                   )}
                 >
                   {vnpayQrUrl && (
-                    <QRCodeSVG value={vnpayQrUrl} size={256} className="mx-auto" />
+                    <QRCodeSVG
+                      value={vnpayQrUrl}
+                      size={256}
+                      className="mx-auto"
+                    />
                   )}
                 </div>
                 <div className="mt-6 flex flex-col items-center gap-2">

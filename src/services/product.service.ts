@@ -26,8 +26,11 @@ export interface Product {
 }
 
 export const categoryService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Category[] }>("/category");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Category[] }>("/category", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
   getOne: async (id: number) => {
@@ -52,8 +55,11 @@ export const categoryService = {
 };
 
 export const productService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Product[] }>("/product");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Product[] }>("/product", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
   getOne: async (id: number) => {

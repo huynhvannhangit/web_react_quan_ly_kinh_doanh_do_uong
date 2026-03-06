@@ -74,7 +74,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
           Tổng quan kinh doanh
         </h1>
       </div>
@@ -164,7 +164,8 @@ export default function DashboardPage() {
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
-                    stroke="#f0f0f0"
+                    stroke="currentColor"
+                    className="stroke-border"
                   />
                   <XAxis
                     dataKey="date"
@@ -188,9 +189,13 @@ export default function DashboardPage() {
                     ]}
                     contentStyle={{
                       borderRadius: "8px",
-                      border: "none",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                      color: "hsl(var(--foreground))",
                       boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                   />
                   <Line
                     type="monotone"
@@ -224,7 +229,8 @@ export default function DashboardPage() {
                   <CartesianGrid
                     strokeDasharray="3 3"
                     horizontal={false}
-                    stroke="#f0f0f0"
+                    stroke="currentColor"
+                    className="stroke-border"
                   />
                   <XAxis type="number" hide />
                   <YAxis
@@ -245,9 +251,13 @@ export default function DashboardPage() {
                     ]}
                     contentStyle={{
                       borderRadius: "8px",
-                      border: "none",
+                      border: "1px solid hsl(var(--border))",
+                      backgroundColor: "hsl(var(--background))",
+                      color: "hsl(var(--foreground))",
                       boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
+                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                   />
                   <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={20}>
                     {(Array.isArray(topProducts) ? topProducts : []).map(

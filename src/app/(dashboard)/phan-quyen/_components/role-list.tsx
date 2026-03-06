@@ -11,7 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Shield } from "lucide-react";
+import { Input } from "@/components/ui/input";
+
+import { Plus, Pencil, Trash2, Shield, Search, RotateCcw } from "lucide-react";
 import { RoleDialog } from "./RoleDialog";
 import { DeleteRoleDialog } from "./delete-role-dialog";
 import { toast } from "sonner";
@@ -24,6 +26,8 @@ export function RoleList() {
   const [openDelete, setOpenDelete] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchName, setSearchName] = useState("");
 
   const fetchRoles = async () => {
     setIsLoading(true);
@@ -72,71 +76,142 @@ export function RoleList() {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Danh sách vai trò</h2>
-        <Button onClick={handleCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Thêm vai trò
-        </Button>
-      </div>
+  const handleSearch = () => {
+    setSearchName(searchInput);
+  };
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tên vai trò</TableHead>
-              <TableHead>Mô tả</TableHead>
-              <TableHead>Số quyền</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roles.length === 0 && !isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  Chưa có vai trò nào được tạo
-                </TableCell>
-              </TableRow>
-            ) : (
-              roles.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-primary" />
-                      {role.name}
-                    </div>
-                  </TableCell>
-                  <TableCell>{role.description || "-"}</TableCell>
-                  <TableCell>{role.permissions?.length || 0} quyền</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(role)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive"
-                        onClick={() => handleDeleteClick(role)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+  const handleReset = () => {
+    setSearchInput("");
+    setSearchName("");
+  };
+
+  const filteredRoles = roles.filter((role) => {
+    if (!searchName) return true;
+    return role.name.toLowerCase().includes(searchName.toLowerCase());
+  });
+
+  return (
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground uppercase">
+            Quản lý Vai trò
+          </h2>
+        </div>
+
+        <div className="flex flex-wrap items-end justify-between w-full gap-4">
+          {/* Left Spacer */}
+          <div className="hidden lg:block lg:flex-1" />
+
+          {/* Center: Search Input */}
+          <div className="flex flex-col gap-1 w-full max-w-150">
+            <label className="text-xs text-muted-foreground text-left">
+              Tên vai trò
+            </label>
+            <Input
+              placeholder="Tìm kiếm vai trò..."
+              className="bg-background border-border rounded-lg h-10 w-full"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+          </div>
+
+          {/* Right: Action Buttons */}
+          <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
+            <Button
+              onClick={handleSearch}
+              className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+            >
+              <Search className="h-4 w-4" />
+              Tìm kiếm
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              className="gap-2 rounded-lg"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Làm mới
+            </Button>
+            <Button
+              onClick={handleCreate}
+              className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+            >
+              <Plus className="h-4 w-4" />
+              Thêm vai trò
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-base font-semibold mb-3">Danh sách vai trò</h3>
+          <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tên vai trò</TableHead>
+                  <TableHead>Mô tả</TableHead>
+                  <TableHead>Số quyền</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8">
+                      Đang tải...
+                    </TableCell>
+                  </TableRow>
+                ) : roles.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      Chưa có vai trò nào được tạo
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRoles.map((role) => (
+                    <TableRow key={role.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2 text-blue-500">
+                          <Shield className="w-4 h-4" />
+                          {role.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>{role.description || "—"}</TableCell>
+                      <TableCell>
+                        <span className="px-2 py-1 rounded-full bg-muted text-xs font-medium">
+                          {role.permissions?.length || 0} quyền
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end items-center gap-3 text-muted-foreground">
+                          <button
+                            className="hover:text-foreground transition-colors"
+                            onClick={() => handleEdit(role)}
+                            title="Chỉnh sửa"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            className="text-red-500 hover:text-red-600 transition-colors"
+                            onClick={() => handleDeleteClick(role)}
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
 
       <RoleDialog
@@ -153,6 +228,6 @@ export function RoleList() {
         onConfirm={handleConfirmDelete}
         isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 }

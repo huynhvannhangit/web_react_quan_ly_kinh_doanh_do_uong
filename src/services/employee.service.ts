@@ -23,8 +23,11 @@ export interface Employee {
 }
 
 export const employeeService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Employee[] }>("/employee");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Employee[] }>("/employee", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
 

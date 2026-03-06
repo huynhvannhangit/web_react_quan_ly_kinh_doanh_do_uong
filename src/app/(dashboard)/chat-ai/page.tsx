@@ -58,7 +58,7 @@ export default function ChatAiPage() {
               <Bot className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase flex items-center gap-2">
                 Trợ lý AI Thông minh
                 <Sparkles className="h-5 w-5 text-yellow-500 fill-yellow-500" />
               </h1>
@@ -105,7 +105,7 @@ export default function ChatAiPage() {
                 className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
               >
                 <CardContent className="p-6">
-                  <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center mb-4 text-orange-600">
+                  <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
                     <MessageSquare className="w-5 h-5" />
                   </div>
                   <h3 className="font-semibold mb-1">Hỗ trợ 24/7</h3>
@@ -119,7 +119,7 @@ export default function ChatAiPage() {
                 className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
               >
                 <CardContent className="p-6">
-                  <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center mb-4 text-green-600">
+                  <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4 text-green-600 dark:text-green-400">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <h3 className="font-semibold mb-1">Phân tích chuyên sâu</h3>

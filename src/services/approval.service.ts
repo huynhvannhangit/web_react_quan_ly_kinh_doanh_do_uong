@@ -2,8 +2,11 @@ import api from "./api";
 import { ApprovalRequest, ReviewApprovalDto } from "../types/approval";
 
 export const approvalService = {
-  findAll: async (): Promise<ApprovalRequest[]> => {
-    const response = await api.get<{ data: ApprovalRequest[] }>("/approvals");
+  findAll: async (keyword?: string): Promise<ApprovalRequest[]> => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: ApprovalRequest[] }>("/approvals", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
 

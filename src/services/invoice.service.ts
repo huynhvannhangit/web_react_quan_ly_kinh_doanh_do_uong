@@ -57,8 +57,11 @@ export interface ProcessPaymentDto {
 }
 
 export const invoiceService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Invoice[] }>("/invoice");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Invoice[] }>("/invoice", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
 

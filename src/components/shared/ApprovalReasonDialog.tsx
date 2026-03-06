@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,9 @@ export function ApprovalReasonDialog({
             <AlertTriangle className="h-5 w-5 text-amber-500" />
             Gửi yêu cầu phê duyệt
           </DialogTitle>
+          <DialogDescription>
+            Yêu cầu này sẽ được gửi đến quản trị viên để xem xét và phê duyệt.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

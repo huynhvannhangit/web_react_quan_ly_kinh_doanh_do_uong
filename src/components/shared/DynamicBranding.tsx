@@ -19,7 +19,6 @@ export function DynamicBranding() {
           "/dashboard": "Tổng quan",
           "/cau-hinh": "Cấu hình hệ thống",
           "/nhan-vien": "Nhân viên",
-          "/khach-hang": "Khách hàng",
           "/phan-quyen": "Phân quyền",
           "/khu-vuc": "Khu vực",
           "/ban": "Bàn",

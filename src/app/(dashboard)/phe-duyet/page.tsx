@@ -10,8 +10,8 @@ import {
 } from "@/types/approval";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// removed unused Checkbox and User import
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -30,7 +30,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Clock, Eye, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input"; // Added Input import
+import {
+  Check,
+  X,
+  Eye,
+  Search,
+  RotateCcw,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"; // Updated Lucide imports (removed FileText, Clock)
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -42,32 +51,6 @@ const typeLabels: Record<string, string> = {
   [ApprovalType.EMPLOYEE_DELETE]: "Xoá nhân viên",
   [ApprovalType.UPDATE]: "Cập nhật",
   [ApprovalType.DELETE]: "Xoá",
-};
-
-// Helper for status styling
-const statusConfig: Record<
-  ApprovalStatus,
-  {
-    label: string;
-    variant: "default" | "secondary" | "destructive" | "outline";
-    icon: React.ElementType;
-  }
-> = {
-  [ApprovalStatus.PENDING]: {
-    label: "Chờ duyệt",
-    variant: "outline",
-    icon: Clock,
-  },
-  [ApprovalStatus.APPROVED]: {
-    label: "Đã duyệt",
-    variant: "default",
-    icon: CheckCircle,
-  },
-  [ApprovalStatus.REJECTED]: {
-    label: "Từ chối",
-    variant: "destructive",
-    icon: XCircle,
-  },
 };
 
 /** Map field names to Vietnamese labels */
@@ -195,25 +178,28 @@ function DataComparisonTable({
 }
 
 export default function ApprovalPage() {
-  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]); // Renamed requests to approvals
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] =
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredApprovals = approvals;
+  const [selectedApproval, setSelectedApproval] =
     useState<ApprovalRequest | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  // Removed selectedIds and related states/functions as per instruction
 
   useEffect(() => {
-    loadRequests();
+    loadApprovals(); // Renamed loadRequests to loadApprovals
   }, []);
 
-  const loadRequests = async () => {
+  const loadApprovals = async (keyword?: string) => {
+    // Renamed loadRequests to loadApprovals
     setIsLoading(true);
-    setSelectedIds([]); // clear selection when loading new data
+    // setSelectedIds([]); // clear selection when loading new data - Removed
     try {
-      const data = await approvalService.findAll();
-      setRequests(data);
+      const data = await approvalService.findAll(keyword);
+      setApprovals(data); // Renamed setRequests to setApprovals
     } catch (error) {
       console.error("Failed to load approvals:", error);
     } finally {
@@ -221,48 +207,33 @@ export default function ApprovalPage() {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(requests.map((r) => r.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
+  // Removed handleSelectAll, handleSelectRow, handleBulkDelete as per instruction
 
-  const handleSelectRow = (id: number, checked: boolean) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds((prev) => prev.filter((prevId) => prevId !== id));
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} yêu cầu đã chọn?`))
-      return;
-    setIsDeletingBulk(true);
+  const handleStatusUpdate = async (id: number, status: ApprovalStatus) => {
+    // New function for status update
     try {
-      await Promise.all(selectedIds.map((id) => approvalService.remove(id)));
-      setSelectedIds([]);
-      loadRequests();
+      await approvalService.review(id, {
+        status,
+        reviewNote: "", // No review note for quick approve/reject from table
+      });
+      loadApprovals();
     } catch (error) {
-      console.error("Failed to bulk delete:", error);
-      alert("Xóa thất bại!");
-    } finally {
-      setIsDeletingBulk(false);
+      console.error("Failed to update approval status:", error);
+      alert("Cập nhật trạng thái thất bại!");
     }
   };
 
   const handleReview = async (status: ApprovalStatus) => {
-    if (!selectedRequest) return;
+    if (!selectedApproval) return; // Changed selectedRequest to selectedApproval
 
     try {
-      await approvalService.review(selectedRequest.id, {
+      await approvalService.review(selectedApproval.id, {
+        // Changed selectedRequest to selectedApproval
         status,
         reviewNote,
       });
       setIsDetailOpen(false);
-      loadRequests();
+      loadApprovals(); // Renamed loadRequests to loadApprovals
       setReviewNote("");
     } catch (error) {
       console.error("Failed to review request:", error);
@@ -271,12 +242,13 @@ export default function ApprovalPage() {
   };
 
   const openDetail = (request: ApprovalRequest) => {
-    setSelectedRequest(request);
+    // Kept openDetail for dialog, but now uses setSelectedApproval
+    setSelectedApproval(request);
     setReviewNote(request.reviewNote || "");
     setIsDetailOpen(true);
   };
 
-  const metadata = selectedRequest?.metadata as
+  const metadata = selectedApproval?.metadata as  // Changed selectedRequest to selectedApproval
     | Record<string, unknown>
     | undefined;
 
@@ -285,273 +257,327 @@ export default function ApprovalPage() {
       permissions={[Permission.APPROVAL_VIEW]}
       redirect="/dashboard"
     >
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Phê duyệt yêu cầu
-          </h1>
-        </div>
+      <Card>
+        <CardContent className="p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-tight text-[#00509E] dark:text-blue-400 uppercase">
+              Quản lý Phê duyệt
+            </h1>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>Danh sách yêu cầu phê duyệt</CardTitle>
-            {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4 border-b pb-6">
+            <div className="flex flex-col gap-1 w-full max-w-150">
+              <label className="text-xs text-muted-foreground text-left">
+                Tìm kiếm sản phẩm, lý do hoặc người gửi
+              </label>
+              <Input
+                placeholder="Tìm kiếm..."
+                className="bg-background border-border rounded-lg h-10 w-full"
+                value={searchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchTerm(e.target.value)
+                }
+                onKeyDown={(e) =>
+                  e.key === "Enter" && void loadApprovals(searchTerm)
+                }
+              />
+            </div>
+
+            <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
               <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={isDeletingBulk}
-                className="flex items-center gap-2"
+                onClick={() => void loadApprovals(searchTerm)}
+                className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
               >
-                <Trash2 className="h-4 w-4" />
-                Xóa {selectedIds.length} mục
+                <Search className="h-4 w-4" />
+                Tìm kiếm
               </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12.5 text-center">
-                    <Checkbox
-                      checked={
-                        requests.length > 0 &&
-                        selectedIds.length === requests.length
-                      }
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="w-15 text-center">STT</TableHead>
-                  <TableHead>Mã yêu cầu</TableHead>
-                  <TableHead>Loại</TableHead>
-                  <TableHead>Người yêu cầu</TableHead>
-                  <TableHead className="text-center">Thời gian</TableHead>
-                  <TableHead className="text-center">Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      Đang tải...
-                    </TableCell>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm("");
+                  loadApprovals();
+                }}
+                className="gap-2 rounded-lg"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Làm mới
+              </Button>
+            </div>
+          </div>
+
+          <div className="px-0">
+            <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border">
+                    <TableHead className="w-16 text-center">STT</TableHead>
+                    <TableHead>Sản phẩm</TableHead>
+                    <TableHead>Loại yêu cầu</TableHead>
+                    <TableHead>Lý do</TableHead>
+                    <TableHead>Người gửi</TableHead>
+                    <TableHead>Ngày gửi</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
-                ) : requests.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Chưa có yêu cầu nào
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  requests.map((req, index) => {
-                    const config = statusConfig[req.status];
-                    const StatusIcon = config.icon;
-                    return (
-                      <TableRow
-                        key={req.id}
-                        data-state={
-                          selectedIds.includes(req.id) ? "selected" : undefined
-                        }
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          Đang tải dữ liệu...
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredApprovals.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-12 text-muted-foreground"
                       >
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={selectedIds.includes(req.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectRow(req.id, !!checked)
-                            }
-                            aria-label={`Select row ${req.id}`}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
+                        {searchTerm
+                          ? "Không tìm thấy yêu cầu phù hợp"
+                          : "Chưa có yêu cầu phê duyệt nào"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredApprovals.map((approval, index) => (
+                      <TableRow
+                        key={approval.id}
+                        className="hover:bg-muted/50 transition-colors border-border"
+                      >
+                        <TableCell className="text-center font-medium text-muted-foreground">
                           {index + 1}
                         </TableCell>
-                        <TableCell className="font-medium font-mono text-xs">
-                          {req.requestNumber}
+                        <TableCell className="font-semibold text-foreground">
+                          {(
+                            (approval.metadata || {}) as Record<string, unknown>
+                          ).name?.toString() || "K/X"}
                         </TableCell>
                         <TableCell>
-                          {typeLabels[req.type] || req.type}
-                        </TableCell>
-                        <TableCell>
-                          {req.requestedBy?.fullName || "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {format(new Date(req.createdAt), "dd/MM/yyyy HH:mm", {
-                            locale: vi,
-                          })}
-                        </TableCell>
-                        <TableCell className="text-center">
                           <Badge
-                            variant={config.variant}
-                            className="inline-flex items-center gap-1 justify-center min-w-25"
+                            variant="outline"
+                            className={
+                              approval.type === ApprovalType.INVOICE_CANCEL ||
+                              approval.type === ApprovalType.PRODUCT_DELETE ||
+                              approval.type === ApprovalType.EMPLOYEE_DELETE ||
+                              approval.type === ApprovalType.DELETE
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : approval.type === ApprovalType.UPDATE
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-blue-50 text-blue-700 border-blue-200"
+                            }
                           >
-                            <StatusIcon className="h-3 w-3" />
-                            {config.label}
+                            {typeLabels[approval.type] || approval.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-muted-foreground">
+                          {approval.reason}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
+                            {approval.requestedBy?.fullName || "Hệ thống"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(approval.createdAt).toLocaleDateString(
+                            "vi-VN",
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              approval.status === ApprovalStatus.PENDING
+                                ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
+                                : approval.status === ApprovalStatus.APPROVED
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                  : "bg-red-100 text-red-700 hover:bg-red-100 border-red-200"
+                            }
+                          >
+                            {approval.status === ApprovalStatus.PENDING
+                              ? "Chờ duyệt"
+                              : approval.status === ApprovalStatus.APPROVED
+                                ? "Đã duyệt"
+                                : "Từ chối"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDetail(req)}
-                            className="inline-flex items-center gap-1"
-                          >
-                            <Eye className="h-4 w-4" /> Chi tiết
-                          </Button>
+                          <div className="flex items-center justify-end gap-2 text-slate-500">
+                            <button
+                              className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                              onClick={() => void openDetail(approval)}
+                              title="Xem chi tiết"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {approval.status === ApprovalStatus.PENDING && (
+                              <PermissionGuard
+                                permissions={[Permission.APPROVAL_MANAGE]}
+                              >
+                                <button
+                                  className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                  onClick={() =>
+                                    void handleStatusUpdate(
+                                      approval.id,
+                                      ApprovalStatus.APPROVED,
+                                    )
+                                  }
+                                  title="Phê duyệt"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  onClick={() =>
+                                    void handleStatusUpdate(
+                                      approval.id,
+                                      ApprovalStatus.REJECTED,
+                                    )
+                                  }
+                                  title="Từ chối"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </PermissionGuard>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Chi tiết yêu cầu phê duyệt</DialogTitle>
-            </DialogHeader>
-            {selectedRequest && (
-              <div className="grid gap-4 py-4">
-                {/* Header info */}
-                <div className="grid grid-cols-2 gap-4 border-b pb-4">
-                  <div>
-                    <Label className="text-muted-foreground">Mã yêu cầu</Label>
-                    <div className="font-mono font-medium">
-                      {selectedRequest.requestNumber}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Loại yêu cầu
-                    </Label>
-                    <div>
-                      {typeLabels[selectedRequest.type] || selectedRequest.type}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Người yêu cầu
-                    </Label>
-                    <div>{selectedRequest.requestedBy?.fullName || "—"}</div>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Thời gian</Label>
-                    <div>
-                      {format(
-                        new Date(selectedRequest.createdAt),
-                        "dd/MM/yyyy HH:mm",
-                        { locale: vi },
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reason */}
-                <div>
-                  <Label className="text-muted-foreground">Lý do yêu cầu</Label>
-                  <div className="mt-1 p-2 bg-muted rounded-md text-sm italic">
-                    &quot;{selectedRequest.reason || "Không có lý do"}&quot;
-                  </div>
-                </div>
-
-                {/* Data comparison */}
-                {metadata &&
-                  (Boolean(metadata.oldData) || Boolean(metadata.newData)) && (
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground">
-                        So sánh dữ liệu
-                      </Label>
-                      <DataComparisonTable metadata={metadata} />
-                      {Boolean(metadata.newData) && (
-                        <p className="text-xs text-muted-foreground">
-                          * Các dòng nền vàng là trường có thay đổi
-                        </p>
-                      )}
-                      {!metadata.newData && Boolean(metadata.oldData) && (
-                        <p className="text-xs text-amber-600 font-medium">
-                          ⚠ Yêu cầu xóa bản ghi này
-                        </p>
-                      )}
-                    </div>
+                    ))
                   )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-                {/* Reviewer info (if already reviewed) */}
-                {selectedRequest.status !== ApprovalStatus.PENDING && (
-                  <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                    <div>
-                      <Label className="text-muted-foreground">
-                        Người duyệt
-                      </Label>
-                      <div>{selectedRequest.reviewedBy?.fullName || "—"}</div>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">
-                        Thời gian duyệt
-                      </Label>
-                      <div>
-                        {selectedRequest.reviewedAt
-                          ? format(
-                              new Date(selectedRequest.reviewedAt),
-                              "dd/MM/yyyy HH:mm",
-                              { locale: vi },
-                            )
-                          : "—"}
-                      </div>
-                    </div>
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết yêu cầu phê duyệt</DialogTitle>
+          </DialogHeader>
+          {selectedApproval && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4 border-b pb-4">
+                <div>
+                  <Label className="text-muted-foreground">Mã yêu cầu</Label>
+                  <div className="font-mono font-medium">
+                    {selectedApproval.requestNumber}
                   </div>
-                )}
-
-                {/* Review note */}
-                <div className="grid gap-2">
-                  <Label htmlFor="reviewNote">Ghi chú duyệt</Label>
-                  <textarea
-                    id="reviewNote"
-                    className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Nhập phản hồi hoặc lý do từ chối..."
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    readOnly={selectedRequest.status !== ApprovalStatus.PENDING}
-                  />
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Loại yêu cầu</Label>
+                  <div>
+                    {typeLabels[selectedApproval.type] || selectedApproval.type}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Người yêu cầu</Label>
+                  <div>{selectedApproval.requestedBy?.fullName || "—"}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Thời gian</Label>
+                  <div>
+                    {format(
+                      new Date(selectedApproval.createdAt),
+                      "dd/MM/yyyy HH:mm",
+                      { locale: vi },
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
-            <DialogFooter className="gap-2 sm:gap-0">
-              {selectedRequest?.status === ApprovalStatus.PENDING ? (
-                <>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleReview(ApprovalStatus.REJECTED)}
-                    className="flex items-center gap-1"
-                  >
-                    <XCircle className="h-4 w-4" /> Từ chối
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => handleReview(ApprovalStatus.APPROVED)}
-                    className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
-                  >
-                    <CheckCircle className="h-4 w-4" /> Phê duyệt
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDetailOpen(false)}
-                >
-                  Thoát
-                </Button>
+
+              <div>
+                <Label className="text-muted-foreground">Lý do yêu cầu</Label>
+                <div className="mt-1 p-2 bg-muted rounded-md text-sm italic">
+                  &quot;{selectedApproval.reason || "Không có lý do"}&quot;
+                </div>
+              </div>
+
+              {metadata &&
+                (Boolean(metadata.oldData) || Boolean(metadata.newData)) && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">
+                      So sánh dữ liệu
+                    </Label>
+                    <DataComparisonTable metadata={metadata} />
+                    {Boolean(metadata.newData) && (
+                      <p className="text-xs text-muted-foreground">
+                        * Các dòng nền vàng là trường có thay đổi
+                      </p>
+                    )}
+                    {!metadata.newData && Boolean(metadata.oldData) && (
+                      <p className="text-xs text-amber-600 font-medium">
+                        ⚠ Yêu cầu xóa bản ghi này
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {selectedApproval.status !== ApprovalStatus.PENDING && (
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div>
+                    <Label className="text-muted-foreground">Người duyệt</Label>
+                    <div>{selectedApproval.reviewedBy?.fullName || "—"}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Thời gian duyệt
+                    </Label>
+                    <div>
+                      {selectedApproval.reviewedAt
+                        ? format(
+                            new Date(selectedApproval.reviewedAt),
+                            "dd/MM/yyyy HH:mm",
+                            { locale: vi },
+                          )
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
               )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="reviewNote">Ghi chú duyệt</Label>
+                <textarea
+                  id="reviewNote"
+                  className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Nhập phản hồi hoặc lý do từ chối..."
+                  value={reviewNote}
+                  onChange={(e) => setReviewNote(e.target.value)}
+                  readOnly={selectedApproval.status !== ApprovalStatus.PENDING}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            {selectedApproval?.status === ApprovalStatus.PENDING ? (
+              <>
+                <Button
+                  variant="destructive"
+                  onClick={() => void handleReview(ApprovalStatus.REJECTED)}
+                  className="flex items-center gap-1"
+                >
+                  <XCircle className="h-4 w-4" /> Từ chối
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={() => void handleReview(ApprovalStatus.APPROVED)}
+                  className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
+                >
+                  <CheckCircle className="h-4 w-4" /> Phê duyệt
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+                Thoát
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
   );
 }

@@ -11,8 +11,11 @@ export interface Area {
 }
 
 export const areaService = {
-  getAll: async () => {
-    const response = await api.get<{ data: Area[] }>("/area");
+  getAll: async (keyword?: string) => {
+    const kw = keyword?.trim();
+    const response = await api.get<{ data: Area[] }>("/area", {
+      params: kw ? { keyword: kw } : {},
+    });
     return response.data.data;
   },
   getOne: async (id: number) => {

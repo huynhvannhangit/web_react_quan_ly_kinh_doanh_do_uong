@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
@@ -100,6 +101,9 @@ export function ImageEditorDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Chỉnh sửa ảnh</DialogTitle>
+          <DialogDescription>
+            Cắt và xoay hình ảnh để phù hợp với hiển thị sản phẩm.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Cropper area */}

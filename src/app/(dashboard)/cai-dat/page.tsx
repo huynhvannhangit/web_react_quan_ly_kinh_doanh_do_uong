@@ -185,7 +185,9 @@ export default function CaiDatPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cài đặt</h1>
+        <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+          Cài đặt
+        </h1>
         <p className="text-muted-foreground mt-1">
           Cập nhật thông tin tài khoản của bạn
         </p>

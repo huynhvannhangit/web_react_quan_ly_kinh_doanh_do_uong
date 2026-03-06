@@ -9,7 +9,7 @@ import {
 } from "@/services/employee.service";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -92,16 +92,19 @@ export default function StaffPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
   useEffect(() => {
     loadEmployees();
   }, []);
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (keyword?: string) => {
     setIsLoading(true);
     setSelectedIds([]);
     try {
-      const data = await employeeService.getAll();
+      const data = await employeeService.getAll(keyword);
       setEmployees(data);
     } catch (error) {
       console.error("Failed to load employees:", error);
@@ -296,525 +299,758 @@ export default function StaffPage() {
     }
   };
 
+  const filteredEmployees = employees;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredEmployees.length / pageSize),
+  );
+  const paginatedEmployees = filteredEmployees.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    void loadEmployees(searchInput);
+  };
+  const handleReset = () => {
+    setSearchInput("");
+    setCurrentPage(1);
+    void loadEmployees();
+  };
+
   return (
     <PermissionGuard
       permissions={[Permission.EMPLOYEE_VIEW]}
       redirect="/dashboard"
     >
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Quản lý Nhân viên
-          </h1>
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              if (open) {
-                handleOpenCreateDialog();
-              } else {
-                setIsDialogOpen(false);
-                resetForm();
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground">
-                <Plus className="mr-2 h-4 w-4" /> Thêm nhân viên
+      <Card>
+        <CardContent className="p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+              Quản lý Nhân viên
+            </h1>
+          </div>
+          {/* Filter & Stats row */}
+          {/* Filter row */}
+          <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4">
+            {/* Left side empty or stats can go here if needed, currently using flex-1 to push search to center if space allows */}
+            <div className="hidden lg:block lg:flex-1" />
+
+            {/* Center: Search Input (Max-width 600px) */}
+            <div className="flex flex-col gap-1 w-full max-w-150">
+              <label className="text-xs text-muted-foreground text-left">
+                Họ tên / SĐT
+              </label>
+              <Input
+                placeholder="Tìm kiếm..."
+                className="bg-background border-border rounded-lg h-10 w-full"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+              />
+            </div>
+
+            {/* Right: Action Buttons */}
+            <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
+              <Button
+                onClick={handleSearch}
+                className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                Tìm kiếm
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditMode ? "Chỉnh sửa nhân viên" : "Thêm nhân viên mới"}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                {apiError && (
-                  <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
-                    {apiError}
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="fullName">
-                    Họ và tên <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="fullName"
-                    value={newEmployee.fullName}
-                    onChange={(e) => {
-                      setNewEmployee({
-                        ...newEmployee,
-                        fullName: e.target.value,
-                      });
-                      if (formErrors.fullName)
-                        setFormErrors((p) => ({ ...p, fullName: "" }));
-                    }}
-                    placeholder="Nhập họ tên nhân viên"
-                    className={inputErrorClass(formErrors.fullName)}
-                  />
-                  {formErrors.fullName && (
-                    <p className="text-xs text-destructive mt-1">
-                      {formErrors.fullName}
-                    </p>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="position">Chức vụ</Label>
-                    <Input
-                      id="position"
-                      value={newEmployee.position}
-                      onChange={(e) =>
-                        setNewEmployee({
-                          ...newEmployee,
-                          position: e.target.value,
-                        })
-                      }
-                      placeholder="VD: Phục vụ, Thu ngân..."
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="salary">Lương cơ bản</Label>
-                    <Input
-                      id="salary"
-                      value={formatNumber(newEmployee.salary)}
-                      onChange={(e) => {
-                        setNewEmployee({
-                          ...newEmployee,
-                          salary: parseNumber(e.target.value),
-                        });
-                        if (formErrors.salary)
-                          setFormErrors((p) => ({ ...p, salary: "" }));
-                      }}
-                      placeholder="VD: 10.000.000"
-                      className={inputErrorClass(formErrors.salary)}
-                    />
-                    {formErrors.salary && (
-                      <p className="text-xs text-destructive mt-1">
-                        {formErrors.salary}
-                      </p>
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                className="gap-2 rounded-lg"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Làm mới
+              </Button>
+              <Dialog
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    handleOpenCreateDialog();
+                  } else {
+                    setIsDialogOpen(false);
+                    resetForm();
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
+                    <Plus className="mr-2 h-4 w-4" /> Thêm
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {isEditMode
+                        ? "Chỉnh sửa nhân viên"
+                        : "Thêm nhân viên mới"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    {apiError && (
+                      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                        {apiError}
+                      </div>
                     )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="birthDate">Ngày sinh</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !newEmployee.birthDate && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newEmployee.birthDate ? (
-                            format(
-                              new Date(newEmployee.birthDate),
-                              "dd/MM/yyyy",
-                              { locale: vi },
-                            )
-                          ) : (
-                            <span>Chọn ngày sinh</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <div className="flex gap-2 p-3 border-b justify-between">
-                          <Select
-                            value={
-                              newEmployee.birthDate
-                                ? new Date(newEmployee.birthDate)
-                                    .getDate()
-                                    .toString()
-                                : undefined
-                            }
-                            onValueChange={(day) => {
-                              const current = newEmployee.birthDate
-                                ? new Date(newEmployee.birthDate)
-                                : new Date();
-                              current.setDate(parseInt(day));
-                              setNewEmployee({
-                                ...newEmployee,
-                                birthDate: current.toISOString(),
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="w-20">
-                              <SelectValue placeholder="Ngày" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50">
-                              {(() => {
-                                const current = newEmployee.birthDate
-                                  ? new Date(newEmployee.birthDate)
-                                  : new Date();
-                                const daysInMonth = new Date(
-                                  current.getFullYear(),
-                                  current.getMonth() + 1,
-                                  0,
-                                ).getDate();
-                                return Array.from(
-                                  { length: daysInMonth },
-                                  (_, i) => i + 1,
-                                ).map((d) => (
-                                  <SelectItem key={d} value={d.toString()}>
-                                    {d}
-                                  </SelectItem>
-                                ));
-                              })()}
-                            </SelectContent>
-                          </Select>
-
-                          <Select
-                            value={
-                              newEmployee.birthDate
-                                ? (
-                                    new Date(newEmployee.birthDate).getMonth() +
-                                    1
-                                  ).toString()
-                                : undefined
-                            }
-                            onValueChange={(month) => {
-                              const current = newEmployee.birthDate
-                                ? new Date(newEmployee.birthDate)
-                                : new Date();
-                              current.setMonth(parseInt(month) - 1);
-                              setNewEmployee({
-                                ...newEmployee,
-                                birthDate: current.toISOString(),
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue placeholder="Tháng" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50">
-                              {months.map((m) => (
-                                <SelectItem key={m} value={m.toString()}>
-                                  Tháng {m}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-
-                          <Select
-                            value={
-                              newEmployee.birthDate
-                                ? new Date(newEmployee.birthDate)
-                                    .getFullYear()
-                                    .toString()
-                                : undefined
-                            }
-                            onValueChange={(year) => {
-                              const current = newEmployee.birthDate
-                                ? new Date(newEmployee.birthDate)
-                                : new Date();
-                              current.setFullYear(parseInt(year));
-                              setNewEmployee({
-                                ...newEmployee,
-                                birthDate: current.toISOString(),
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue placeholder="Năm" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-50">
-                              {years.map((y) => (
-                                <SelectItem key={y} value={y.toString()}>
-                                  {y}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Calendar
-                          mode="single"
-                          selected={
-                            newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                              : undefined
-                          }
-                          onSelect={(date) =>
-                            setNewEmployee({
-                              ...newEmployee,
-                              birthDate: date ? date.toISOString() : "",
-                            })
-                          }
-                          month={
-                            newEmployee.birthDate
-                              ? new Date(newEmployee.birthDate)
-                              : undefined
-                          }
-                          onMonthChange={(date) =>
-                            setNewEmployee({
-                              ...newEmployee,
-                              birthDate: date.toISOString(),
-                            })
-                          }
-                          initialFocus
-                          locale={vi}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {formErrors.birthDate && (
-                      <p className="text-xs text-destructive mt-1">
-                        {formErrors.birthDate}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="identityCard">CCCD (12 số)</Label>
-                    <Input
-                      id="identityCard"
-                      value={newEmployee.identityCard || ""}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        if (value.length <= 12) {
+                    <div className="grid gap-2">
+                      <Label htmlFor="fullName">
+                        Họ và tên <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="fullName"
+                        value={newEmployee.fullName}
+                        onChange={(e) => {
                           setNewEmployee({
                             ...newEmployee,
-                            identityCard: value,
+                            fullName: e.target.value,
                           });
-                          if (formErrors.identityCard)
-                            setFormErrors((p) => ({ ...p, identityCard: "" }));
-                        }
-                      }}
-                      placeholder="Nhập 12 số CCCD"
-                      className={inputErrorClass(formErrors.identityCard)}
-                    />
-                    {formErrors.identityCard && (
-                      <p className="text-xs text-destructive mt-1">
-                        {formErrors.identityCard}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input
-                    id="phone"
-                    value={newEmployee.phone}
-                    onChange={(e) => {
-                      setNewEmployee({ ...newEmployee, phone: e.target.value });
-                      if (formErrors.phone)
-                        setFormErrors((p) => ({ ...p, phone: "" }));
-                    }}
-                    placeholder="VD: 0912345678"
-                    className={inputErrorClass(formErrors.phone)}
-                  />
-                  {formErrors.phone && (
-                    <p className="text-xs text-destructive mt-1">
-                      {formErrors.phone}
-                    </p>
-                  )}
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="address">Địa chỉ</Label>
-                  <Input
-                    id="address"
-                    value={newEmployee.address}
-                    onChange={(e) =>
-                      setNewEmployee({
-                        ...newEmployee,
-                        address: e.target.value,
-                      })
-                    }
-                  />
-                </div>
+                          if (formErrors.fullName)
+                            setFormErrors((p) => ({ ...p, fullName: "" }));
+                        }}
+                        placeholder="Nhập họ tên nhân viên"
+                        className={inputErrorClass(formErrors.fullName)}
+                      />
+                      {formErrors.fullName && (
+                        <p className="text-xs text-destructive mt-1">
+                          {formErrors.fullName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="position">Chức vụ</Label>
+                        <Input
+                          id="position"
+                          value={newEmployee.position}
+                          onChange={(e) =>
+                            setNewEmployee({
+                              ...newEmployee,
+                              position: e.target.value,
+                            })
+                          }
+                          placeholder="VD: Phục vụ, Thu ngân..."
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="salary">Lương cơ bản</Label>
+                        <Input
+                          id="salary"
+                          value={formatNumber(newEmployee.salary)}
+                          onChange={(e) => {
+                            setNewEmployee({
+                              ...newEmployee,
+                              salary: parseNumber(e.target.value),
+                            });
+                            if (formErrors.salary)
+                              setFormErrors((p) => ({ ...p, salary: "" }));
+                          }}
+                          placeholder="VD: 10.000.000"
+                          className={inputErrorClass(formErrors.salary)}
+                        />
+                        {formErrors.salary && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.salary}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="birthDate">Ngày sinh</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !newEmployee.birthDate &&
+                                  "text-muted-foreground",
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {newEmployee.birthDate ? (
+                                format(
+                                  new Date(newEmployee.birthDate),
+                                  "dd/MM/yyyy",
+                                  { locale: vi },
+                                )
+                              ) : (
+                                <span>Chọn ngày sinh</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <div className="flex gap-2 p-3 border-b justify-between">
+                              <Select
+                                value={
+                                  newEmployee.birthDate
+                                    ? new Date(newEmployee.birthDate)
+                                        .getDate()
+                                        .toString()
+                                    : undefined
+                                }
+                                onValueChange={(day) => {
+                                  const current = newEmployee.birthDate
+                                    ? new Date(newEmployee.birthDate)
+                                    : new Date();
+                                  current.setDate(parseInt(day));
+                                  setNewEmployee({
+                                    ...newEmployee,
+                                    birthDate: current.toISOString(),
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="Ngày" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-50">
+                                  {(() => {
+                                    const current = newEmployee.birthDate
+                                      ? new Date(newEmployee.birthDate)
+                                      : new Date();
+                                    const daysInMonth = new Date(
+                                      current.getFullYear(),
+                                      current.getMonth() + 1,
+                                      0,
+                                    ).getDate();
+                                    return Array.from(
+                                      { length: daysInMonth },
+                                      (_, i) => i + 1,
+                                    ).map((d) => (
+                                      <SelectItem key={d} value={d.toString()}>
+                                        {d}
+                                      </SelectItem>
+                                    ));
+                                  })()}
+                                </SelectContent>
+                              </Select>
 
-                {/* Tài khoản hệ thống */}
-                <div className="grid gap-2">
-                  <Label htmlFor="userId">Tài khoản hệ thống</Label>
-                  <Select
-                    value={
-                      newEmployee.userId !== null
-                        ? newEmployee.userId.toString()
-                        : NO_USER_VALUE
-                    }
-                    onValueChange={(val) => {
-                      setNewEmployee({
-                        ...newEmployee,
-                        userId: val === NO_USER_VALUE ? null : Number(val),
-                      });
-                    }}
-                    disabled={isLoadingUsers}
-                  >
-                    <SelectTrigger id="userId">
-                      <SelectValue
-                        placeholder={
-                          isLoadingUsers
-                            ? "Đang tải..."
-                            : "Chọn tài khoản (tùy chọn)"
+                              <Select
+                                value={
+                                  newEmployee.birthDate
+                                    ? (
+                                        new Date(
+                                          newEmployee.birthDate,
+                                        ).getMonth() + 1
+                                      ).toString()
+                                    : undefined
+                                }
+                                onValueChange={(month) => {
+                                  const current = newEmployee.birthDate
+                                    ? new Date(newEmployee.birthDate)
+                                    : new Date();
+                                  current.setMonth(parseInt(month) - 1);
+                                  setNewEmployee({
+                                    ...newEmployee,
+                                    birthDate: current.toISOString(),
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue placeholder="Tháng" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-50">
+                                  {months.map((m) => (
+                                    <SelectItem key={m} value={m.toString()}>
+                                      Tháng {m}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              <Select
+                                value={
+                                  newEmployee.birthDate
+                                    ? new Date(newEmployee.birthDate)
+                                        .getFullYear()
+                                        .toString()
+                                    : undefined
+                                }
+                                onValueChange={(year) => {
+                                  const current = newEmployee.birthDate
+                                    ? new Date(newEmployee.birthDate)
+                                    : new Date();
+                                  current.setFullYear(parseInt(year));
+                                  setNewEmployee({
+                                    ...newEmployee,
+                                    birthDate: current.toISOString(),
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue placeholder="Năm" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-50">
+                                  {years.map((y) => (
+                                    <SelectItem key={y} value={y.toString()}>
+                                      {y}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Calendar
+                              mode="single"
+                              selected={
+                                newEmployee.birthDate
+                                  ? new Date(newEmployee.birthDate)
+                                  : undefined
+                              }
+                              onSelect={(date) =>
+                                setNewEmployee({
+                                  ...newEmployee,
+                                  birthDate: date ? date.toISOString() : "",
+                                })
+                              }
+                              month={
+                                newEmployee.birthDate
+                                  ? new Date(newEmployee.birthDate)
+                                  : undefined
+                              }
+                              onMonthChange={(date) =>
+                                setNewEmployee({
+                                  ...newEmployee,
+                                  birthDate: date.toISOString(),
+                                })
+                              }
+                              initialFocus
+                              locale={vi}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {formErrors.birthDate && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.birthDate}
+                          </p>
+                        )}
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="identityCard">CCCD (12 số)</Label>
+                        <Input
+                          id="identityCard"
+                          value={newEmployee.identityCard || ""}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, "");
+                            if (value.length <= 12) {
+                              setNewEmployee({
+                                ...newEmployee,
+                                identityCard: value,
+                              });
+                              if (formErrors.identityCard)
+                                setFormErrors((p) => ({
+                                  ...p,
+                                  identityCard: "",
+                                }));
+                            }
+                          }}
+                          placeholder="Nhập 12 số CCCD"
+                          className={inputErrorClass(formErrors.identityCard)}
+                        />
+                        {formErrors.identityCard && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.identityCard}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="phone">Số điện thoại</Label>
+                      <Input
+                        id="phone"
+                        value={newEmployee.phone}
+                        onChange={(e) => {
+                          setNewEmployee({
+                            ...newEmployee,
+                            phone: e.target.value,
+                          });
+                          if (formErrors.phone)
+                            setFormErrors((p) => ({ ...p, phone: "" }));
+                        }}
+                        placeholder="VD: 0912345678"
+                        className={inputErrorClass(formErrors.phone)}
+                      />
+                      {formErrors.phone && (
+                        <p className="text-xs text-destructive mt-1">
+                          {formErrors.phone}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="address">Địa chỉ</Label>
+                      <Input
+                        id="address"
+                        value={newEmployee.address}
+                        onChange={(e) =>
+                          setNewEmployee({
+                            ...newEmployee,
+                            address: e.target.value,
+                          })
                         }
                       />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_USER_VALUE}>
-                        — Không liên kết —
-                      </SelectItem>
-                      {availableUsers.map((u) => (
-                        <SelectItem key={u.id} value={u.id.toString()}>
-                          {u.email}
-                          {u.fullName ? ` (${u.fullName})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Hủy
-                </Button>
-                <Button onClick={handleCreateEmployee} disabled={isSaving}>
-                  {isSaving ? "Đang lưu..." : isEditMode ? "Cập nhật" : "Lưu"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+                    </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>Danh sách nhân viên</CardTitle>
-            {selectedIds.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={isDeletingBulk}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Xóa {selectedIds.length} mục
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12.5 text-center">
-                    <Checkbox
-                      checked={
-                        employees.length > 0 &&
-                        selectedIds.length === employees.length
-                      }
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="w-15 text-center">STT</TableHead>
-                  <TableHead className="whitespace-nowrap">Mã NV</TableHead>
-                  <TableHead className="whitespace-nowrap">Họ tên</TableHead>
-                  <TableHead className="whitespace-nowrap">Ngày sinh</TableHead>
-                  <TableHead>CCCD</TableHead>
-                  <TableHead>Chức vụ</TableHead>
-                  <TableHead>Lương</TableHead>
-                  <TableHead>SĐT</TableHead>
-                  <TableHead>Tài khoản</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8">
-                      Đang tải...
-                    </TableCell>
-                  </TableRow>
-                ) : employees.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={11}
-                      className="text-center py-8 text-muted-foreground"
+                    {/* Tài khoản hệ thống */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="userId">Tài khoản hệ thống</Label>
+                      <Select
+                        value={
+                          newEmployee.userId !== null
+                            ? newEmployee.userId.toString()
+                            : NO_USER_VALUE
+                        }
+                        onValueChange={(val) => {
+                          setNewEmployee({
+                            ...newEmployee,
+                            userId: val === NO_USER_VALUE ? null : Number(val),
+                          });
+                        }}
+                        disabled={isLoadingUsers}
+                      >
+                        <SelectTrigger id="userId">
+                          <SelectValue
+                            placeholder={
+                              isLoadingUsers
+                                ? "Đang tải..."
+                                : "Chọn tài khoản (tùy chọn)"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_USER_VALUE}>
+                            — Không liên kết —
+                          </SelectItem>
+                          {availableUsers.map((u) => (
+                            <SelectItem key={u.id} value={u.id.toString()}>
+                              {u.email}
+                              {u.fullName ? ` (${u.fullName})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
                     >
-                      Chưa có nhân viên nào
-                    </TableCell>
+                      Hủy
+                    </Button>
+                    <Button onClick={handleCreateEmployee} disabled={isSaving}>
+                      {isSaving
+                        ? "Đang lưu..."
+                        : isEditMode
+                          ? "Cập nhật"
+                          : "Lưu"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex flex-row items-center gap-4 mb-3">
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={isDeletingBulk}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Xóa {selectedIds.length} mục
+                </Button>
+              )}
+              <h3 className="text-base font-semibold">Danh sách nhân viên</h3>
+            </div>
+            <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border">
+                    <TableHead className="w-10 text-center">
+                      <Checkbox
+                        checked={
+                          employees.length > 0 &&
+                          selectedIds.length === employees.length
+                        }
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead className="w-14 text-center">STT</TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        Mã NV
+                      </span>
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        Họ tên
+                      </span>
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        Ngày sinh
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        CCCD
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Chức vụ
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Lương
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        SĐT
+                      </span>
+                    </TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1">
+                        Tài khoản
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
-                ) : (
-                  employees.map((emp, index) => (
-                    <TableRow
-                      key={emp.id}
-                      data-state={
-                        selectedIds.includes(emp.id) ? "selected" : undefined
-                      }
-                    >
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={selectedIds.includes(emp.id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectRow(emp.id, !!checked)
-                          }
-                          aria-label={`Select row ${emp.id}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center font-medium">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-medium text-blue-600 font-mono text-xs">
-                        {emp.employeeCode}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {emp.fullName}
-                      </TableCell>
-                      <TableCell>
-                        {emp.birthDate
-                          ? new Date(emp.birthDate).toLocaleDateString("vi-VN")
-                          : "—"}
-                      </TableCell>
-                      <TableCell>{emp.identityCard || "—"}</TableCell>
-                      <TableCell>{emp.position || "—"}</TableCell>
-                      <TableCell>
-                        {new Intl.NumberFormat("vi-VN", {
-                          style: "currency",
-                          currency: "VND",
-                        }).format(emp.salary)}
-                      </TableCell>
-                      <TableCell>{emp.phone || "—"}</TableCell>
-                      <TableCell>
-                        {emp.user ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                            {emp.user.email}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="mr-2"
-                            onClick={() => handleEdit(emp)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive"
-                            onClick={() => handleDelete(emp.id, emp.fullName)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-center py-8">
+                        Đang tải...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+                  ) : employees.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={11}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        Chưa có nhân viên nào
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedEmployees.map((emp, index) => (
+                      <TableRow
+                        key={emp.id}
+                        className="hover:bg-muted/50 transition-colors border-border"
+                        data-state={
+                          selectedIds.includes(emp.id) ? "selected" : undefined
+                        }
+                      >
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={selectedIds.includes(emp.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectRow(emp.id, !!checked)
+                            }
+                            aria-label={`Select row ${emp.id}`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center font-medium text-muted-foreground">
+                          {globalOffset + index + 1}
+                        </TableCell>
+
+                        <TableCell className="font-medium text-blue-600 dark:text-blue-400 font-mono text-xs">
+                          {emp.employeeCode}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-foreground">
+                          {emp.fullName}
+                        </TableCell>
+                        <TableCell>
+                          {emp.birthDate
+                            ? new Date(emp.birthDate).toLocaleDateString(
+                                "vi-VN",
+                              )
+                            : "—"}
+                        </TableCell>
+                        <TableCell>{emp.identityCard || "—"}</TableCell>
+                        <TableCell>{emp.position || "—"}</TableCell>
+                        <TableCell>
+                          {new Intl.NumberFormat("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                          }).format(emp.salary)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {emp.phone || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {emp.user ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                              {emp.user.email}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">
+                              —
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-3 text-slate-600">
+                            <button
+                              className="hover:text-slate-900 transition-colors"
+                              onClick={() => handleEdit(emp)}
+                              title="Chỉnh sửa"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="text-red-500 hover:text-red-600 transition-colors"
+                              onClick={() => handleDelete(emp.id, emp.fullName)}
+                              title="Xóa"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center pt-4 relativer">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[13px] text-slate-600 mr-2">
+                  Tổng cộng {filteredEmployees.length} bản ghi
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-8 h-8 p-0 rounded-[2px] border-slate-300 text-slate-600 disabled:bg-slate-50 disabled:text-slate-300"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m15 18-6-6 6-6" />
+                  </svg>
+                </Button>
+
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let page = i + 1;
+                  if (totalPages > 5 && currentPage > 3) {
+                    page = Math.min(currentPage - 2 + i, totalPages - 4 + i);
+                  }
+                  return (
+                    <Button
+                      key={page}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 p-0 rounded-[2px] text-[13px] transition-colors ${
+                        currentPage === page
+                          ? "border-blue-600 text-blue-600 bg-white hover:border-blue-500 hover:text-blue-500 font-medium"
+                          : "border-slate-300 text-slate-600 hover:text-blue-500 hover:border-blue-500 bg-white"
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-8 h-8 p-0 rounded-[2px] border-slate-300 text-slate-600 disabled:bg-slate-50 disabled:text-slate-300"
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </Button>
+
+                <div className="ml-2 flex items-center justify-between border border-slate-300 rounded-[2px] h-8 px-2.5 text-[13px] text-slate-600 bg-white cursor-pointer hover:border-blue-500 transition-colors min-w-22.5">
+                  <span>{pageSize} / trang</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="opacity-50"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </PermissionGuard>
   );
 }
