@@ -28,7 +28,20 @@ import {
 } from "@/services/statistics.service";
 import { TrendingUp, BarChart3, Loader2 } from "lucide-react";
 import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+import weekday from "dayjs/plugin/weekday";
+
+dayjs.extend(isoWeek);
+dayjs.extend(weekday);
 import { DatePicker } from "@/components/shared/DatePicker";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const ExcelIcon = ({ className }: { className?: string }) => (
   <svg
@@ -201,10 +214,10 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
                         setQuery((prev) => ({
                           ...prev,
                           startDate: dayjs(date)
-                            .startOf("week")
+                            .startOf("isoWeek")
                             .format("YYYY-MM-DD"),
                           endDate: dayjs(date)
-                            .endOf("week")
+                            .endOf("isoWeek")
                             .format("YYYY-MM-DD"),
                         }));
                       } else {
@@ -249,30 +262,30 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
-              <div className="text-sm font-medium text-primary/70 mb-1">
+            <div className="bg-primary/5 border-l-4 border-primary p-6">
+              <div className="text-xs font-bold text-primary/70 mb-1 uppercase tracking-wider">
                 Tổng doanh thu
               </div>
-              <div className="text-2xl font-bold text-primary mb-2">
+              <div className="text-2xl font-bold text-primary mb-1">
                 {new Intl.NumberFormat("vi-VN").format(totalRevenue)}đ
               </div>
-              <div className="flex items-center text-xs text-primary/60">
-                <TrendingUp className="h-3 w-3 mr-1" /> Toàn bộ thời gian đã
-                chọn
+              <div className="flex items-center text-[10px] text-primary/60 font-medium">
+                <TrendingUp className="h-3 w-3 mr-1" /> TOÀN BỘ THỜI GIAN ĐÃ
+                CHỌN
               </div>
             </div>
 
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-6">
-              <div className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70 mb-1">
+            <div className="bg-emerald-500/5 border-l-4 border-emerald-500 p-6">
+              <div className="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70 mb-1 uppercase tracking-wider">
                 Tổng đơn hàng
               </div>
-              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
                 {totalOrders} đơn
               </div>
-              <div className="flex items-center text-xs text-emerald-600/60 dark:text-emerald-400/60">
-                <BarChart3 className="h-3 w-3 mr-1" /> Trung bình{" "}
+              <div className="flex items-center text-[10px] text-emerald-600/60 dark:text-emerald-400/60 font-medium">
+                <BarChart3 className="h-3 w-3 mr-1" /> TRUNG BÌNH{" "}
                 {data.length > 0 ? (totalOrders / data.length).toFixed(1) : 0}{" "}
-                đơn/mốc
+                ĐƠN/MỐC
               </div>
             </div>
           </div>
@@ -303,7 +316,7 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
               <div className="h-87.5 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[...data].reverse()}
+                    data={data}
                     margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                   >
                     <CartesianGrid
@@ -360,35 +373,73 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
 
           {!isLoading && data.length > 0 && (
             <div className="space-y-4">
-              <div className="text-lg font-semibold">Chi tiết doanh số</div>
-              <div className="overflow-x-auto border rounded-xl">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-4 font-semibold">Thời gian</th>
-                      <th className="text-right p-4 font-semibold">
-                        Số đơn hàng
-                      </th>
-                      <th className="text-right p-4 font-semibold">
+              <div className="text-lg font-semibold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" /> Chi tiết doanh số
+              </div>
+              <div className="[&_th]:bg-muted/50 [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="w-[40%] pl-6">Thời gian</TableHead>
+                      <TableHead className="text-center">Số đơn hàng</TableHead>
+                      <TableHead className="text-right pr-6">
                         Doanh thu
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.map((item, idx) => (
-                      <tr
+                      <TableRow
                         key={idx}
-                        className="border-b hover:bg-muted/30 transition-colors"
+                        className="hover:bg-muted/50 transition-colors border-border"
                       >
-                        <td className="p-4 font-medium">{item.date}</td>
-                        <td className="p-4 text-right">{item.count} đơn</td>
-                        <td className="p-4 text-right font-bold text-primary">
+                        <TableCell className="pl-6 font-medium">
+                          {(() => {
+                            if (query.groupBy === "month") {
+                              const parts = item.date.split("-");
+                              return parts.length === 2
+                                ? `Tháng ${parseInt(parts[1])} năm ${parts[0]}`
+                                : item.date;
+                            }
+                            if (query.groupBy === "week") {
+                              const parts = item.date.split("-");
+                              if (parts.length === 2) {
+                                const year = parseInt(parts[0]);
+                                const weekNum = parseInt(parts[1]);
+                                const weekStart = dayjs()
+                                  .year(year)
+                                  .isoWeek(weekNum)
+                                  .startOf("isoWeek");
+                                const month = weekStart.month() + 1;
+                                let count = 0;
+                                let temp = weekStart.clone().startOf("month");
+                                while (temp.isoWeekday() !== 1) {
+                                  temp = temp.add(1, "day");
+                                }
+                                while (
+                                  temp.isBefore(weekStart) ||
+                                  temp.isSame(weekStart, "day")
+                                ) {
+                                  count++;
+                                  temp = temp.add(1, "week");
+                                }
+                                return `Tháng ${month} Tuần thứ ${count} (Tuần ${weekNum}/${year})`;
+                              }
+                              return item.date;
+                            }
+                            return item.date;
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {item.count} đơn
+                        </TableCell>
+                        <TableCell className="text-right pr-6 font-bold text-primary">
                           {new Intl.NumberFormat("vi-VN").format(item.revenue)}đ
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}

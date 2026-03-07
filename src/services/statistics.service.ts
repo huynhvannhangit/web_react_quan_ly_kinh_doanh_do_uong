@@ -1,4 +1,5 @@
 import api from "./api";
+import dayjs from "dayjs";
 
 export interface RevenueData {
   date: string;
@@ -63,10 +64,37 @@ export const statisticsService = {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `bao-cao-doanh-thu.xlsx`);
+
+    const typeText =
+      query.groupBy === "month"
+        ? "tháng"
+        : query.groupBy === "week"
+          ? "tuần"
+          : "ngày";
+
+    let dateText = "";
+    const start = query.startDate ? dayjs(query.startDate) : null;
+    const end = query.endDate ? dayjs(query.endDate) : null;
+
+    if (start && end) {
+      if (start.isSame(end, "day")) {
+        dateText = start.format("DD-MM-YYYY");
+      } else {
+        dateText = `${start.format("DD-MM-YYYY")} đến ${end.format("DD-MM-YYYY")}`;
+      }
+    } else if (start) {
+      dateText = start.format("DD-MM-YYYY");
+    } else {
+      dateText = dayjs().format("DD-MM-YYYY");
+    }
+
+    const filename = `thống kê doanh thu ${typeText} ${dateText}.xlsx`;
+
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.URL.revokeObjectURL(url);
   },
 
   getDashboardData: async (): Promise<{
