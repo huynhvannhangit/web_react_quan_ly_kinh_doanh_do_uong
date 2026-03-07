@@ -74,6 +74,14 @@ export default function RegisterPage() {
                   id="first-name"
                   placeholder="Nguyễn"
                   required
+                  onInvalid={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity(
+                      "Vui lòng nhập họ",
+                    )
+                  }
+                  onInput={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity("")
+                  }
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   disabled={loading}
@@ -85,6 +93,14 @@ export default function RegisterPage() {
                   id="last-name"
                   placeholder="Văn A"
                   required
+                  onInvalid={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity(
+                      "Vui lòng nhập tên",
+                    )
+                  }
+                  onInput={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity("")
+                  }
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   disabled={loading}
@@ -98,6 +114,14 @@ export default function RegisterPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                onInvalid={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity(
+                    "Vui lòng nhập email",
+                  )
+                }
+                onInput={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity("")
+                }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
@@ -109,6 +133,14 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 required
+                onInvalid={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity(
+                    "Vui lòng nhập mật khẩu",
+                  )
+                }
+                onInput={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity("")
+                }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}

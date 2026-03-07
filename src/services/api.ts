@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { toast } from "sonner";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
@@ -33,6 +34,35 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     }
+    // Handle structured error messages from backend
+    if (error.response && error.response.data) {
+      const { message, error: errorType } = error.response.data;
+
+      // Extract specific backend message if it exists
+      if (message) {
+        // If it's an array of messages (like class-validator errors), join them
+        if (Array.isArray(message)) {
+          error.customMessage = message.join(", ");
+        } else {
+          error.customMessage = message;
+        }
+      } else if (errorType) {
+        // Fallback to error type string (e.g., 'Bad Request')
+        error.customMessage = errorType;
+      }
+    }
+
+    // Default connection error fallback if no response exists
+    if (!error.response) {
+      error.customMessage =
+        "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng wifi/3g.";
+    }
+
+    // Automatically trigger a toast for API errors EXCEPT 401 (handled by redirect)
+    if (error.response?.status !== 401) {
+      toast.error(error.customMessage);
+    }
+
     return Promise.reject(error);
   },
 );

@@ -40,9 +40,9 @@ export default function RootLayout({
         >
           <SystemConfigProvider>
             <DynamicBranding />
-            <NotificationProvider>
-              <AuthProvider>{children}</AuthProvider>
-            </NotificationProvider>
+            <AuthProvider>
+              <NotificationProvider>{children}</NotificationProvider>
+            </AuthProvider>
           </SystemConfigProvider>
           <Toaster
             position="top-right"

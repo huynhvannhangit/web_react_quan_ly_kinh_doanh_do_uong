@@ -20,7 +20,9 @@ export interface AppNotification {
   read?: boolean;
 }
 
-export const useSocket = () => {
+import { AuthUser } from "@/components/providers/auth-provider";
+
+export const useSocket = (user: AuthUser | null | undefined) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -28,6 +30,15 @@ export const useSocket = () => {
 
   // Initialize Socket.IO connection
   useEffect(() => {
+    if (!user || !user.id) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+        setIsConnected(false);
+      }
+      return;
+    }
+
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999/api";
     // Extract base backend URL from API URL for WebSocket
@@ -128,11 +139,12 @@ export const useSocket = () => {
     return () => {
       socketInstance.disconnect();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Sync data with Firebase Firestore (notification history)
   useEffect(() => {
-    if (!db) return;
+    if (!db || !user || !user.id) return;
 
     // Listen for realtime updates from Firebase Firestore (notification history)
     const q = query(
@@ -162,7 +174,8 @@ export const useSocket = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {

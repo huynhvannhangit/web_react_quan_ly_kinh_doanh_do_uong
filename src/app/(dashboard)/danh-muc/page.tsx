@@ -198,7 +198,8 @@ export default function CategoryPage() {
     } catch (error) {
       console.error("Failed to create category:", error);
       const msg =
-        error instanceof Error ? error.message : "Lưu danh mục thất bại!";
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error ? error.message : "Lưu danh mục thất bại!");
       setApiError(msg);
     } finally {
       setIsSaving(false);
@@ -284,19 +285,27 @@ export default function CategoryPage() {
                         Tên danh mục <span className="text-destructive">*</span>
                       </Label>
                       <Input
-                        id="name" // Changed id from categoryName to name
-                        value={newCategory.name} // Changed from categoryName to name
+                        id="name"
+                        value={newCategory.name}
                         onChange={(e) => {
                           setNewCategory({
                             ...newCategory,
-                            name: e.target.value, // Changed from categoryName to name
+                            name: e.target.value,
                           });
                           if (formErrors.name)
-                            // Changed from categoryName to name
-                            setFormErrors((p) => ({ ...p, name: "" })); // Changed from categoryName to name
+                            setFormErrors((p) => ({ ...p, name: "" }));
                         }}
                         placeholder="VD: Cà phê, Trà sữa..."
-                        className={inputErrorClass(formErrors.name)} // Changed from categoryName to name
+                        className={inputErrorClass(formErrors.name)}
+                        required
+                        onInvalid={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity(
+                            "Vui lòng điền vào trường này",
+                          )
+                        }
+                        onInput={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity("")
+                        }
                       />
                       {formErrors.name && ( // Changed from categoryName to name
                         <p className="text-xs text-destructive mt-1">

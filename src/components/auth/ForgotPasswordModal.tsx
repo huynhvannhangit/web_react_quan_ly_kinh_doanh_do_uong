@@ -109,6 +109,14 @@ export default function ForgotPasswordModal({
                 type="email"
                 placeholder="name@example.com"
                 required
+                onInvalid={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity(
+                    "Vui lòng nhập email",
+                  )
+                }
+                onInput={(e) =>
+                  (e.target as HTMLInputElement).setCustomValidity("")
+                }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}

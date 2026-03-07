@@ -104,12 +104,26 @@ export default function SystemConfigPage() {
     setIsSubmitting(true);
 
     try {
-      await systemConfigService.update(formData);
+      const payload: Parameters<typeof systemConfigService.update>[0] = {
+        systemName: formData.systemName.trim(),
+        logoUrl: formData.logoUrl,
+        email: formData.email.trim() || "",
+        phone: formData.phone.trim() || "",
+        address: formData.address.trim() || "",
+        footerText: formData.footerText.trim() || "",
+      };
+
+      await systemConfigService.update(payload);
       await refreshConfig();
       toast.success("Cập nhật cấu hình thành công.");
     } catch (error: unknown) {
       console.error("Update system config failed:", error);
-      toast.error("Có lỗi xảy ra khi cập nhật cấu hình.");
+      const msg =
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi cập nhật cấu hình.");
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +159,9 @@ export default function SystemConfigPage() {
                 </div>
                 <div className="space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="systemName">Tên hệ thống</Label>
+                    <Label htmlFor="systemName">
+                      Tên hệ thống <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="systemName"
                       name="systemName"
@@ -153,6 +169,14 @@ export default function SystemConfigPage() {
                       onChange={handleChange}
                       placeholder="Ví dụ: QL Đồ Uống"
                       required
+                      onInvalid={(e) =>
+                        (e.target as HTMLInputElement).setCustomValidity(
+                          "Vui lòng điền vào trường này",
+                        )
+                      }
+                      onInput={(e) =>
+                        (e.target as HTMLInputElement).setCustomValidity("")
+                      }
                     />
                   </div>
 

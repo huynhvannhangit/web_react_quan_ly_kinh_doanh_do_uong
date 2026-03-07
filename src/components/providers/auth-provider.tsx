@@ -47,10 +47,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = () => {
       const currentUser = authService.getCurrentUser();
-      if (currentUser) {
+      const hasToken = authService.isAuthenticated();
+
+      if (currentUser && hasToken) {
         setUser(currentUser);
-      } else if (!publicRoutes.includes(pathname)) {
-        router.push("/login");
+      } else {
+        if (currentUser && !hasToken) {
+          authService.logout();
+        }
+        setUser(null);
+        if (!publicRoutes.includes(pathname)) {
+          router.push("/login");
+        }
       }
       setIsLoading(false);
     };

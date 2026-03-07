@@ -17,8 +17,11 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
 
+import { useAuth } from "@/components/providers/auth-provider";
+
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
-  const socketData = useSocket();
+  const { user } = useAuth();
+  const socketData = useSocket(user);
 
   return (
     <NotificationContext.Provider value={socketData}>

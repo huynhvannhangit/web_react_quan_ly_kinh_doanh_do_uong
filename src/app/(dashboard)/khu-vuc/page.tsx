@@ -196,8 +196,13 @@ export default function AreaPage() {
     } catch (error) {
       console.error("Failed to save area:", error);
       const msg =
-        error instanceof Error ? error.message : "Lưu khu vực thất bại!";
-      setApiError(msg);
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error ? error.message : "Lưu khu vực thất bại!");
+      if (msg.includes("đã tồn tại")) {
+        setFormErrors({ name: msg });
+      } else {
+        setApiError(msg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -291,6 +296,15 @@ export default function AreaPage() {
                         }}
                         placeholder="VD: Tầng 1, Sân vườn..."
                         className={inputErrorClass(formErrors.name)}
+                        required
+                        onInvalid={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity(
+                            "Vui lòng điền vào trường này",
+                          )
+                        }
+                        onInput={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity("")
+                        }
                       />
                       {formErrors.name && (
                         <p className="text-xs text-destructive mt-1">

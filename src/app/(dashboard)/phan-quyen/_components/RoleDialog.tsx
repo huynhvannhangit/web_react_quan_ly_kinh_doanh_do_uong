@@ -196,6 +196,15 @@ export function RoleDialog({
                       setFormErrors((p) => ({ ...p, name: "" }));
                   }}
                   className={inputErrorClass(formErrors.name)}
+                  required
+                  onInvalid={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity(
+                      "Vui lòng điền vào trường này",
+                    )
+                  }
+                  onInput={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity("")
+                  }
                 />
                 {formErrors.name && (
                   <p className="text-xs text-destructive mt-1">

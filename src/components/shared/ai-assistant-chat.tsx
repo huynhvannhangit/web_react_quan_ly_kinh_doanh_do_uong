@@ -21,8 +21,8 @@ import {
   Loader2,
   Sparkles,
   RefreshCw,
-  Trash2,
   X,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -89,8 +89,25 @@ export function AiAssistantChat() {
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      window.dispatchEvent(new CustomEvent("ai-chat-updated"));
     }
   }, [messages]);
+
+  // Listen for clear event from page
+  useEffect(() => {
+    const handleClear = () => {
+      const defaultMsg: Message[] = [
+        {
+          role: "assistant",
+          content:
+            "Xin chào! Tôi là trợ lý AI quản lý cửa hàng. Tôi có thể giúp gì cho bạn hôm nay?",
+        },
+      ];
+      setMessages(defaultMsg);
+    };
+    window.addEventListener("ai-history-cleared", handleClear);
+    return () => window.removeEventListener("ai-history-cleared", handleClear);
+  }, []);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -142,15 +159,16 @@ export function AiAssistantChat() {
     }
   };
 
-  const clearChat = () => {
+  const startNewChat = () => {
     const defaultMsg: Message[] = [
       {
         role: "assistant",
-        content: "Đã xóa lịch sử. Tôi có thể giúp gì mới cho bạn?",
+        content: "Xin chào! Tôi có thể giúp gì mới cho bạn?",
       },
     ];
     setMessages(defaultMsg);
     localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent("ai-history-cleared"));
   };
 
   return (
@@ -192,10 +210,10 @@ export function AiAssistantChat() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 hover:bg-white/20 text-white shrink-0"
-                onClick={clearChat}
-                title="Xóa lịch sử"
+                onClick={startNewChat}
+                title="Thêm mới"
               >
-                <Trash2 className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"

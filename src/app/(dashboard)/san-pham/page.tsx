@@ -389,7 +389,8 @@ export default function ProductPage() {
     } catch (error) {
       console.error("Failed to save product:", error);
       const msg =
-        error instanceof Error ? error.message : "Lưu sản phẩm thất bại!";
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error ? error.message : "Lưu sản phẩm thất bại!");
       setApiError(msg);
     } finally {
       setIsSaving(false);
@@ -508,6 +509,17 @@ export default function ProductPage() {
                             }}
                             placeholder="VD: Cà phê đá, Matcha..."
                             className={inputErrorClass(formErrors.name)}
+                            required
+                            onInvalid={(e) =>
+                              (e.target as HTMLInputElement).setCustomValidity(
+                                "Vui lòng điền vào trường này",
+                              )
+                            }
+                            onInput={(e) =>
+                              (e.target as HTMLInputElement).setCustomValidity(
+                                "",
+                              )
+                            }
                           />
                           {formErrors.name && (
                             <p className="text-xs text-destructive mt-1">
@@ -537,6 +549,19 @@ export default function ProductPage() {
                               }}
                               placeholder="VD: 20.000"
                               className={inputErrorClass(formErrors.price)}
+                              required
+                              onInvalid={(e) =>
+                                (
+                                  e.target as HTMLInputElement
+                                ).setCustomValidity(
+                                  "Vui lòng điền vào trường này",
+                                )
+                              }
+                              onInput={(e) =>
+                                (
+                                  e.target as HTMLInputElement
+                                ).setCustomValidity("")
+                              }
                             />
                             {formErrors.price && (
                               <p className="text-xs text-destructive mt-1">
@@ -545,7 +570,10 @@ export default function ProductPage() {
                             )}
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="categoryId">Danh mục</Label>
+                            <Label htmlFor="categoryId">
+                              Danh mục{" "}
+                              <span className="text-destructive">*</span>
+                            </Label>
                             <Select
                               value={
                                 newProduct.categoryId

@@ -1,7 +1,14 @@
 // cspell:disable
 "use client";
 
-import { Bot, Sparkles, MessageSquare, Clock, ArrowRight } from "lucide-react";
+import {
+  Bot,
+  Sparkles,
+  MessageSquare,
+  Clock,
+  ArrowRight,
+  Trash2,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Permission } from "@/types";
@@ -28,17 +35,48 @@ export default function ChatAiPage() {
   const [history, setHistory] = useState<Message[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        // Wrap in setTimeout to avoid synchronous setState in effect warning
-        setTimeout(() => setHistory(data), 0);
-      } catch (e) {
-        console.error("Failed to load chat history:", e);
+    const loadHistory = () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          setTimeout(() => setHistory(data), 0);
+        } catch (e) {
+          console.error("Failed to load chat history:", e);
+        }
+      } else {
+        setTimeout(() => setHistory([]), 0);
       }
-    }
+    };
+
+    loadHistory();
+
+    const handleUpdate = () => loadHistory();
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) loadHistory();
+    };
+
+    window.addEventListener("ai-chat-updated", handleUpdate);
+    window.addEventListener("ai-history-cleared", handleUpdate);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("ai-chat-updated", handleUpdate);
+      window.removeEventListener("ai-history-cleared", handleUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
+
+  const handleClearHistory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (
+      window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện?")
+    ) {
+      localStorage.removeItem(STORAGE_KEY);
+      setHistory([]);
+      window.dispatchEvent(new CustomEvent("ai-history-cleared"));
+    }
+  };
 
   const recentMessages = history.slice(-5).reverse();
 
@@ -135,11 +173,22 @@ export default function ChatAiPage() {
             {/* Right Sidebar: Recent History */}
             <div className="space-y-6">
               <Card className="shadow-sm flex flex-col h-full overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b p-4">
+                <CardHeader className="bg-muted/30 border-b p-4 flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Clock className="w-4 h-4 text-muted-foreground" />
                     Hội thoại gần đây
                   </CardTitle>
+                  {history.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleClearHistory}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title="Xóa lịch sử"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="flex-1 overflow-auto p-4">
                   {recentMessages.length > 0 ? (

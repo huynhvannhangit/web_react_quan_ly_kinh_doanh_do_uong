@@ -336,23 +336,33 @@ export default function StaffPage() {
     setApiError(null);
     setIsSaving(true);
     try {
-      const payload = {
-        ...newEmployee,
+      const payload: Partial<Parameters<typeof employeeService.create>[0]> & {
+        status?: string;
+      } = {
         fullName: newEmployee.fullName.trim(),
-        position: newEmployee.position.trim(),
-        phone: newEmployee.phone.trim(),
-        address: newEmployee.address.trim(),
-        salary: Number(newEmployee.salary),
+        position: newEmployee.position?.trim() || undefined,
+        phone: newEmployee.phone?.trim() || undefined,
+        address: newEmployee.address?.trim() || undefined,
+        salary: Number(newEmployee.salary) || 0,
+        identityCard: newEmployee.identityCard?.trim() || undefined,
         birthDate: newEmployee.birthDate
           ? format(new Date(newEmployee.birthDate), "yyyy-MM-dd")
           : undefined,
-        userId: newEmployee.userId ?? undefined,
-        status: newEmployee.status,
+        userId: newEmployee.userId || undefined,
       };
+
+      if (isEditMode) {
+        payload.status = newEmployee.status;
+      }
       if (isEditMode && editingEmployee) {
-        await employeeService.update(editingEmployee.id, payload);
+        await employeeService.update(
+          editingEmployee.id,
+          payload as Parameters<typeof employeeService.update>[1],
+        );
       } else {
-        await employeeService.create(payload);
+        await employeeService.create(
+          payload as Parameters<typeof employeeService.create>[0],
+        );
       }
       resetForm();
       setIsDialogOpen(false);
@@ -360,8 +370,15 @@ export default function StaffPage() {
     } catch (error: unknown) {
       console.error("Failed to save employee:", error);
       const msg =
-        error instanceof Error ? error.message : "Lưu nhân viên thất bại!";
-      setApiError(msg);
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error ? error.message : "Lưu nhân viên thất bại!");
+      if (msg.includes("18 tuổi")) {
+        setFormErrors({ birthDate: msg });
+      } else if (msg.includes("Identity Card")) {
+        setFormErrors({ identityCard: msg });
+      } else {
+        setApiError(msg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -506,8 +523,17 @@ export default function StaffPage() {
                           if (formErrors.fullName)
                             setFormErrors((p) => ({ ...p, fullName: "" }));
                         }}
-                        placeholder="Nhập họ tên nhân viên"
+                        placeholder="VD: Nguyễn Văn A"
                         className={inputErrorClass(formErrors.fullName)}
+                        required
+                        onInvalid={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity(
+                            "Vui lòng điền vào trường này",
+                          )
+                        }
+                        onInput={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity("")
+                        }
                       />
                       {formErrors.fullName && (
                         <p className="text-xs text-destructive mt-1">

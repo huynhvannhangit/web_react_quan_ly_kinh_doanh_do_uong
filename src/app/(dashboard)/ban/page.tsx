@@ -230,8 +230,14 @@ export default function TablePage() {
       loadData();
     } catch (error) {
       console.error("Failed to save table:", error);
-      const msg = error instanceof Error ? error.message : "Lưu bàn thất bại!";
-      setApiError(msg);
+      const msg =
+        (error as { customMessage?: string }).customMessage ||
+        (error instanceof Error ? error.message : "Lưu bàn thất bại!");
+      if (msg === "Tên bàn đã tồn tại" || msg === "Số bàn đã tồn tại") {
+        setFormErrors({ tableNumber: msg });
+      } else {
+        setApiError(msg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -326,6 +332,15 @@ export default function TablePage() {
                         }}
                         placeholder="VD: Bàn 1, Bàn 2..."
                         className={inputErrorClass(formErrors.tableNumber)}
+                        required
+                        onInvalid={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity(
+                            "Vui lòng điền vào trường này",
+                          )
+                        }
+                        onInput={(e) =>
+                          (e.target as HTMLInputElement).setCustomValidity("")
+                        }
                       />
                       {formErrors.tableNumber && (
                         <p className="text-xs text-destructive mt-1">
@@ -335,7 +350,9 @@ export default function TablePage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="areaId">Khu vực</Label>
+                      <Label htmlFor="areaId">
+                        Khu vực <span className="text-destructive">*</span>
+                      </Label>
                       <Select
                         value={newTable.areaId}
                         onValueChange={(val) =>
@@ -441,6 +458,7 @@ export default function TablePage() {
                       <TableHead>Tên bàn</TableHead>
                       <TableHead>Khu vực</TableHead>
                       <TableHead>Trạng thái</TableHead>
+                      <TableHead>Người cập nhật</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -511,6 +529,9 @@ export default function TablePage() {
                                     ? "Đã đặt"
                                     : "Bảo trì"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {table.updater?.fullName || "—"}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {new Date(table.updatedAt).toLocaleDateString(

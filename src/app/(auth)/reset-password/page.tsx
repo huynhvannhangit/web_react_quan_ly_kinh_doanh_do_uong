@@ -113,6 +113,14 @@ function ResetPasswordForm() {
                     id="new-password"
                     type={showNew ? "text" : "password"}
                     required
+                    onInvalid={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity(
+                        "Vui lòng nhập mật khẩu mới",
+                      )
+                    }
+                    onInput={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity("")
+                    }
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={isLoading || !token}
@@ -140,6 +148,14 @@ function ResetPasswordForm() {
                     id="confirm-password"
                     type={showConfirm ? "text" : "password"}
                     required
+                    onInvalid={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity(
+                        "Vui lòng nhập xác nhận mật khẩu",
+                      )
+                    }
+                    onInput={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity("")
+                    }
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isLoading || !token}
