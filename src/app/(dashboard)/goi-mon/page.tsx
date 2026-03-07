@@ -192,7 +192,11 @@ export default function OrderingPage() {
         productService.getAll(),
         areaService.getAll(),
       ]);
-      setTables(tablesData);
+      // Chỉ hiển thị các bàn không ở trạng thái bảo trì
+      const activeTables = tablesData.filter(
+        (t) => t.status !== TableStatus.MAINTENANCE,
+      );
+      setTables(activeTables);
       setProducts(productsData);
       setAreas(areasData);
     } catch (error) {

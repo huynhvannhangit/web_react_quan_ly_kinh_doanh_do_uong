@@ -126,7 +126,7 @@ export default function TablePage() {
       setNewTable({
         tableNumber: freshData.tableNumber,
         capacity: freshData.capacity,
-        areaId: freshData.areaId.toString(),
+        areaId: freshData.areaId ? freshData.areaId.toString() : "",
         status: freshData.status,
       });
       setIsDialogOpen(true);
