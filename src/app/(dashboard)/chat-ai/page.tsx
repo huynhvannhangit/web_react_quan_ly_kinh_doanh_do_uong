@@ -6,82 +6,71 @@ import {
   Sparkles,
   MessageSquare,
   Clock,
-  ArrowRight,
+  Plus,
   Trash2,
+  Send,
+  User,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const STORAGE_KEY = "ai_chat_history";
-
-// cspell:ignore Thông minh phân tích liệu quản hành thời gian thực Chào mừng Trung chuyện bằng cách nhấn dưới hoặc xanh phải ngay Luôn sàng giải thắc Phân chuyên dụng khuyên kinh doanh thoại Chưa lịch toàn
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { useAiChat } from "@/hooks/use-ai-chat";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useSystemConfig } from "@/components/providers/system-config-provider";
+import { getImageUrl, getAvatarUrl } from "@/utils/url";
+import Image from "next/image";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 export default function ChatAiPage() {
-  const [history, setHistory] = useState<Message[]>([]);
+  const {
+    conversations,
+    currentConversation,
+    currentId,
+    setCurrentId,
+    createNewChat,
+    deleteConversation,
+    clearAll,
+    sendMessage,
+    isLoading,
+  } = useAiChat();
 
+  const { user } = useAuth();
+  const { config } = useSystemConfig();
+  const [input, setInput] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Modal states
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingTitle, setDeletingTitle] = useState("");
+
+  // Auto scroll to bottom
   useEffect(() => {
-    const loadHistory = () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          setTimeout(() => setHistory(data), 0);
-        } catch (e) {
-          console.error("Failed to load chat history:", e);
-        }
-      } else {
-        setTimeout(() => setHistory([]), 0);
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
-    };
-
-    loadHistory();
-
-    const handleUpdate = () => loadHistory();
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) loadHistory();
-    };
-
-    window.addEventListener("ai-chat-updated", handleUpdate);
-    window.addEventListener("ai-history-cleared", handleUpdate);
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener("ai-chat-updated", handleUpdate);
-      window.removeEventListener("ai-history-cleared", handleUpdate);
-      window.removeEventListener("storage", handleStorage);
-    };
-  }, []);
-
-  const handleClearHistory = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (
-      window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện?")
-    ) {
-      localStorage.removeItem(STORAGE_KEY);
-      setHistory([]);
-      window.dispatchEvent(new CustomEvent("ai-history-cleared"));
     }
-  };
+  }, [currentConversation?.messages, isLoading]);
 
-  const recentMessages = history.slice(-5).reverse();
-
-  const handleOpenChat = () => {
-    window.dispatchEvent(new CustomEvent("open-ai-chat"));
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+    setInput("");
+    await sendMessage(trimmed);
   };
 
   return (
@@ -89,166 +78,327 @@ export default function ChatAiPage() {
       permissions={[Permission.AI_ASSISTANT_CHAT]}
       redirect="/dashboard"
     >
-      <Card>
-        <CardContent className="p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Bot className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase flex items-center gap-2">
-                  Trợ lý AI Thông minh
-                  <Sparkles className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                  Hỗ trợ phân tích dữ liệu và quản lý cửa hàng thời gian thực
-                </p>
-              </div>
-            </div>
+      <div className="flex h-[calc(100vh-120px)] w-full overflow-hidden bg-background relative mt-2">
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            "flex flex-col bg-muted/10 transition-all duration-300",
+            sidebarOpen ? "w-72" : "w-0 overflow-hidden",
+          )}
+        >
+          <div className="p-4 flex items-center justify-between shrink-0">
+            <h2 className="font-bold text-[#00509E] flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Lịch sử chat
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmClearOpen(true)}
+              title="Xóa tất cả"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Main Welcome Section */}
-            <div className="md:col-span-2 space-y-6">
-              <Card className="shadow-sm">
-                <CardContent className="p-8 text-center space-y-6">
-                  <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="w-10 h-10 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold">
-                      Chào mừng đến với Trung tâm Trợ lý AI
-                    </h2>
-                    <p className="text-muted-foreground max-w-md mx-auto">
-                      Bạn có thể trò chuyện với trợ lý bằng cách nhấn vào nút
-                      bên dưới hoặc biểu tượng ở góc phải màn hình.
-                    </p>
-                  </div>
-                  <div className="pt-4 flex justify-center">
-                    <Button
-                      onClick={handleOpenChat}
-                      size="lg"
-                      className="gap-2 rounded-full px-8 shadow-md hover:scale-105 transition-transform"
-                    >
-                      <Sparkles className="w-5 h-5 text-yellow-300 fill-yellow-300" />
-                      Bắt đầu trò chuyện ngay!
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="px-3 pb-2 shrink-0">
+            <Button
+              onClick={createNewChat}
+              className="w-full justify-start gap-2 bg-primary/10 text-primary hover:bg-primary/20"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4" />
+              Cuộc trò chuyện mới
+            </Button>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Card
-                  onClick={handleOpenChat}
-                  className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
-                >
-                  <CardContent className="p-6">
-                    <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4 text-orange-600 dark:text-orange-400">
-                      <MessageSquare className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-semibold mb-1">Hỗ trợ 24/7</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Luôn sẵn sàng giải đáp thắc mắc về vận hành cửa hàng.
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card
-                  onClick={handleOpenChat}
-                  className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
-                >
-                  <CardContent className="p-6">
-                    <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4 text-green-600 dark:text-green-400">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-semibold mb-1">Phân tích chuyên sâu</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Sử dụng dữ liệu thực tế để đưa ra lời khuyên kinh doanh.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Right Sidebar: Recent History */}
-            <div className="space-y-6">
-              <Card className="shadow-sm flex flex-col h-full overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b p-4 flex flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    Hội thoại gần đây
-                  </CardTitle>
-                  {history.length > 0 && (
+          <ScrollArea className="flex-1">
+            <div className="p-3 space-y-1">
+              {conversations.length === 0 ? (
+                <div className="py-10 text-center text-muted-foreground">
+                  <p className="text-xs">Chưa có lịch sử.</p>
+                </div>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={cn(
+                      "group relative flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-all cursor-pointer",
+                      currentId === conv.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setCurrentId(conv.id)}
+                  >
+                    <MessageSquare
+                      className={cn(
+                        "w-4 h-4 shrink-0",
+                        currentId === conv.id
+                          ? "text-primary"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    <span className="truncate flex-1 pr-6">{conv.title}</span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={handleClearHistory}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title="Xóa lịch sử"
+                      className="absolute right-1 opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingId(conv.id);
+                        setDeletingTitle(conv.title);
+                        setConfirmDeleteOpen(true);
+                      }}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                  )}
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto p-4">
-                  {recentMessages.length > 0 ? (
-                    <div className="space-y-4">
-                      {recentMessages.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          onClick={handleOpenChat}
-                          className={cn(
-                            "p-3 rounded-xl border text-sm transition-all hover:bg-muted/50 cursor-pointer hover:border-primary/30",
-                            msg.role === "assistant"
-                              ? "bg-primary/5 border-primary/10"
-                              : "bg-muted/20",
-                          )}
-                        >
-                          <div className="flex items-center gap-2 mb-1.5">
-                            {msg.role === "assistant" ? (
-                              <Bot className="w-3.5 h-3.5 text-primary" />
-                            ) : (
-                              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                            )}
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                              {msg.role === "assistant" ? "Trợ lý AI" : "Bạn"}
-                            </span>
-                          </div>
-                          <p className="line-clamp-2 text-foreground/80 leading-snug">
-                            {msg.content}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-40 flex flex-col items-center justify-center text-center p-4">
-                      <div className="w-10 h-10 rounded-full bg-muted/20 flex items-center justify-center mb-2">
-                        <Clock className="w-5 h-5 text-muted-foreground/40" />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Chưa có lịch sử trò chuyện.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-                {history.length > 0 && (
-                  <CardFooter className="p-3 border-t bg-muted/5 flex justify-center">
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={handleOpenChat}
-                      className="text-[11px] font-medium text-primary flex items-center gap-1 w-full justify-center"
-                    >
-                      Xem toàn bộ lịch sử{" "}
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  </CardFooter>
-                )}
-              </Card>
+                  </div>
+                ))
+              )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </ScrollArea>
+        </aside>
+
+        {/* Main Chat Area */}
+        <main className="relative flex flex-1 flex-col overflow-hidden bg-background">
+          {/* Header */}
+          <header className="flex h-16 items-center gap-2 px-4 bg-background/50 backdrop-blur-sm shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-primary"
+              title={sidebarOpen ? "Đóng lịch sử" : "Mở lịch sử"}
+            >
+              {sidebarOpen ? (
+                <ChevronLeft className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary overflow-hidden relative">
+                {config?.logoUrl ? (
+                  <Image
+                    src={getImageUrl(config.logoUrl)}
+                    alt="AI Logo"
+                    fill
+                    className="object-contain p-1.5"
+                  />
+                ) : (
+                  <Bot className="h-5 w-5" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-[#00509E] dark:text-blue-400 leading-none">
+                  Trợ lý AI Quản lý
+                </h1>
+                <p className="text-[10px] text-green-500 font-medium mt-1 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  Trực tuyến & Sẵn sàng
+                </p>
+              </div>
+            </div>
+          </header>
+
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
+            {!currentConversation ||
+            currentConversation.messages.length === 0 ? (
+              <div className="flex h-100 flex-col items-center justify-center text-center space-y-6">
+                <div className="p-4 rounded-3xl bg-primary/5 ring-8 ring-primary/2 overflow-hidden relative h-24 w-24">
+                  {config?.logoUrl ? (
+                    <Image
+                      src={getImageUrl(config.logoUrl)}
+                      alt="AI Logo"
+                      fill
+                      className="object-contain p-2"
+                    />
+                  ) : (
+                    <Bot className="h-16 w-16 text-primary animate-bounce-subtle" />
+                  )}
+                </div>
+                <div className="max-w-md space-y-2">
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    Xin chào! Tôi có thể giúp gì cho bạn?
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Tôi có thể giúp bạn phân tích dữ liệu bán hàng, quản lý nhân
+                    viên, hoặc đưa ra các đề xuất tối ưu hóa cửa hàng của bạn.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 w-full max-w-lg pt-4">
+                  {[
+                    "Báo cáo doanh thu hôm nay",
+                    "Top 5 món bán chạy",
+                    "Hiệu suất nhân viên",
+                    "Đề xuất menu mới",
+                  ].map((suggest) => (
+                    <button
+                      key={suggest}
+                      onClick={() => {
+                        setInput(suggest);
+                        handleSend();
+                      }}
+                      className="text-left p-3 rounded-xl bg-muted/30 hover:bg-primary/5 transition-all text-sm group"
+                    >
+                      <span className="text-muted-foreground group-hover:text-primary transition-colors">
+                        {suggest}
+                      </span>
+                      <ChevronDown className="w-3.5 h-3.5 -rotate-90 inline ml-2 text-transparent group-hover:text-primary transition-all" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-3xl space-y-6">
+                {currentConversation.messages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-300",
+                      m.role === "user" ? "flex-row-reverse" : "flex-row",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-lg shadow-sm overflow-hidden relative",
+                        m.role === "assistant"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-background text-foreground",
+                      )}
+                    >
+                      {m.role === "assistant" ? (
+                        config?.logoUrl ? (
+                          <Image
+                            src={getImageUrl(config.logoUrl)}
+                            alt="AI"
+                            fill
+                            className="object-contain p-1"
+                          />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )
+                      ) : user?.avatar ? (
+                        <Image
+                          src={getAvatarUrl(user.avatar)}
+                          alt="User"
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div
+                      className={cn(
+                        "relative max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm leading-relaxed",
+                        m.role === "assistant"
+                          ? "bg-muted/50 text-foreground rounded-tl-none"
+                          : "bg-[#00509E] text-white rounded-tr-none",
+                      )}
+                    >
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                      <span
+                        className={cn(
+                          "block text-[10px] mt-1.5 opacity-60",
+                          m.role === "assistant"
+                            ? "text-muted-foreground"
+                            : "text-white",
+                        )}
+                      >
+                        {new Date(m.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex gap-4">
+                    <div className="bg-primary text-primary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
+                      <Bot className="h-4 w-4 active-pulse" />
+                    </div>
+                    <div className="bg-muted/50 rounded-2xl px-4 py-3 rounded-tl-none flex items-center gap-3">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground font-medium italic">
+                        Trợ lý đang phân tích dữ liệu...
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+
+          {/* Footer Input */}
+          <footer className="p-4 bg-background shrink-0">
+            <div className="mx-auto max-w-3xl">
+              <div className="relative flex items-center">
+                <Input
+                  placeholder="Gửi tin nhắn cho Trợ lý AI..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  className="flex-1 rounded-2xl border-none focus-visible:ring-0 focus-visible:ring-offset-0 h-13 pr-14 pl-5 shadow-sm bg-muted/30"
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={isLoading || !input.trim()}
+                  className="absolute right-2 h-9 w-9 rounded-xl shadow-md transition-all active:scale-90"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-3 text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                AI có thể cung cấp thông tin không chính xác. Hãy kiểm tra lại
+                dữ liệu quan trọng.
+              </p>
+            </div>
+          </footer>
+        </main>
+      </div>
+
+      <ConfirmDialog
+        isOpen={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        onConfirm={() => {
+          clearAll();
+          setConfirmClearOpen(false);
+        }}
+        title="Xóa tất cả lịch sử"
+        description="Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện? Hành động này không thể hoàn tác."
+        confirmText="Xóa tất cả"
+        isDanger
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDeleteOpen}
+        onClose={() => {
+          setConfirmDeleteOpen(false);
+          setDeletingId(null);
+        }}
+        onConfirm={() => {
+          if (deletingId) {
+            deleteConversation(deletingId);
+          }
+          setConfirmDeleteOpen(false);
+          setDeletingId(null);
+        }}
+        title="Xóa cuộc trò chuyện"
+        description={`Bạn có chắc chắn muốn xóa cuộc trò chuyện "${deletingTitle}"?`}
+        confirmText="Xóa"
+        isDanger
+      />
     </PermissionGuard>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSystemConfig } from "@/components/providers/system-config-provider";
 import { systemConfigService } from "@/services/system-config.service";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,18 @@ export default function SystemConfigPage() {
       });
     }
   }, [config]);
+
+  const hasChanges = useMemo(() => {
+    if (!config) return false;
+    return (
+      formData.systemName.trim() !== (config.systemName || "").trim() ||
+      formData.logoUrl !== (config.logoUrl || "") ||
+      formData.email.trim() !== (config.email || "").trim() ||
+      formData.phone.trim() !== (config.phone || "").trim() ||
+      formData.address.trim() !== (config.address || "").trim() ||
+      formData.footerText.trim() !== (config.footerText || "").trim()
+    );
+  }, [formData, config]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -314,7 +326,11 @@ export default function SystemConfigPage() {
                 </div>
 
                 <div className="flex justify-end pt-6">
-                  <Button type="submit" size="lg" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={isSubmitting || !hasChanges}
+                  >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

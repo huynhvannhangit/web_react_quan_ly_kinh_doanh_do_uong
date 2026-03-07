@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { aiAssistantService } from "@/services/ai.service";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,93 +19,25 @@ import {
   User,
   Loader2,
   Sparkles,
-  RefreshCw,
   X,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-const SUGGESTIONS = [
-  "Báo cáo doanh thu hôm nay",
-  "Top 5 sản phẩm bán chạy nhất",
-  "Cửa hàng hiện có bao nhiêu bàn?",
-  "Lời khuyên tăng doanh thu?",
-];
-
-const STORAGE_KEY = "ai_chat_history";
+import { useAiChat } from "@/hooks/use-ai-chat";
 
 export function AiAssistantChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { currentConversation, sendMessage, isLoading, createNewChat } =
+    useAiChat();
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // Auto open if on chat routes
-  useEffect(() => {
-    if (pathname === "/chat-ai") {
-      setIsOpen(true);
-    }
-  }, [pathname]);
-
   // Listen for global open event
   useEffect(() => {
-    const handleOpen = () => {
-      setIsOpen(true);
-    };
-
+    const handleOpen = () => setIsOpen(true);
     window.addEventListener("open-ai-chat", handleOpen);
     return () => window.removeEventListener("open-ai-chat", handleOpen);
-  }, []);
-
-  // Load history from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load chat history:", e);
-      }
-    } else {
-      setMessages([
-        {
-          role: "assistant",
-          content:
-            "Xin chào! Tôi là trợ lý AI quản lý cửa hàng. Tôi có thể giúp gì cho bạn hôm nay?",
-        },
-      ]);
-    }
-  }, []);
-
-  // Save history to localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-      window.dispatchEvent(new CustomEvent("ai-chat-updated"));
-    }
-  }, [messages]);
-
-  // Listen for clear event from page
-  useEffect(() => {
-    const handleClear = () => {
-      const defaultMsg: Message[] = [
-        {
-          role: "assistant",
-          content:
-            "Xin chào! Tôi là trợ lý AI quản lý cửa hàng. Tôi có thể giúp gì cho bạn hôm nay?",
-        },
-      ];
-      setMessages(defaultMsg);
-    };
-    window.addEventListener("ai-history-cleared", handleClear);
-    return () => window.removeEventListener("ai-history-cleared", handleClear);
   }, []);
 
   useEffect(() => {
@@ -118,58 +49,20 @@ export function AiAssistantChat() {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages, isLoading]);
+  }, [currentConversation?.messages, isLoading]);
 
   const handleSend = async (textOverride?: string) => {
     const messageToSend = textOverride || input.trim();
     if (!messageToSend || isLoading) return;
 
     setInput("");
-    const updatedMessages = [
-      ...messages,
-      { role: "user", content: messageToSend },
-    ] as Message[];
-    setMessages(updatedMessages);
-    setIsLoading(true);
-
-    try {
-      // Prepare history for backend (limit to last 10 messages for context)
-      const historyContext = updatedMessages.slice(-11, -1);
-
-      const response = await aiAssistantService.chat(
-        messageToSend,
-        historyContext,
-      );
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: response },
-      ]);
-    } catch (error) {
-      console.error("AI Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.",
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
+    await sendMessage(messageToSend);
   };
 
-  const startNewChat = () => {
-    const defaultMsg: Message[] = [
-      {
-        role: "assistant",
-        content: "Xin chào! Tôi có thể giúp gì mới cho bạn?",
-      },
-    ];
-    setMessages(defaultMsg);
-    localStorage.removeItem(STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent("ai-history-cleared"));
-  };
+  const isChatPage = pathname === "/chat-ai";
+
+  // Hide the floating button if on the main chat page to avoid redundancy
+  if (isChatPage) return null;
 
   return (
     <div className="no-print fixed bottom-6 right-6 z-50">
@@ -183,9 +76,9 @@ export function AiAssistantChat() {
               <MessageSquare className="h-6 w-6 group-hover:rotate-12 transition-transform" />
               <Sparkles className="h-3 w-3 absolute -top-1 -right-1 text-yellow-400 fill-yellow-400 animate-pulse" />
             </div>
-            {messages.length > 1 && (
+            {(currentConversation?.messages.length || 0) > 0 && (
               <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white border-2 border-white">
-                {messages.length - 1}
+                {currentConversation!.messages.length}
               </span>
             )}
           </Button>
@@ -210,7 +103,7 @@ export function AiAssistantChat() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 hover:bg-white/20 text-white shrink-0"
-                onClick={startNewChat}
+                onClick={createNewChat}
                 title="Thêm mới"
               >
                 <Plus className="h-4 w-4" />
@@ -229,40 +122,48 @@ export function AiAssistantChat() {
 
           <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4 pb-4">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    "flex gap-3 animate-in fade-in slide-in-from-bottom-2",
-                    m.role === "user" ? "flex-row-reverse" : "flex-row",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm",
-                      m.role === "assistant"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground",
-                    )}
-                  >
-                    {m.role === "assistant" ? (
-                      <Bot className="h-4 w-4" />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div
-                    className={cn(
-                      "rounded-2xl px-4 py-2.5 text-sm shadow-sm max-w-[85%] whitespace-pre-wrap leading-relaxed",
-                      m.role === "assistant"
-                        ? "bg-muted/50 text-foreground rounded-tl-none border"
-                        : "bg-primary text-primary-foreground rounded-tr-none",
-                    )}
-                  >
-                    {m.content}
-                  </div>
+              {!currentConversation ||
+              currentConversation.messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center opacity-60">
+                  <Bot className="h-10 w-10 mb-2" />
+                  <p className="text-sm">Bắt đầu trò chuyện với trợ lý AI!</p>
                 </div>
-              ))}
+              ) : (
+                currentConversation.messages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "flex gap-3 animate-in fade-in slide-in-from-bottom-2",
+                      m.role === "user" ? "flex-row-reverse" : "flex-row",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm",
+                        m.role === "assistant"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background text-foreground",
+                      )}
+                    >
+                      {m.role === "assistant" ? (
+                        <Bot className="h-4 w-4" />
+                      ) : (
+                        <User className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div
+                      className={cn(
+                        "rounded-2xl px-4 py-2.5 text-sm shadow-sm max-w-[85%] whitespace-pre-wrap leading-relaxed",
+                        m.role === "assistant"
+                          ? "bg-muted/50 text-foreground rounded-tl-none border"
+                          : "bg-primary text-primary-foreground rounded-tr-none",
+                      )}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ))
+              )}
               {isLoading && (
                 <div className="flex gap-3">
                   <div className="bg-primary text-primary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm">
@@ -281,7 +182,7 @@ export function AiAssistantChat() {
 
           <footer className="p-4 border-t bg-background">
             <div className="flex flex-wrap gap-2 mb-4">
-              {SUGGESTIONS.map((s) => (
+              {["Báo cáo hôm nay", "Top sản phẩm", "Mật độ bàn"].map((s) => (
                 <button
                   key={s}
                   onClick={() => handleSend(s)}
@@ -307,15 +208,12 @@ export function AiAssistantChat() {
                 className="h-11 w-11 shrink-0 shadow-md transition-transform active:scale-95"
               >
                 {isLoading ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
               </Button>
             </div>
-            <p className="text-[10px] text-center text-muted-foreground mt-3">
-              AI có thể mắc lỗi. Vui lòng kiểm tra lại các số liệu quan trọng.
-            </p>
           </footer>
         </SheetContent>
       </Sheet>
