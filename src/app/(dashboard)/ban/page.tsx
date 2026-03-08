@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   Dialog,
   DialogContent,
@@ -70,6 +71,8 @@ export default function TablePage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
@@ -83,6 +86,13 @@ export default function TablePage() {
     description: "",
     onConfirm: () => {},
   });
+
+  const totalPages = Math.max(1, Math.ceil(tables.length / pageSize));
+  const paginatedTables = tables.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   useEffect(() => {
     void loadData();
@@ -441,8 +451,8 @@ export default function TablePage() {
               </div>
             </CardHeader>
             <CardContent className="px-0">
-              <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-                <Table>
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
                       <TableHead className="w-12 text-center">
@@ -457,16 +467,16 @@ export default function TablePage() {
                       <TableHead className="w-16 text-center">STT</TableHead>
                       <TableHead>Tên bàn</TableHead>
                       <TableHead>Khu vực</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead>Người cập nhật</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
+                      <TableHead>Người cập nhật</TableHead>
+                      <TableHead>Trạng thái</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12">
+                        <TableCell colSpan={8} className="text-center py-12">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             Đang tải dữ liệu...
@@ -476,7 +486,7 @@ export default function TablePage() {
                     ) : tables.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="text-center py-12 text-muted-foreground"
                         >
                           {searchTerm
@@ -485,7 +495,7 @@ export default function TablePage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      tables.map((table, index) => (
+                      paginatedTables.map((table, index) => (
                         <TableRow
                           key={table.id}
                           className="hover:bg-muted/50 transition-colors border-border"
@@ -499,17 +509,23 @@ export default function TablePage() {
                             />
                           </TableCell>
                           <TableCell className="text-center font-medium text-slate-500">
-                            {index + 1}
+                            {globalOffset + index + 1}
                           </TableCell>
-                          <TableCell className="font-semibold text-foreground">
+                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
                             {table.tableNumber}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="bg-muted">
-                              {table.area?.name || "—"}
-                            </Badge>
+                          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                            {table.area?.name || "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {new Date(table.updatedAt).toLocaleDateString(
+                              "vi-VN",
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {table.updater?.fullName || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <Badge
                               className={
                                 table.status === "AVAILABLE"
@@ -530,15 +546,7 @@ export default function TablePage() {
                                     : "Bảo trì"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {table.updater?.fullName || "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(table.updatedAt).toLocaleDateString(
-                              "vi-VN",
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2 text-slate-500">
                               <button
                                 className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
@@ -562,6 +570,12 @@ export default function TablePage() {
                   </TableBody>
                 </Table>
               </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={tables.length}
+                onPageChange={setCurrentPage}
+              />
             </CardContent>
           </Card>
           <ConfirmDialog

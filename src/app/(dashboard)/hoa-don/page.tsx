@@ -41,6 +41,7 @@ import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { useRef } from "react";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { Pagination } from "@/components/shared/Pagination";
 
 export default function InvoicePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -56,6 +57,8 @@ export default function InvoicePage() {
   const printRef = useRef<HTMLDivElement>(null);
   const [invoiceToPrint, setInvoiceToPrint] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const VN_DENOMINATIONS = [
     500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000,
@@ -163,6 +166,12 @@ export default function InvoicePage() {
   };
 
   const filteredInvoices = invoices;
+  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+  const paginatedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   const getMethodIcon = (method?: PaymentMethod) => {
     switch (method) {
@@ -225,13 +234,21 @@ export default function InvoicePage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setSearchTerm(e.target.value)
                 }
-                onKeyDown={(e) => e.key === "Enter" && loadInvoices()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setCurrentPage(1);
+                    loadInvoices(searchTerm);
+                  }
+                }}
               />
             </div>
 
             <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
               <Button
-                onClick={() => loadInvoices(searchTerm)}
+                onClick={() => {
+                  setCurrentPage(1);
+                  loadInvoices(searchTerm);
+                }}
                 className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
               >
                 <Search className="h-4 w-4" />
@@ -241,6 +258,7 @@ export default function InvoicePage() {
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("");
+                  setCurrentPage(1);
                   loadInvoices();
                 }}
                 className="gap-2 rounded-lg"
@@ -258,17 +276,33 @@ export default function InvoicePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-0">
-              <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-                <Table>
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
-                      <TableHead>Số HĐ</TableHead>
-                      <TableHead>Bàn</TableHead>
-                      <TableHead>Tổng tiền</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead>Thanh toán</TableHead>
-                      <TableHead>Ngày tạo</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      <TableHead className="w-12 text-center whitespace-nowrap">
+                        STT
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">Số HĐ</TableHead>
+                      <TableHead className="whitespace-nowrap">Bàn</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Tổng tiền
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Trạng thái
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Thanh toán
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Người tạo
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Ngày tạo
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap">
+                        Thao tác
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -293,38 +327,46 @@ export default function InvoicePage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredInvoices.map((invoice) => (
+                      paginatedInvoices.map((invoice, index) => (
                         <TableRow
                           key={invoice.id}
                           className="hover:bg-muted/50 transition-colors border-border"
                         >
-                          <TableCell className="font-mono font-bold text-xs uppercase text-foreground">
+                          <TableCell className="text-center font-medium text-slate-500 whitespace-nowrap">
+                            {globalOffset + index + 1}
+                          </TableCell>
+                          <TableCell className="font-mono font-bold text-xs uppercase text-foreground whitespace-nowrap">
                             {invoice.invoiceNumber}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
                             Bàn {invoice.table?.tableNumber || "K/X"}
                           </TableCell>
-                          <TableCell className="font-bold text-primary">
+                          <TableCell className="font-bold text-primary whitespace-nowrap">
                             {new Intl.NumberFormat("vi-VN").format(
                               invoice.total,
                             )}
                             đ
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
                             {getStatusBadge(invoice.status)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <div className="flex items-center text-sm">
                               {getMethodIcon(invoice.paymentMethod)}
                               {getMethodLabel(invoice.paymentMethod)}
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="whitespace-nowrap text-muted-foreground text-[13px]">
+                            {invoice.creator?.fullName ||
+                              invoice.updater?.fullName ||
+                              "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(invoice.createdAt).toLocaleString(
                               "vi-VN",
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right whitespace-nowrap">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -357,6 +399,12 @@ export default function InvoicePage() {
                   </TableBody>
                 </Table>
               </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredInvoices.length}
+                onPageChange={setCurrentPage}
+              />
             </CardContent>
           </Card>
         </CardContent>

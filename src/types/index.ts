@@ -2,7 +2,16 @@ export interface User {
   id: number;
   email: string;
   fullName: string;
-  role: string;
+  role: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  status?: string;
+  employee?: {
+    employeeCode: string;
+    fullName: string;
+  };
+  updatedAt?: string;
+  updater?: {
+    fullName: string;
+  };
 }
 
 export interface ApiResponse<T> {

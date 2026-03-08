@@ -12,13 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/shared/Pagination";
 
 import { Search, RotateCcw } from "lucide-react";
 import { UserRoleDialog } from "./user-role-dialog";
 import { toast } from "sonner";
 import { Role } from "@/services/role.service";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function UserList() {
   const [users, setUsers] = useState<User[]>([]);
@@ -27,6 +28,8 @@ export function UserList() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchName, setSearchName] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -67,9 +70,7 @@ export function UserList() {
 
   const getRoleName = (user: User) => {
     if (!user.role)
-      return (
-        <span className="text-muted-foreground italic">Chưa phân quyền</span>
-      );
+      return <span className="text-muted-foreground">Chưa phân quyền</span>;
     if (typeof user.role === "string") return user.role;
     return (user.role as Role).name;
   };
@@ -91,6 +92,13 @@ export function UserList() {
       (user.fullName ?? "").toLowerCase().includes(q)
     );
   });
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   return (
     <>
@@ -139,96 +147,110 @@ export function UserList() {
           </div>
         </div>
 
-        <div>
-          <h3 className="text-base font-semibold mb-3">Danh sách người dùng</h3>
-          <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Vai trò hiện tại</TableHead>
-                  <TableHead>Nhân viên liên kết</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      Đang tải...
-                    </TableCell>
+        <Card className="border-none shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Danh sách người dung
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+              <Table className="min-w-325 font-sans">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border">
+                    <TableHead className="w-16 text-center">STT</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Họ tên</TableHead>
+                    <TableHead>Vai trò hiện tại</TableHead>
+                    <TableHead>Nhân viên liên kết</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
-                ) : filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      {searchName
-                        ? "Không tìm thấy người dùng phù hợp"
-                        : "Chưa có người dùng nào"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {user.fullName}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getRoleName(user)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {user.employee ? (
-                          <span className="text-sm">
-                            <span className="font-mono text-xs text-blue-500 mr-1">
-                              {user.employee.employeeCode}
-                            </span>
-                            {user.employee.fullName}
-                          </span>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-xs text-muted-foreground"
-                          >
-                            Chưa liên kết
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            user.status === "ACTIVE"
-                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {user.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditRole(user)}
-                        >
-                          Phân quyền
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        Đang tải...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        {searchName
+                          ? "Không tìm thấy người dùng phù hợp"
+                          : "Chưa có người dùng nào"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedUsers.map((user, index) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="text-center font-medium text-slate-500">
+                          {globalOffset + index + 1}
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {user.fullName}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getRoleName(user)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {user.employee ? (
+                            <span className="text-sm">
+                              <span className="font-mono text-xs text-blue-500 mr-1">
+                                {user.employee.employeeCode}
+                              </span>
+                              {user.employee.fullName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">
+                              Chưa liên kết
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.status === "ACTIVE"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                            }`}
+                          >
+                            {user.status === "ACTIVE"
+                              ? "Đang hoạt động"
+                              : "Đang khoá"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+                            onClick={() => handleEditRole(user)}
+                          >
+                            Phân quyền
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredUsers.length}
+              onPageChange={setCurrentPage}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <UserRoleDialog

@@ -45,6 +45,9 @@ export interface Invoice {
   orderId?: number;
   order?: Order;
   createdAt: string;
+  updatedAt?: string;
+  creator?: { fullName: string };
+  updater?: { fullName: string };
 }
 
 export interface CreateInvoiceDto {

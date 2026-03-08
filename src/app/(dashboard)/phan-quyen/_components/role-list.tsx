@@ -1,3 +1,4 @@
+// cspell:disable
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,11 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/shared/Pagination";
 
 import { Plus, Pencil, Trash2, Search, RotateCcw } from "lucide-react";
 import { RoleDialog } from "./RoleDialog";
 import { DeleteRoleDialog } from "./delete-role-dialog";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function RoleList() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -28,6 +31,8 @@ export function RoleList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchName, setSearchName] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const fetchRoles = async () => {
     setIsLoading(true);
@@ -86,9 +91,15 @@ export function RoleList() {
   };
 
   const filteredRoles = roles.filter((role) => {
-    if (!searchName) return true;
     return role.name.toLowerCase().includes(searchName.toLowerCase());
   });
+
+  const totalPages = Math.ceil(filteredRoles.length / pageSize);
+  const paginatedRoles = filteredRoles.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   return (
     <>
@@ -144,73 +155,89 @@ export function RoleList() {
           </div>
         </div>
 
-        <div>
-          <h3 className="text-base font-semibold mb-3">Danh sách vai trò</h3>
-          <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên vai trò</TableHead>
-                  <TableHead>Mô tả</TableHead>
-                  <TableHead>Số quyền</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
-                      Đang tải...
-                    </TableCell>
+        <Card className="border-none shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Danh sách vai trò
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+              <Table className="min-w-325 font-sans">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border">
+                    <TableHead className="w-16 text-center">STT</TableHead>
+                    <TableHead>Tên vai trò</TableHead>
+                    <TableHead>Mô tả</TableHead>
+                    <TableHead>Số quyền</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
-                ) : roles.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Chưa có vai trò nào được tạo
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredRoles.map((role) => (
-                    <TableRow key={role.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2 text-blue-500">
-                          {role.name}
-                        </div>
-                      </TableCell>
-                      <TableCell>{role.description || "—"}</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 rounded-full bg-muted text-xs font-medium">
-                          {role.permissions?.length || 0} quyền
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end items-center gap-3 text-muted-foreground">
-                          <button
-                            className="hover:text-foreground transition-colors"
-                            onClick={() => handleEdit(role)}
-                            title="Chỉnh sửa"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="text-red-500 hover:text-red-600 transition-colors"
-                            onClick={() => handleDeleteClick(role)}
-                            title="Xóa"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        Đang tải...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                  ) : filteredRoles.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        Chưa có vai trò nào được tạo
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedRoles.map((role, index) => (
+                      <TableRow key={role.id}>
+                        <TableCell className="text-center font-medium text-slate-500">
+                          {globalOffset + index + 1}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2 text-blue-500">
+                            {role.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{role.description || "—"}</TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 rounded-full bg-muted text-xs font-medium">
+                            {role.permissions?.length || 0} quyền
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end items-center gap-3 text-muted-foreground">
+                            <button
+                              className="hover:text-foreground transition-colors"
+                              onClick={() => handleEdit(role)}
+                              title="Chỉnh sửa"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              className="text-red-500 hover:text-red-600 transition-colors"
+                              onClick={() => handleDeleteClick(role)}
+                              title="Xóa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredRoles.length}
+              onPageChange={setCurrentPage}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <RoleDialog

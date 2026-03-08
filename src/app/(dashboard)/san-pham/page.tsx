@@ -11,7 +11,8 @@ import {
 } from "@/services/product.service";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/shared/Pagination";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -48,7 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+
 import { formatNumber, parseNumber } from "@/lib/utils";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
@@ -99,6 +100,8 @@ export default function ProductPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const [confirmState, setConfirmState] = useState<{
@@ -125,6 +128,13 @@ export default function ProductPage() {
     setIsMounted(true);
     void loadData();
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(products.length / pageSize));
+  const paginatedProducts = products.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   const loadData = async (keyword?: string) => {
     setIsLoading(true);
@@ -407,12 +417,12 @@ export default function ProductPage() {
           <Card>
             <CardContent className="p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight text-[#00509E] uppercase">
+                <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
                   Quản lý Sản phẩm
                 </h1>
               </div>
 
-              <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4 border-b pb-6">
+              <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4">
                 <div className="flex flex-col gap-1 w-full max-w-150">
                   <label className="text-xs text-muted-foreground text-left">
                     Tên sản phẩm hoặc danh mục
@@ -727,137 +737,187 @@ export default function ProductPage() {
                 </div>
               </div>
 
-              <div className="px-0">
-                <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent border-border">
-                        <TableHead className="w-12 text-center">
-                          <Checkbox
-                            checked={
-                              products.length > 0 &&
-                              selectedIds.length === products.length
-                            }
-                            onCheckedChange={handleSelectAll}
-                          />
-                        </TableHead>
-                        <TableHead className="w-16 text-center">STT</TableHead>
-                        <TableHead>Ảnh</TableHead>
-                        <TableHead>Tên sản phẩm</TableHead>
-                        <TableHead>Danh mục</TableHead>
-                        <TableHead>Giá gốc</TableHead>
-                        <TableHead>Ngày cập nhật</TableHead>
-                        <TableHead className="text-right">Thao tác</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-12">
-                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                              Đang tải dữ liệu...
-                            </div>
-                          </TableCell>
+              <Card className="border-none shadow-none">
+                <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Danh sách sản phẩm
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-0">
+                  <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                    <Table className="min-w-325 font-sans">
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent border-border">
+                          <TableHead className="w-12 text-center">
+                            <Checkbox
+                              checked={
+                                products.length > 0 &&
+                                selectedIds.length === products.length
+                              }
+                              onCheckedChange={handleSelectAll}
+                            />
+                          </TableHead>
+                          <TableHead className="w-16 text-center whitespace-nowrap">
+                            STT
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Ảnh
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Tên sản phẩm
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Danh mục
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Giá gốc
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Ngày cập nhật
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Người cập nhật
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Trạng thái
+                          </TableHead>
+                          <TableHead className="text-right">Thao tác</TableHead>
                         </TableRow>
-                      ) : products.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={8}
-                            className="text-center py-12 text-muted-foreground"
-                          >
-                            {searchTerm
-                              ? "Không tìm thấy sản phẩm phù hợp"
-                              : "Chưa có sản phẩm nào"}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        products.map((product, index) => (
-                          <TableRow
-                            key={product.id}
-                            className="hover:bg-muted/50 transition-colors border-border"
-                          >
-                            <TableCell className="text-center">
-                              <Checkbox
-                                checked={selectedIds.includes(product.id)}
-                                onCheckedChange={(checked) =>
-                                  handleSelectRow(product.id, !!checked)
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-center font-medium text-slate-500">
-                              {index + 1}
-                            </TableCell>
-                            <TableCell>
-                              <div
-                                className="relative h-12 w-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 group cursor-zoom-in"
-                                onClick={() => {
-                                  if (product.imageUrl) {
-                                    const fullUrl = product.imageUrl.startsWith(
-                                      "http",
-                                    )
-                                      ? product.imageUrl
-                                      : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`;
-                                    setPreviewImageUrl(fullUrl);
-                                  }
-                                }}
-                              >
-                                <Image
-                                  src={
-                                    product.imageUrl
-                                      ? product.imageUrl.startsWith("http")
-                                        ? product.imageUrl
-                                        : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
-                                      : "/placeholder-product.png"
-                                  }
-                                  alt={product.name}
-                                  width={48}
-                                  height={48}
-                                  className="h-full w-full object-cover transition-transform group-hover:scale-110"
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-foreground">
-                              {product.name}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-muted">
-                                {product.category?.name || "—"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{formatNumber(product.price)}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {new Date(product.updatedAt).toLocaleDateString(
-                                "vi-VN",
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2 text-slate-500">
-                                <button
-                                  className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                                  onClick={() => void handleEdit(product)}
-                                  title="Chỉnh sửa"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </button>
-                                <button
-                                  className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                  onClick={() =>
-                                    void handleDelete(product.id, product.name)
-                                  }
-                                  title="Xóa"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={10}
+                              className="text-center py-12"
+                            >
+                              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                Đang tải dữ liệu...
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                        ) : products.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={10}
+                              className="text-center py-12 text-muted-foreground"
+                            >
+                              {searchTerm
+                                ? "Không tìm thấy sản phẩm phù hợp"
+                                : "Chưa có sản phẩm nào"}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedProducts.map((product, index) => (
+                            <TableRow
+                              key={product.id}
+                              className="hover:bg-muted/50 transition-colors border-border"
+                            >
+                              <TableCell className="text-center">
+                                <Checkbox
+                                  checked={selectedIds.includes(product.id)}
+                                  onCheckedChange={(checked) =>
+                                    handleSelectRow(product.id, !!checked)
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="text-center font-medium text-slate-500">
+                                {globalOffset + index + 1}
+                              </TableCell>
+                              <TableCell>
+                                <div
+                                  className="relative h-12 w-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 group cursor-zoom-in"
+                                  onClick={() => {
+                                    if (product.imageUrl) {
+                                      const fullUrl =
+                                        product.imageUrl.startsWith("http")
+                                          ? product.imageUrl
+                                          : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`;
+                                      setPreviewImageUrl(fullUrl);
+                                    }
+                                  }}
+                                >
+                                  <Image
+                                    src={
+                                      product.imageUrl
+                                        ? product.imageUrl.startsWith("http")
+                                          ? product.imageUrl
+                                          : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                                        : "/placeholder-product.png"
+                                    }
+                                    alt={product.name}
+                                    width={48}
+                                    height={48}
+                                    className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-semibold text-foreground whitespace-nowrap">
+                                {product.name}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                                {product.category?.name || "—"}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {formatNumber(product.price)}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground whitespace-nowrap">
+                                {new Date(product.updatedAt).toLocaleDateString(
+                                  "vi-VN",
+                                )}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground whitespace-nowrap">
+                                {product.updater?.fullName || "—"}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {product.isAvailable ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                    Đang bán
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">
+                                    Ngừng bán
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-2 text-slate-500">
+                                  <button
+                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    onClick={() => void handleEdit(product)}
+                                    title="Chỉnh sửa"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    onClick={() =>
+                                      void handleDelete(
+                                        product.id,
+                                        product.name,
+                                      )
+                                    }
+                                    title="Xóa"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={products.length}
+                    onPageChange={setCurrentPage}
+                  />
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
 

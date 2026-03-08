@@ -11,7 +11,7 @@ import {
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 // removed unused Checkbox and User import
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   Dialog,
   DialogContent,
@@ -181,8 +182,19 @@ export default function ApprovalPage() {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]); // Renamed requests to approvals
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   const filteredApprovals = approvals;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredApprovals.length / pageSize),
+  );
+  const paginatedApprovals = filteredApprovals.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
   const [selectedApproval, setSelectedApproval] =
     useState<ApprovalRequest | null>(null);
   const [reviewNote, setReviewNote] = useState("");
@@ -260,12 +272,12 @@ export default function ApprovalPage() {
       <Card>
         <CardContent className="p-8 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-[#00509E] dark:text-blue-400 uppercase">
+            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
               Quản lý Phê duyệt
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4 border-b pb-6">
+          <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4">
             <div className="flex flex-col gap-1 w-full max-w-150">
               <label className="text-xs text-muted-foreground text-left">
                 Tìm kiếm sản phẩm, lý do hoặc người gửi
@@ -305,151 +317,180 @@ export default function ApprovalPage() {
             </div>
           </div>
 
-          <div className="px-0">
-            <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-border">
-                    <TableHead className="w-16 text-center">STT</TableHead>
-                    <TableHead>Sản phẩm</TableHead>
-                    <TableHead>Loại yêu cầu</TableHead>
-                    <TableHead>Lý do</TableHead>
-                    <TableHead>Người gửi</TableHead>
-                    <TableHead>Ngày gửi</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                          Đang tải dữ liệu...
-                        </div>
-                      </TableCell>
+          <Card className="border-none shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Danh sách yêu cầu phê duyệt
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="w-16 text-center whitespace-nowrap">
+                        STT
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Nội dung
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Loại yêu cầu
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">Lý do</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Ngày cập nhật
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Người cập nhật
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Trạng thái
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap">
+                        Thao tác
+                      </TableHead>
                     </TableRow>
-                  ) : filteredApprovals.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-12 text-muted-foreground"
-                      >
-                        {searchTerm
-                          ? "Không tìm thấy yêu cầu phù hợp"
-                          : "Chưa có yêu cầu phê duyệt nào"}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredApprovals.map((approval, index) => (
-                      <TableRow
-                        key={approval.id}
-                        className="hover:bg-muted/50 transition-colors border-border"
-                      >
-                        <TableCell className="text-center font-medium text-muted-foreground">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell className="font-semibold text-foreground">
-                          {(
-                            (approval.metadata || {}) as Record<string, unknown>
-                          ).name?.toString() || "K/X"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              approval.type === ApprovalType.INVOICE_CANCEL ||
-                              approval.type === ApprovalType.PRODUCT_DELETE ||
-                              approval.type === ApprovalType.EMPLOYEE_DELETE ||
-                              approval.type === ApprovalType.DELETE
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : approval.type === ApprovalType.UPDATE
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-blue-50 text-blue-700 border-blue-200"
-                            }
-                          >
-                            {typeLabels[approval.type] || approval.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-muted-foreground">
-                          {approval.reason}
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
-                            {approval.requestedBy?.fullName || "Hệ thống"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(approval.createdAt).toLocaleDateString(
-                            "vi-VN",
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={
-                              approval.status === ApprovalStatus.PENDING
-                                ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
-                                : approval.status === ApprovalStatus.APPROVED
-                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
-                                  : "bg-red-100 text-red-700 hover:bg-red-100 border-red-200"
-                            }
-                          >
-                            {approval.status === ApprovalStatus.PENDING
-                              ? "Chờ duyệt"
-                              : approval.status === ApprovalStatus.APPROVED
-                                ? "Đã duyệt"
-                                : "Từ chối"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2 text-slate-500">
-                            <button
-                              className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                              onClick={() => void openDetail(approval)}
-                              title="Xem chi tiết"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            {approval.status === ApprovalStatus.PENDING && (
-                              <PermissionGuard
-                                permissions={[Permission.APPROVAL_MANAGE]}
-                              >
-                                <button
-                                  className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                  onClick={() =>
-                                    void handleStatusUpdate(
-                                      approval.id,
-                                      ApprovalStatus.APPROVED,
-                                    )
-                                  }
-                                  title="Phê duyệt"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </button>
-                                <button
-                                  className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                  onClick={() =>
-                                    void handleStatusUpdate(
-                                      approval.id,
-                                      ApprovalStatus.REJECTED,
-                                    )
-                                  }
-                                  title="Từ chối"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </PermissionGuard>
-                            )}
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            Đang tải dữ liệu...
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+                    ) : filteredApprovals.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-12 text-muted-foreground"
+                        >
+                          {searchTerm
+                            ? "Không tìm thấy yêu cầu phù hợp"
+                            : "Chưa có yêu cầu phê duyệt nào"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedApprovals.map((approval, index) => (
+                        <TableRow
+                          key={approval.id}
+                          className="hover:bg-muted/50 transition-colors border-border"
+                        >
+                          <TableCell className="text-center font-medium text-muted-foreground">
+                            {globalOffset + index + 1}
+                          </TableCell>
+                          <TableCell className="font-semibold text-foreground">
+                            {(
+                              (approval.metadata || {}) as Record<
+                                string,
+                                unknown
+                              >
+                            ).name?.toString() || "K/X"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge
+                              variant="outline"
+                              className={
+                                approval.type === ApprovalType.INVOICE_CANCEL ||
+                                approval.type === ApprovalType.PRODUCT_DELETE ||
+                                approval.type ===
+                                  ApprovalType.EMPLOYEE_DELETE ||
+                                approval.type === ApprovalType.DELETE
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : approval.type === ApprovalType.UPDATE
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-blue-50 text-blue-700 border-blue-200"
+                              }
+                            >
+                              {typeLabels[approval.type] || approval.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate text-muted-foreground text-sm italic">
+                            {approval.reason || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-[13px] whitespace-nowrap">
+                            {new Date(approval.createdAt).toLocaleDateString(
+                              "vi-VN",
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-[13px] whitespace-nowrap">
+                            {approval.requestedBy?.fullName || "Hệ thống"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge
+                              className={
+                                approval.status === ApprovalStatus.PENDING
+                                  ? "bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"
+                                  : approval.status === ApprovalStatus.APPROVED
+                                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+                                    : "bg-red-100 text-red-700 hover:bg-red-100 border-red-200"
+                              }
+                            >
+                              {approval.status === ApprovalStatus.PENDING
+                                ? "Chờ duyệt"
+                                : approval.status === ApprovalStatus.APPROVED
+                                  ? "Đã duyệt"
+                                  : "Từ chối"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2 text-slate-500">
+                              <button
+                                className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                onClick={() => void openDetail(approval)}
+                                title="Xem chi tiết"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              {approval.status === ApprovalStatus.PENDING && (
+                                <PermissionGuard
+                                  permissions={[Permission.APPROVAL_MANAGE]}
+                                >
+                                  <button
+                                    className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                    onClick={() =>
+                                      void handleStatusUpdate(
+                                        approval.id,
+                                        ApprovalStatus.APPROVED,
+                                      )
+                                    }
+                                    title="Phê duyệt"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    onClick={() =>
+                                      void handleStatusUpdate(
+                                        approval.id,
+                                        ApprovalStatus.REJECTED,
+                                      )
+                                    }
+                                    title="Từ chối"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </PermissionGuard>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={approvals.length}
+                onPageChange={setCurrentPage}
+              />
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
 

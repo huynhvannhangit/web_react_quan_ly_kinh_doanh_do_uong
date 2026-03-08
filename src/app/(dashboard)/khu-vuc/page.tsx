@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   collectErrors,
   required,
@@ -50,6 +51,8 @@ export default function AreaPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
@@ -80,6 +83,13 @@ export default function AreaPage() {
       setIsLoading(false);
     }
   };
+
+  const totalPages = Math.ceil(areas.length / pageSize);
+  const paginatedAreas = areas.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   const resetForm = () => {
     setNewArea({ name: "", description: "" });
@@ -376,8 +386,8 @@ export default function AreaPage() {
               </div>
             </CardHeader>
             <CardContent className="px-0">
-              <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-                <Table>
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
                       <TableHead className="w-12 text-center">
@@ -420,7 +430,7 @@ export default function AreaPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      areas.map((area, index) => (
+                      paginatedAreas.map((area, index) => (
                         <TableRow
                           key={area.id}
                           className="hover:bg-muted/50 transition-colors border-border"
@@ -440,7 +450,7 @@ export default function AreaPage() {
                             />
                           </TableCell>
                           <TableCell className="text-center font-medium text-slate-500">
-                            {index + 1}
+                            {globalOffset + index + 1}
                           </TableCell>
                           <TableCell className="font-semibold text-foreground">
                             {area.name}
@@ -453,12 +463,10 @@ export default function AreaPage() {
                               "vi-VN",
                             )}
                           </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground border border-border">
-                              {area.updater?.fullName ||
-                                area.creator?.fullName ||
-                                "—"}
-                            </span>
+                          <TableCell className="text-muted-foreground whitespace-nowrap text-sm">
+                            {area.updater?.fullName ||
+                              area.creator?.fullName ||
+                              "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2 text-slate-500">
@@ -484,6 +492,13 @@ export default function AreaPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={areas.length}
+                onPageChange={setCurrentPage}
+              />
             </CardContent>
           </Card>
           <ConfirmDialog

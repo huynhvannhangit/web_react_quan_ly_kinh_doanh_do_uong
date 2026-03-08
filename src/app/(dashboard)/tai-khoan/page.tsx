@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { userService, User } from "@/services/user.service";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Lock, Unlock, Search, RefreshCcw } from "lucide-react";
+import { Lock, Unlock, Search, RotateCcw } from "lucide-react";
+import { Pagination } from "@/components/shared/Pagination";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,6 +38,8 @@ export default function AccountPage() {
     description: "",
     onConfirm: () => {},
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   useEffect(() => {
     loadUsers();
@@ -91,6 +94,13 @@ export default function AccountPage() {
       u.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
+
   return (
     <PermissionGuard permissions={[Permission.USER_VIEW]} redirect="/dashboard">
       <Card>
@@ -109,10 +119,13 @@ export default function AccountPage() {
                 Email / Họ tên
               </label>
               <Input
-                placeholder="Tìm kiếm..."
+                placeholder="Tìm e-mail hoặc họ tên..."
                 className="bg-background border-border rounded-lg h-10 w-full"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     // Search is filtered client-side in the current implementation
@@ -137,22 +150,26 @@ export default function AccountPage() {
                 onClick={() => setSearchTerm("")}
                 className="gap-2 rounded-lg"
               >
-                <RefreshCcw className="h-4 w-4" />
+                <RotateCcw className="h-4 w-4" />
                 Làm mới
               </Button>
             </div>
           </div>
 
-          <div>
-            <div className="flex flex-row items-center gap-4 mb-3">
-              <h3 className="text-base font-semibold">Danh sách tài khoản</h3>
-            </div>
-            <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-              <div className="rounded-none border-none overflow-hidden">
-                <Table>
+          <Card className="border-none shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Danh sách tài khoản
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
-                      <TableHead className="w-14 text-center">STT</TableHead>
+                      <TableHead className="w-14 text-center whitespace-nowrap">
+                        STT
+                      </TableHead>
                       <TableHead className="whitespace-nowrap">Email</TableHead>
                       <TableHead className="whitespace-nowrap">
                         Họ tên
@@ -163,10 +180,11 @@ export default function AccountPage() {
                       <TableHead className="whitespace-nowrap">
                         Nhân viên liên kết
                       </TableHead>
+
                       <TableHead className="whitespace-nowrap">
                         Trạng thái
                       </TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      <TableHead className="text-center">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -186,26 +204,26 @@ export default function AccountPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredUsers.map((user, index) => (
+                      paginatedUsers.map((user, index) => (
                         <TableRow
                           key={user.id}
                           className="hover:bg-muted/50 transition-colors border-border"
                         >
-                          <TableCell className="text-center text-muted-foreground font-medium">
-                            {index + 1}
+                          <TableCell className="text-center text-muted-foreground font-medium whitespace-nowrap">
+                            {globalOffset + index + 1}
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium whitespace-nowrap">
                             {user.email}
                           </TableCell>
-                          <TableCell>{user.fullName}</TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-tight">
-                              {user.role && typeof user.role === "object"
-                                ? user.role.name
-                                : user.role || "—"}
-                            </span>
+                          <TableCell className="whitespace-nowrap">
+                            {user.fullName}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {user.role && typeof user.role === "object"
+                              ? user.role.name
+                              : user.role || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
                             {user.employee ? (
                               <div className="flex flex-col">
                                 <span className="text-sm font-medium">
@@ -221,7 +239,8 @@ export default function AccountPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell>
+
+                          <TableCell className="whitespace-nowrap">
                             {user.status === "ACTIVE" ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                                 Đang hoạt động
@@ -236,11 +255,11 @@ export default function AccountPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-center whitespace-nowrap">
                             <PermissionGuard
                               permissions={[Permission.USER_MANAGE]}
                             >
-                              <div className="flex justify-end gap-3">
+                              <div className="flex justify-center gap-3">
                                 <button
                                   onClick={() => handleToggleStatus(user)}
                                   className={cn(
@@ -270,8 +289,15 @@ export default function AccountPage() {
                   </TableBody>
                 </Table>
               </div>
-            </div>
-          </div>
+            </CardContent>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredUsers.length}
+              onPageChange={setCurrentPage}
+            />
+          </Card>
 
           <ConfirmDialog
             isOpen={confirmState.isOpen}

@@ -8,9 +8,10 @@ import {
   AvailableUser,
   EmployeeStatus,
 } from "@/services/employee.service";
+import { Pagination } from "@/components/shared/Pagination";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -874,295 +875,240 @@ export default function StaffPage() {
             </div>
           </div>
 
-          <div>
-            <div className="flex flex-row items-center gap-4 mb-3">
-              {selectedIds.length > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={isDeletingBulk}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Xóa {selectedIds.length} mục
-                </Button>
-              )}
-              <h3 className="text-base font-semibold">Danh sách nhân viên</h3>
-            </div>
-            <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-border">
-                    <TableHead className="w-10 text-center">
-                      <Checkbox
-                        checked={
-                          employees.length > 0 &&
-                          selectedIds.length === employees.length
-                        }
-                        onCheckedChange={handleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </TableHead>
-                    <TableHead className="w-14 text-center">STT</TableHead>
-                    <TableHead className="whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
-                        Mã NV
-                      </span>
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
-                        Họ tên
-                      </span>
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1">
-                        Ngày sinh
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1">
-                        CCCD
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1">
-                        Chức vụ
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1">
-                        Lương
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1">
-                        SĐT
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="inline-flex items-center gap-1">
-                        Trạng thái
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8">
-                        Đang tải...
-                      </TableCell>
+          <Card className="border-none shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+              <div className="flex items-center gap-4">
+                {selectedIds.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isDeletingBulk}
+                    className="flex items-center gap-2 rounded-lg"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Xóa {selectedIds.length} mục
+                  </Button>
+                )}
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Danh sách nhân viên
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="px-0">
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="w-10 text-center">
+                        <Checkbox
+                          checked={
+                            employees.length > 0 &&
+                            selectedIds.length === employees.length
+                          }
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
+                      <TableHead className="w-14 text-center whitespace-nowrap">
+                        STT
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Mã NV
+                        </span>
+                      </TableHead>
+                      <TableHead className="min-w-37.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Họ tên
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Ngày sinh
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          CCCD
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Chức vụ
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Lương
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          SĐT
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Ngày cập nhật
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Người cập nhật
+                        </span>
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          Trạng thái
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right whitespace-nowrap">
+                        Thao tác
+                      </TableHead>
                     </TableRow>
-                  ) : employees.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={11}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        Chưa có nhân viên nào
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedEmployees.map((emp, index) => (
-                      <TableRow
-                        key={emp.id}
-                        className="hover:bg-muted/50 transition-colors border-border"
-                        data-state={
-                          selectedIds.includes(emp.id) ? "selected" : undefined
-                        }
-                      >
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={selectedIds.includes(emp.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectRow(emp.id, !!checked)
-                            }
-                            aria-label={`Select row ${emp.id}`}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center font-medium text-muted-foreground">
-                          {globalOffset + index + 1}
-                        </TableCell>
-
-                        <TableCell className="font-medium text-blue-600 dark:text-blue-400 font-mono text-xs">
-                          {emp.employeeCode}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-foreground font-medium">
-                          {emp.fullName}
-                        </TableCell>
-                        <TableCell>
-                          {emp.birthDate
-                            ? new Date(emp.birthDate).toLocaleDateString(
-                                "vi-VN",
-                              )
-                            : "—"}
-                        </TableCell>
-                        <TableCell>{emp.identityCard || "—"}</TableCell>
-                        <TableCell>{emp.position || "—"}</TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat("vi-VN", {
-                            style: "currency",
-                            currency: "VND",
-                          }).format(emp.salary)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {emp.phone || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {emp.status === EmployeeStatus.WORKING ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                              Đang làm việc
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">
-                              Đã nghỉ việc
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-3 text-slate-600">
-                            <button
-                              className={cn(
-                                "transition-colors",
-                                emp.status === EmployeeStatus.WORKING
-                                  ? "text-slate-400 hover:text-red-500"
-                                  : "text-slate-400 hover:text-green-500",
-                              )}
-                              onClick={() => handleToggleEmployeeStatus(emp)}
-                              title={
-                                emp.status === EmployeeStatus.WORKING
-                                  ? "Đánh dấu nghỉ việc"
-                                  : "Đánh dấu đi làm lại"
-                              }
-                            >
-                              {emp.status === EmployeeStatus.WORKING ? (
-                                <UserMinus className="h-4 w-4" />
-                              ) : (
-                                <UserCheck className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              className="hover:text-slate-900 transition-colors"
-                              onClick={() => handleEdit(emp)}
-                              title="Chỉnh sửa"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              className="text-red-500 hover:text-red-600 transition-colors"
-                              onClick={() => handleDelete(emp.id, emp.fullName)}
-                              title="Xóa"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={13} className="text-center py-8">
+                          Đang tải...
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+                    ) : employees.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={13}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          Chưa có nhân viên nào
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedEmployees.map((emp, index) => (
+                        <TableRow
+                          key={emp.id}
+                          className="hover:bg-muted/50 transition-all duration-300 border-border"
+                          data-state={
+                            selectedIds.includes(emp.id)
+                              ? "selected"
+                              : undefined
+                          }
+                        >
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={selectedIds.includes(emp.id)}
+                              onCheckedChange={(checked) =>
+                                handleSelectRow(emp.id, !!checked)
+                              }
+                              aria-label={`Select row ${emp.id}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-muted-foreground">
+                            {globalOffset + index + 1}
+                          </TableCell>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center pt-4 relativer">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[13px] text-slate-600 mr-2">
-                  Tổng cộng {filteredEmployees.length} bản ghi
-                </span>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-8 h-8 p-0 rounded-[2px] border-slate-300 text-slate-600 disabled:bg-slate-50 disabled:text-slate-300"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </Button>
-
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let page = i + 1;
-                  if (totalPages > 5 && currentPage > 3) {
-                    page = Math.min(currentPage - 2 + i, totalPages - 4 + i);
-                  }
-                  return (
-                    <Button
-                      key={page}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 p-0 rounded-[2px] text-[13px] transition-colors ${
-                        currentPage === page
-                          ? "border-blue-600 text-blue-600 bg-white hover:border-blue-500 hover:text-blue-500 font-medium"
-                          : "border-slate-300 text-slate-600 hover:text-blue-500 hover:border-blue-500 bg-white"
-                      }`}
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-8 h-8 p-0 rounded-[2px] border-slate-300 text-slate-600 disabled:bg-slate-50 disabled:text-slate-300"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </Button>
-
-                <div className="ml-2 flex items-center justify-between border border-slate-300 rounded-[2px] h-8 px-2.5 text-[13px] text-slate-600 bg-white cursor-pointer hover:border-blue-500 transition-colors min-w-22.5">
-                  <span>{pageSize} / trang</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="opacity-50"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </div>
+                          <TableCell className="font-medium text-blue-600 dark:text-blue-400 font-mono text-xs">
+                            {emp.employeeCode}
+                          </TableCell>
+                          <TableCell className="font-medium text-foreground min-w-37.5 whitespace-nowrap">
+                            {emp.fullName}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {emp.birthDate
+                              ? new Date(emp.birthDate).toLocaleDateString(
+                                  "vi-VN",
+                                )
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {emp.identityCard || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {emp.position || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {new Intl.NumberFormat("vi-VN", {
+                              style: "currency",
+                              currency: "VND",
+                            }).format(emp.salary)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {emp.phone || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                            {new Date(emp.updatedAt).toLocaleDateString(
+                              "vi-VN",
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                            {emp.user?.fullName || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {emp.status === EmployeeStatus.WORKING ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                Đang làm việc
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">
+                                Đã nghỉ việc
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-3 text-slate-600">
+                              <button
+                                className={cn(
+                                  "transition-colors",
+                                  emp.status === EmployeeStatus.WORKING
+                                    ? "text-slate-400 hover:text-red-500"
+                                    : "text-slate-400 hover:text-green-500",
+                                )}
+                                onClick={() => handleToggleEmployeeStatus(emp)}
+                                title={
+                                  emp.status === EmployeeStatus.WORKING
+                                    ? "Đánh dấu nghỉ việc"
+                                    : "Đánh dấu đi làm lại"
+                                }
+                              >
+                                {emp.status === EmployeeStatus.WORKING ? (
+                                  <UserMinus className="h-4 w-4" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4" />
+                                )}
+                              </button>
+                              <button
+                                className="hover:text-slate-900 transition-colors"
+                                onClick={() => handleEdit(emp)}
+                                title="Chỉnh sửa"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                className="text-red-500 hover:text-red-600 transition-colors"
+                                onClick={() =>
+                                  handleDelete(emp.id, emp.fullName)
+                                }
+                                title="Xóa"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-            </div>
-          )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={employees.length}
+                onPageChange={setCurrentPage}
+              />
+            </CardContent>
+          </Card>
           <ConfirmDialog
             isOpen={confirmState.isOpen}
             onClose={() =>

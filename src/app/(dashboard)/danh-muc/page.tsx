@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,8 @@ export default function CategoryPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
@@ -66,6 +69,15 @@ export default function CategoryPage() {
   });
 
   const filteredCategories = categories;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredCategories.length / pageSize),
+  );
+  const paginatedCategories = filteredCategories.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   useEffect(() => {
     void loadCategories();
@@ -214,7 +226,7 @@ export default function CategoryPage() {
       <Card>
         <CardContent className="p-8 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] uppercase">
+            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
               Quản lý Danh mục
             </h1>
           </div>
@@ -351,21 +363,21 @@ export default function CategoryPage() {
                     Xóa {selectedIds.length} mục
                   </Button>
                 )}
-                <CardTitle className="text-lg font-semibold text-slate-800">
+                <CardTitle className="text-lg font-semibold text-foreground">
                   Danh sách danh mục
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="px-0">
-              <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
-                <Table>
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
                       <TableHead className="w-12 text-center">
                         <Checkbox
                           checked={
-                            filteredCategories.length > 0 && // Changed from categories to filteredCategories
-                            selectedIds.length === filteredCategories.length // Changed from categories to filteredCategories
+                            paginatedCategories.length > 0 && // Changed from categories to filteredCategories
+                            selectedIds.length === paginatedCategories.length // Changed from categories to filteredCategories
                           }
                           onCheckedChange={handleSelectAll}
                           aria-label="Select all" // Added aria-label
@@ -374,16 +386,15 @@ export default function CategoryPage() {
                       <TableHead className="w-16 text-center">STT</TableHead>
                       <TableHead>Tên danh mục</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
-                      {/* Removed "Người cập nhật" TableHead */}
+                      <TableHead>Người cập nhật</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12">
+                        <TableCell colSpan={7} className="text-center py-12">
                           {" "}
-                          {/* colSpan changed from 7 to 6 */}
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             Đang tải dữ liệu...
@@ -393,7 +404,7 @@ export default function CategoryPage() {
                     ) : filteredCategories.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6} // colSpan changed from 7 to 6
+                          colSpan={7}
                           className="text-center py-12 text-muted-foreground"
                         >
                           {searchTerm
@@ -402,12 +413,11 @@ export default function CategoryPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredCategories.map((category, index) => (
+                      paginatedCategories.map((category, index) => (
                         <TableRow
                           key={category.id}
                           className="hover:bg-muted/50 transition-colors border-border"
                           data-state={
-                            // Added data-state
                             selectedIds.includes(category.id)
                               ? "selected"
                               : undefined
@@ -419,23 +429,26 @@ export default function CategoryPage() {
                               onCheckedChange={(checked) =>
                                 handleSelectRow(category.id, !!checked)
                               }
-                              aria-label={`Select row ${category.id}`} // Added aria-label
+                              aria-label={`Select row ${category.id}`}
                             />
                           </TableCell>
                           <TableCell className="text-center font-medium text-slate-500">
-                            {index + 1}
+                            {globalOffset + index + 1}
                           </TableCell>
-                          <TableCell className="font-semibold text-foreground">
+                          <TableCell className="font-semibold text-foreground whitespace-nowrap">
                             {category.name}{" "}
-                            {/* Changed from categoryName to name */}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
                             {new Date(category.updatedAt).toLocaleDateString(
                               "vi-VN",
                             )}
                           </TableCell>
-                          {/* Removed "Người cập nhật" TableCell */}
-                          <TableCell className="text-right">
+                          <TableCell className="text-muted-foreground whitespace-nowrap text-sm">
+                            {category.updater?.fullName ||
+                              category.creator?.fullName ||
+                              "—"}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2 text-slate-500">
                               <button
                                 className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
@@ -461,6 +474,12 @@ export default function CategoryPage() {
                   </TableBody>
                 </Table>
               </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredCategories.length}
+                onPageChange={setCurrentPage}
+              />
             </CardContent>
           </Card>
           <ConfirmDialog

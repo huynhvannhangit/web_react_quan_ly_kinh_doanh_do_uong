@@ -14,6 +14,10 @@ export interface User {
     employeeCode: string;
   } | null;
   avatar?: string | null;
+  updatedAt?: string;
+  updater?: {
+    fullName: string;
+  };
 }
 
 export interface UpdateUserDto {
