@@ -409,6 +409,34 @@ export default function TablePage() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="capacity">
+                        Số chỗ ngồi <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="capacity"
+                        type="number"
+                        min="1"
+                        value={newTable.capacity}
+                        onChange={(e) => {
+                          setNewTable({
+                            ...newTable,
+                            capacity: parseInt(e.target.value) || 0,
+                          });
+                          if (formErrors.capacity)
+                            setFormErrors((p) => ({ ...p, capacity: "" }));
+                        }}
+                        placeholder="VD: 4, 6, 8..."
+                        className={inputErrorClass(formErrors.capacity)}
+                        required
+                      />
+                      {formErrors.capacity && (
+                        <p className="text-xs text-destructive mt-1">
+                          {formErrors.capacity}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -466,6 +494,7 @@ export default function TablePage() {
                       </TableHead>
                       <TableHead className="w-16 text-center">STT</TableHead>
                       <TableHead>Tên bàn</TableHead>
+                      <TableHead>Số chỗ ngồi</TableHead>
                       <TableHead>Khu vực</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead>Người cập nhật</TableHead>
@@ -476,7 +505,7 @@ export default function TablePage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12">
+                        <TableCell colSpan={9} className="text-center py-12">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             Đang tải dữ liệu...
@@ -486,7 +515,7 @@ export default function TablePage() {
                     ) : tables.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={9}
                           className="text-center py-12 text-muted-foreground"
                         >
                           {searchTerm
@@ -513,6 +542,9 @@ export default function TablePage() {
                           </TableCell>
                           <TableCell className="font-semibold text-foreground whitespace-nowrap">
                             {table.tableNumber}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {table.capacity}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                             {table.area?.name || "—"}
