@@ -72,10 +72,14 @@ export const orderService = {
     return response.data.data;
   },
 
-  addItems: async (orderId: number, items: AppendedOrderItem[]) => {
+  addItems: async (
+    orderId: number,
+    items: AppendedOrderItem[],
+    notes?: string,
+  ) => {
     const response = await api.patch<{ data: Order }>(
       `/order/${orderId}/add-items`,
-      { items },
+      { items, notes },
     );
     return response.data.data;
   },

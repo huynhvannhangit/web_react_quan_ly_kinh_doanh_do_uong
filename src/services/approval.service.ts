@@ -31,4 +31,8 @@ export const approvalService = {
   remove: async (id: number): Promise<void> => {
     await api.delete(`/approvals/${id}`);
   },
+
+  deleteMany: async (ids: number[]): Promise<void> => {
+    await api.delete("/approvals", { data: { ids } });
+  },
 };

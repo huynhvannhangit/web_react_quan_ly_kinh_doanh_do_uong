@@ -4,7 +4,12 @@
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { tableService, Table, TableStatus } from "@/services/table.service";
-import { productService, Product } from "@/services/product.service";
+import {
+  productService,
+  Product,
+  categoryService,
+  Category,
+} from "@/services/product.service";
 import { areaService, Area } from "@/services/area.service";
 import {
   orderService,
@@ -28,6 +33,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -85,6 +92,8 @@ export default function OrderingPage() {
   const [statusFilter, setStatusFilter] = useState<TableStatus | "ALL">("ALL");
   const [areas, setAreas] = useState<Area[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>("ALL");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("ALL");
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
     PaymentMethod.CASH,
@@ -97,6 +106,7 @@ export default function OrderingPage() {
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [vnpayQrUrl, setVnpayQrUrl] = useState<string | null>(null);
   const [pendingInvoiceId, setPendingInvoiceId] = useState<number | null>(null);
+  const [orderNote, setOrderNote] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
 
   const VN_DENOMINATIONS = [
@@ -187,11 +197,13 @@ export default function OrderingPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [tablesData, productsData, areasData] = await Promise.all([
-        tableService.getAll(),
-        productService.getAll(),
-        areaService.getAll(),
-      ]);
+      const [tablesData, productsData, areasData, categoriesData] =
+        await Promise.all([
+          tableService.getAll(),
+          productService.getAll(),
+          areaService.getAll(),
+          categoryService.getAll(),
+        ]);
       // Chỉ hiển thị các bàn không ở trạng thái bảo trì
       const activeTables = tablesData.filter(
         (t) => t.status !== TableStatus.MAINTENANCE,
@@ -199,6 +211,7 @@ export default function OrderingPage() {
       setTables(activeTables);
       setProducts(productsData);
       setAreas(areasData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -217,6 +230,7 @@ export default function OrderingPage() {
         const active = await orderService.getActiveByTable(table.id);
         if (active) {
           setActiveOrder(active);
+          setOrderNote(active.notes || "");
           // Convert active order items to the state format
           const existingItems = active.items.map((item) => ({
             product: item.product!,
@@ -297,11 +311,13 @@ export default function OrderingPage() {
             quantity: Number(item.quantity),
             price: Number(item.product.price),
           })),
+          orderNote,
         );
       } else if (!activeOrder) {
         // Create new order
         const orderData: CreateOrderDto = {
           tableId: Number(selectedTable.id),
+          notes: orderNote,
           items: orderItems.map((item) => ({
             productId: Number(item.product.id),
             quantity: Number(item.quantity),
@@ -404,7 +420,10 @@ export default function OrderingPage() {
 
   const filteredProducts = products.filter(
     (p) =>
-      p.isAvailable && p.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      p.isAvailable &&
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (selectedCategoryId === "ALL" ||
+        p.categoryId === Number(selectedCategoryId)),
   );
 
   const filteredTables = useMemo(() => {
@@ -584,6 +603,29 @@ export default function OrderingPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  Danh mục:
+                </span>
+                <Select
+                  value={selectedCategoryId}
+                  onValueChange={setSelectedCategoryId}
+                >
+                  <SelectTrigger className="w-full h-9">
+                    <SelectValue placeholder="Tất cả danh mục" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tất cả danh mục</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <ScrollArea className="flex-1 pr-4">
                 <div className="grid grid-cols-2 gap-3">
                   {filteredProducts.map((product) => (
@@ -706,6 +748,19 @@ export default function OrderingPage() {
                   <span className="text-primary">
                     {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
                   </span>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Ghi chú đơn hàng
+                  </Label>
+                  <Textarea
+                    placeholder="VD: Không lấy đường, nhiều đá..."
+                    value={orderNote}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                      setOrderNote(e.target.value)
+                    }
+                    className="min-h-20 text-sm resize-none"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button

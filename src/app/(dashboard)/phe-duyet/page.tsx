@@ -10,8 +10,10 @@ import {
 } from "@/types/approval";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
-// removed unused Checkbox and User import
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -40,6 +42,7 @@ import {
   RotateCcw,
   CheckCircle,
   XCircle,
+  Trash2,
 } from "lucide-react"; // Updated Lucide imports (removed FileText, Clock)
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -199,7 +202,20 @@ export default function ApprovalPage() {
     useState<ApprovalRequest | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  // Removed selectedIds and related states/functions as per instruction
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     loadApprovals(); // Renamed loadRequests to loadApprovals
@@ -208,7 +224,7 @@ export default function ApprovalPage() {
   const loadApprovals = async (keyword?: string) => {
     // Renamed loadRequests to loadApprovals
     setIsLoading(true);
-    // setSelectedIds([]); // clear selection when loading new data - Removed
+    setSelectedIds([]); // clear selection when loading new data
     try {
       const data = await approvalService.findAll(keyword);
       setApprovals(data); // Renamed setRequests to setApprovals
@@ -219,7 +235,45 @@ export default function ApprovalPage() {
     }
   };
 
-  // Removed handleSelectAll, handleSelectRow, handleBulkDelete as per instruction
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(paginatedApprovals.map((a) => a.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((i) => i !== id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    setConfirmState({
+      isOpen: true,
+      title: "Xóa nhiều yêu cầu",
+      description: `Bạn có chắc chắn muốn xóa ${selectedIds.length} yêu cầu đã chọn? Hành động này không thể hoàn tác.`,
+      isDanger: true,
+      onConfirm: async () => {
+        setIsDeletingBulk(true);
+        try {
+          await approvalService.deleteMany(selectedIds);
+          toast.success(`Đã xóa ${selectedIds.length} yêu cầu thành công`);
+          setSelectedIds([]);
+          loadApprovals();
+        } catch (error) {
+          console.error("Failed to delete approvals:", error);
+          toast.error("Xóa yêu cầu thất bại");
+        } finally {
+          setIsDeletingBulk(false);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
 
   const handleStatusUpdate = async (id: number, status: ApprovalStatus) => {
     // New function for status update
@@ -319,15 +373,38 @@ export default function ApprovalPage() {
 
           <Card className="border-none shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
-              <CardTitle className="text-lg font-semibold text-foreground">
-                Danh sách yêu cầu phê duyệt
-              </CardTitle>
+              <div className="flex items-center gap-4">
+                {selectedIds.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isDeletingBulk}
+                    className="flex items-center gap-2 rounded-lg"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Xóa {selectedIds.length} mục
+                  </Button>
+                )}
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Danh sách yêu cầu phê duyệt
+                </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="px-0">
               <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
                 <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="w-12 text-center">
+                        <Checkbox
+                          checked={
+                            paginatedApprovals.length > 0 &&
+                            selectedIds.length === paginatedApprovals.length
+                          }
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-16 text-center whitespace-nowrap">
                         STT
                       </TableHead>
@@ -379,6 +456,14 @@ export default function ApprovalPage() {
                           key={approval.id}
                           className="hover:bg-muted/50 transition-colors border-border"
                         >
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={selectedIds.includes(approval.id)}
+                              onCheckedChange={(checked) =>
+                                handleSelectRow(approval.id, !!checked)
+                              }
+                            />
+                          </TableCell>
                           <TableCell className="text-center font-medium text-muted-foreground">
                             {globalOffset + index + 1}
                           </TableCell>
@@ -619,6 +704,16 @@ export default function ApprovalPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmState.onConfirm}
+        title={confirmState.title}
+        description={confirmState.description}
+        isDanger={confirmState.isDanger}
+        isLoading={isDeletingBulk}
+      />
     </PermissionGuard>
   );
 }

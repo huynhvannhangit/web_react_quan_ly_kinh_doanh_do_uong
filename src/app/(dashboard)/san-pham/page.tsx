@@ -471,18 +471,6 @@ export default function ProductPage() {
                       </Button>
                     </DialogTrigger>
 
-                    {selectedIds.length > 0 && (
-                      <Button
-                        variant="destructive"
-                        onClick={handleBulkDelete}
-                        disabled={isDeletingBulk}
-                        className="h-10 rounded-lg px-6 flex items-center gap-2 shadow-sm transition-all"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Xóa {selectedIds.length} đã chọn
-                      </Button>
-                    )}
-
                     <DialogContent className="sm:max-w-150">
                       <DialogHeader>
                         <DialogTitle>
@@ -739,9 +727,23 @@ export default function ProductPage() {
 
               <Card className="border-none shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
-                  <CardTitle className="text-lg font-semibold text-foreground">
-                    Danh sách sản phẩm
-                  </CardTitle>
+                  <div className="flex items-center gap-4">
+                    {selectedIds.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        disabled={isDeletingBulk}
+                        className="flex items-center gap-2 rounded-lg"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Xóa {selectedIds.length} mục
+                      </Button>
+                    )}
+                    <CardTitle className="text-lg font-semibold text-foreground">
+                      Danh sách sản phẩm
+                    </CardTitle>
+                  </div>
                 </CardHeader>
                 <CardContent className="px-0">
                   <div className="[&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">

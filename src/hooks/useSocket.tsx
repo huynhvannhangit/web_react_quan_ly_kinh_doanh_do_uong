@@ -46,6 +46,7 @@ export const useSocket = (user: AuthUser | null | undefined) => {
 
     // Connect to /notifications namespace
     const socketInstance = io(`${backendUrl}/notifications`, {
+      query: { userId: user.id },
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
