@@ -43,6 +43,10 @@ export default function CaiDatPage() {
   const [fullName, setFullName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [fullNameError, setFullNameError] = useState("");
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(
+    null,
+  );
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
 
   // Editor states
   const [imageEditorOpen, setImageEditorOpen] = useState(false);
@@ -104,30 +108,11 @@ export default function CaiDatPage() {
 
     const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
 
-    try {
-      setIsUploading(true);
-      const updatedUser = await userService.uploadAvatar(
-        user.id as number,
-        file,
-      );
-      setAvatar(updatedUser.avatar || null);
-
-      // Update persistent storage
-      authService.updateUserPayload({ avatar: updatedUser.avatar || null });
-
-      // Refresh Auth Context to reflect in Header immediately
-      refreshUser();
-
-      toast.success("Đã cập nhật ảnh đại diện");
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(
-        err.response?.data?.message || "Không thể tải lên ảnh đại diện",
-      );
-    } finally {
-      setIsUploading(false);
-      setRawImageSrc(null);
-    }
+    // Lưu file vào state ở chế độ chờ thay vì upload ngay
+    setSelectedAvatarFile(file);
+    const previewUrl = URL.createObjectURL(blob);
+    setAvatarPreviewUrl(previewUrl);
+    setRawImageSrc(null);
   };
 
   const handleSaveInfo = async () => {
@@ -144,6 +129,31 @@ export default function CaiDatPage() {
 
     try {
       setIsSaving(true);
+
+      let finalAvatarUrl = avatar;
+
+      // Nếu có ảnh mới ở chế độ chờ, thực hiện upload trước
+      if (selectedAvatarFile) {
+        setIsUploading(true);
+        const updatedUser = await userService.uploadAvatar(
+          user.id as number,
+          selectedAvatarFile,
+        );
+        finalAvatarUrl = updatedUser.avatar || null;
+        setAvatar(finalAvatarUrl);
+        setIsUploading(false);
+
+        // Update persistent storage for avatar
+        authService.updateUserPayload({ avatar: finalAvatarUrl });
+
+        // Clear preview states
+        setSelectedAvatarFile(null);
+        if (avatarPreviewUrl) {
+          URL.revokeObjectURL(avatarPreviewUrl);
+          setAvatarPreviewUrl(null);
+        }
+      }
+
       // NOTE: Here we need to update fullName but update API only receives DTO logic
       // In the backend, the UpdateUserDto uses PartialType of CreateUserDto
       // Which means we CAN pass fullName in the body of patch request.
@@ -168,8 +178,16 @@ export default function CaiDatPage() {
       );
     } finally {
       setIsSaving(false);
+      setIsUploading(false);
     }
   };
+
+  // Cleanup object urls on unmount
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
 
   if (isLoading) {
     return (
@@ -209,7 +227,10 @@ export default function CaiDatPage() {
                 onClick={handleAvatarClick}
               >
                 <Avatar className="h-24 w-24 border-4 border-muted transition-all duration-200 group-hover:border-primary/50 group-hover:opacity-80">
-                  <AvatarImage src={avatarDisplayUrl} alt={fullName} />
+                  <AvatarImage
+                    src={avatarPreviewUrl || avatarDisplayUrl}
+                    alt={fullName}
+                  />
                   <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
                     {avatarInitials}
                   </AvatarFallback>
@@ -298,7 +319,10 @@ export default function CaiDatPage() {
             <Button
               variant="default"
               onClick={handleSaveInfo}
-              disabled={isSaving || fullName === userDetail?.fullName}
+              disabled={
+                isSaving ||
+                (fullName === userDetail?.fullName && !selectedAvatarFile)
+              }
             >
               {isSaving ? (
                 <>

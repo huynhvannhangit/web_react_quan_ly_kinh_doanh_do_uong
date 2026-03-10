@@ -30,6 +30,8 @@ export default function SystemConfigPage() {
     address: "",
     footerText: "",
   });
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
 
   const [imageEditorOpen, setImageEditorOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -50,6 +52,7 @@ export default function SystemConfigPage() {
 
   const hasChanges = useMemo(() => {
     if (!config) return false;
+    if (selectedLogoFile) return true;
     return (
       formData.systemName.trim() !== (config.systemName || "").trim() ||
       formData.logoUrl !== (config.logoUrl || "") ||
@@ -58,7 +61,7 @@ export default function SystemConfigPage() {
       formData.address.trim() !== (config.address || "").trim() ||
       formData.footerText.trim() !== (config.footerText || "").trim()
     );
-  }, [formData, config]);
+  }, [formData, config, selectedLogoFile]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -93,22 +96,11 @@ export default function SystemConfigPage() {
     setImageEditorOpen(false);
     const file = new File([blob], "logo.png", { type: "image/png" });
 
-    setIsUploading(true);
-    try {
-      const updatedConfig = await systemConfigService.uploadLogo(file);
-      setFormData((prev) => ({
-        ...prev,
-        logoUrl: updatedConfig.logoUrl || "",
-      }));
-      await refreshConfig();
-      toast.success("Tải logo lên thành công.");
-    } catch (error: unknown) {
-      console.error("Upload logo failed:", error);
-      toast.error("Không thể tải logo lên. Vui lòng thử lại.");
-    } finally {
-      setIsUploading(false);
-      setRawImageSrc(null);
-    }
+    // Cập nhật state nội bộ (chế độ chờ) thay vì upload ngay lập tức
+    setSelectedLogoFile(file);
+    const previewUrl = URL.createObjectURL(blob);
+    setLogoPreviewUrl(previewUrl);
+    setRawImageSrc(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,9 +108,26 @@ export default function SystemConfigPage() {
     setIsSubmitting(true);
 
     try {
+      let finalLogoUrl = formData.logoUrl;
+
+      // Nếu có ảnh ở chế độ chờ, upload trước
+      if (selectedLogoFile) {
+        setIsUploading(true);
+        const uploadRes =
+          await systemConfigService.uploadLogo(selectedLogoFile);
+        finalLogoUrl = uploadRes.logoUrl || "";
+        setIsUploading(false);
+        // Clear trạng thái preview sau khi upload
+        setSelectedLogoFile(null);
+        if (logoPreviewUrl) {
+          URL.revokeObjectURL(logoPreviewUrl);
+          setLogoPreviewUrl(null);
+        }
+      }
+
       const payload: Parameters<typeof systemConfigService.update>[0] = {
         systemName: formData.systemName.trim(),
-        logoUrl: formData.logoUrl,
+        logoUrl: finalLogoUrl,
         email: formData.email.trim() || "",
         phone: formData.phone.trim() || "",
         address: formData.address.trim() || "",
@@ -138,8 +147,16 @@ export default function SystemConfigPage() {
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
+
+  // Cleanup object urls on unmount
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    };
+  }, [logoPreviewUrl]);
 
   return (
     <PermissionGuard
@@ -198,9 +215,11 @@ export default function SystemConfigPage() {
                       onClick={() => setDetailDialogOpen(true)}
                     >
                       <div className="h-40 w-40 rounded-2xl border-2 border-dashed border-muted-foreground/20 bg-muted/30 flex items-center justify-center overflow-hidden transition-all hover:border-primary/50 hover:bg-muted/50">
-                        {formData.logoUrl ? (
+                        {logoPreviewUrl || formData.logoUrl ? (
                           <Image
-                            src={getImageUrl(formData.logoUrl)}
+                            src={
+                              logoPreviewUrl || getImageUrl(formData.logoUrl)
+                            }
                             alt="Logo"
                             fill
                             className="object-contain p-2"
@@ -213,7 +232,7 @@ export default function SystemConfigPage() {
                           </div>
                         )}
                       </div>
-                      {formData.logoUrl && (
+                      {(logoPreviewUrl || formData.logoUrl) && (
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
                           <p className="text-white text-xs font-medium">
                             Xem chi tiết
@@ -388,9 +407,9 @@ export default function SystemConfigPage() {
               className="relative w-full max-h-[85vh] cursor-zoom-out flex items-center justify-center bg-transparent"
               onClick={() => setDetailDialogOpen(false)}
             >
-              {formData.logoUrl && (
+              {(logoPreviewUrl || formData.logoUrl) && (
                 <Image
-                  src={getImageUrl(formData.logoUrl)}
+                  src={logoPreviewUrl || getImageUrl(formData.logoUrl)}
                   alt="Logo Detail"
                   className="max-w-2xl max-h-[70vh] w-auto h-auto object-contain rounded-xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-all duration-300"
                   width={800}

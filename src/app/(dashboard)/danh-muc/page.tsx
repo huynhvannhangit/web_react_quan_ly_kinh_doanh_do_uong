@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import {
@@ -38,7 +39,6 @@ import {
 } from "@/lib/validators";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -220,7 +220,7 @@ export default function CategoryPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.PRODUCT_VIEW]}
+      permissions={[Permission.CATEGORY_SEARCH]}
       redirect="/dashboard"
     >
       <Card>
@@ -326,7 +326,28 @@ export default function CategoryPage() {
                         </p>
                       )}
                     </div>
-                    {/* Description input removed from dialog as per instruction */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="description">Mô tả</Label>
+                      <Textarea
+                        id="description"
+                        value={newCategory.description}
+                        onChange={(e) => {
+                          setNewCategory({
+                            ...newCategory,
+                            description: e.target.value,
+                          });
+                          if (formErrors.description)
+                            setFormErrors((p) => ({ ...p, description: "" }));
+                        }}
+                        placeholder="Mô tả danh mục..."
+                        className={inputErrorClass(formErrors.description)}
+                      />
+                      {formErrors.description && (
+                        <p className="text-xs text-destructive mt-1">
+                          {formErrors.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -385,6 +406,7 @@ export default function CategoryPage() {
                       </TableHead>
                       <TableHead className="w-16 text-center">STT</TableHead>
                       <TableHead>Tên danh mục</TableHead>
+                      <TableHead>Mô tả</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead>Người cập nhật</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
@@ -436,7 +458,10 @@ export default function CategoryPage() {
                             {globalOffset + index + 1}
                           </TableCell>
                           <TableCell className="font-semibold text-foreground whitespace-nowrap">
-                            {category.name}{" "}
+                            {category.name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground min-w-64 max-w-100 truncate">
+                            {category.description || "—"}
                           </TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">
                             {new Date(category.updatedAt).toLocaleDateString(

@@ -22,6 +22,7 @@ export interface ApprovalRequest {
   status: ApprovalStatus;
   requestedBy: User;
   reviewedBy?: User;
+  targetModule?: string;
   reason: string;
   metadata?: Record<string, unknown>;
   reviewedAt?: string;

@@ -63,10 +63,14 @@ export const categoryService = {
 export const productService = {
   getAll: async (keyword?: string) => {
     const kw = keyword?.trim();
-    const response = await api.get<{ data: Product[] }>("/product", {
-      params: kw ? { keyword: kw } : {},
-    });
-    return response.data.data;
+    const response = await api.get<{ data: Product[] | { items: Product[] } }>(
+      "/product",
+      {
+        params: kw ? { keyword: kw } : {},
+      },
+    );
+    const data = response.data.data;
+    return Array.isArray(data) ? data : data.items;
   },
   getOne: async (id: number) => {
     const response = await api.get<{ data: Product }>(`/product/${id}`);

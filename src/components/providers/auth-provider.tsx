@@ -6,9 +6,12 @@ import React, {
   useEffect,
   useState,
   useMemo,
+  useCallback,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { authService } from "@/services/auth.service";
+import { Permission } from "@/types";
+import { toast } from "sonner";
 
 export interface AuthUser {
   id?: number;
@@ -40,9 +43,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const publicRoutes = useMemo(
-    () => ["/login", "/register", "/reset-password", "/verify-email"],
+    () => [
+      "/login",
+      "/register",
+      "/reset-password",
+      "/verify-email",
+      "/waiting-approval",
+    ],
     [],
   );
+
+  const checkUserRole = (user: AuthUser | null) => {
+    if (!user) return false;
+
+    // A user is "approved" (moved out of waiting-approval) if they have an assigned role.
+    // Granular permissions will handle what they can see inside the dashboard.
+    return (
+      user.role &&
+      (typeof user.role === "string"
+        ? user.role.length > 0
+        : Object.keys(user.role as object).length > 0)
+    );
+  };
+
+  const getRedirectPath = useCallback((user: AuthUser | null) => {
+    if (!user) return "/login";
+    if (!checkUserRole(user)) return "/waiting-approval";
+
+    const perms = user.permissions || [];
+    if (perms.includes(Permission.DASHBOARD_VIEW)) return "/dashboard";
+    if (perms.includes(Permission.ORDER_CREATE)) return "/goi-mon";
+    if (perms.includes(Permission.INVOICE_SEARCH)) return "/hoa-don";
+    if (perms.includes(Permission.PRODUCT_SEARCH)) return "/san-pham";
+    if (perms.includes(Permission.TABLE_SEARCH)) return "/ban";
+
+    return "/dashboard"; // Fallback
+  }, []);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -51,6 +87,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentUser && hasToken) {
         setUser(currentUser);
+
+        const userHasRole = checkUserRole(currentUser);
+
+        if (!userHasRole && pathname !== "/waiting-approval") {
+          router.push("/waiting-approval");
+        } else if (
+          userHasRole &&
+          (pathname === "/waiting-approval" ||
+            (pathname === "/dashboard" &&
+              !currentUser.permissions?.includes(Permission.DASHBOARD_VIEW)))
+        ) {
+          if (pathname === "/dashboard") {
+            toast.error("Bạn không có quyền truy cập trang Tổng quan");
+          }
+          router.push(getRedirectPath(currentUser));
+        }
       } else {
         if (currentUser && !hasToken) {
           authService.logout();
@@ -64,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-  }, [pathname, router, publicRoutes]);
+  }, [pathname, router, publicRoutes, getRedirectPath]);
 
   const login = async (
     email: string,
@@ -73,8 +125,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     await authService.login(email, password, rememberMe);
     const currentUser = authService.getCurrentUser();
-    setUser(currentUser || { email });
-    router.push("/dashboard");
+
+    if (currentUser) {
+      setUser(currentUser);
+      router.push(getRedirectPath(currentUser));
+    } else {
+      setUser({ email });
+      router.push("/dashboard");
+    }
   };
 
   const logout = () => {

@@ -26,12 +26,21 @@ export const areaService = {
     const response = await api.post<{ data: Area }>("/area", data);
     return response.data.data;
   },
-  update: async (id: number, data: { name?: string; description?: string }) => {
-    const response = await api.patch<{ data: Area }>(`/area/${id}`, data);
+  update: async (
+    id: number,
+    data: { name?: string; description?: string },
+    reason?: string,
+  ) => {
+    const response = await api.patch<{ data: Area }>(`/area/${id}`, {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
-  delete: async (id: number) => {
-    const response = await api.delete<{ data: Area }>(`/area/${id}`);
+  delete: async (id: number, reason?: string) => {
+    const response = await api.delete<{ data: Area }>(`/area/${id}`, {
+      data: { reason },
+    });
     return response.data.data;
   },
   deleteMany: async (ids: number[], reason?: string) => {

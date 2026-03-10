@@ -320,7 +320,7 @@ export default function ApprovalPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.APPROVAL_VIEW]}
+      permissions={[Permission.APPROVAL_SEARCH]}
       redirect="/dashboard"
     >
       <Card>
@@ -409,6 +409,9 @@ export default function ApprovalPage() {
                         STT
                       </TableHead>
                       <TableHead className="whitespace-nowrap">
+                        Đối tượng
+                      </TableHead>
+                      <TableHead className="whitespace-nowrap">
                         Nội dung
                       </TableHead>
                       <TableHead className="whitespace-nowrap">
@@ -432,7 +435,7 @@ export default function ApprovalPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12">
+                        <TableCell colSpan={9} className="text-center py-12">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             Đang tải dữ liệu...
@@ -442,7 +445,7 @@ export default function ApprovalPage() {
                     ) : filteredApprovals.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={9}
                           className="text-center py-12 text-muted-foreground"
                         >
                           {searchTerm
@@ -467,13 +470,62 @@ export default function ApprovalPage() {
                           <TableCell className="text-center font-medium text-muted-foreground">
                             {globalOffset + index + 1}
                           </TableCell>
+                          <TableCell className="font-medium text-[#00509E] dark:text-blue-400">
+                            {approval.targetModule || "—"}
+                          </TableCell>
                           <TableCell className="font-semibold text-foreground">
-                            {(
-                              (approval.metadata || {}) as Record<
+                            {(() => {
+                              const meta = (approval.metadata || {}) as Record<
                                 string,
                                 unknown
-                              >
-                            ).name?.toString() || "K/X"}
+                              >;
+                              const extractName = (
+                                data: unknown,
+                              ): string | null => {
+                                if (!data || typeof data !== "object")
+                                  return null;
+                                const d = data as Record<string, unknown>;
+                                return (
+                                  (d.name as string) ||
+                                  (d.fullName as string) ||
+                                  (d.tableNumber
+                                    ? `Bàn ${d.tableNumber}`
+                                    : null) ||
+                                  (d.invoiceNumber as string) ||
+                                  null
+                                );
+                              };
+
+                              // 1. Try top-level
+                              let name = extractName(meta);
+                              if (name) return name;
+
+                              // 2. Try nested
+                              if (meta.newData) {
+                                name = extractName(meta.newData);
+                                if (name) return name;
+                              }
+                              if (meta.oldData) {
+                                if (Array.isArray(meta.oldData)) {
+                                  if (meta.oldData.length > 0) {
+                                    const first = extractName(meta.oldData[0]);
+                                    return first
+                                      ? `${first} (+${meta.oldData.length - 1})`
+                                      : `${meta.oldData.length} mục`;
+                                  }
+                                  return "0 mục";
+                                }
+                                name = extractName(meta.oldData);
+                                if (name) return name;
+                              }
+
+                              // 3. Fallback to ID from reason if possible
+                              const idMatch =
+                                approval.reason?.match(/ID: (\d+)/);
+                              if (idMatch) return `ID: ${idMatch[1]}`;
+
+                              return "K/X";
+                            })()}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
                             <Badge
@@ -532,7 +584,22 @@ export default function ApprovalPage() {
                               </button>
                               {approval.status === ApprovalStatus.PENDING && (
                                 <PermissionGuard
-                                  permissions={[Permission.APPROVAL_MANAGE]}
+                                  permissions={[
+                                    Permission.APPROVAL_MANAGE,
+                                    ...(approval.targetModule === "Sản phẩm"
+                                      ? [Permission.PRODUCT_APPROVE]
+                                      : approval.targetModule === "Nhân viên"
+                                        ? [Permission.EMPLOYEE_APPROVE]
+                                        : approval.targetModule === "Bàn"
+                                          ? [Permission.TABLE_APPROVE]
+                                          : approval.targetModule === "Khu vực"
+                                            ? [Permission.AREA_APPROVE]
+                                            : approval.targetModule ===
+                                                "Danh mục"
+                                              ? [Permission.CATEGORY_APPROVE]
+                                              : []),
+                                  ]}
+                                  requireAll={false}
                                 >
                                   <button
                                     className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
@@ -680,22 +747,40 @@ export default function ApprovalPage() {
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             {selectedApproval?.status === ApprovalStatus.PENDING ? (
-              <>
-                <Button
-                  variant="destructive"
-                  onClick={() => void handleReview(ApprovalStatus.REJECTED)}
-                  className="flex items-center gap-1"
-                >
-                  <XCircle className="h-4 w-4" /> Từ chối
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={() => void handleReview(ApprovalStatus.APPROVED)}
-                  className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
-                >
-                  <CheckCircle className="h-4 w-4" /> Phê duyệt
-                </Button>
-              </>
+              <PermissionGuard
+                permissions={[
+                  Permission.APPROVAL_MANAGE,
+                  ...(selectedApproval.targetModule === "Sản phẩm"
+                    ? [Permission.PRODUCT_APPROVE]
+                    : selectedApproval.targetModule === "Nhân viên"
+                      ? [Permission.EMPLOYEE_APPROVE]
+                      : selectedApproval.targetModule === "Bàn"
+                        ? [Permission.TABLE_APPROVE]
+                        : selectedApproval.targetModule === "Khu vực"
+                          ? [Permission.AREA_APPROVE]
+                          : selectedApproval.targetModule === "Danh mục"
+                            ? [Permission.CATEGORY_APPROVE]
+                            : []),
+                ]}
+                requireAll={false}
+              >
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="destructive"
+                    onClick={() => void handleReview(ApprovalStatus.REJECTED)}
+                    className="flex items-center gap-1 flex-1 sm:flex-initial"
+                  >
+                    <XCircle className="h-4 w-4" /> Từ chối
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => void handleReview(ApprovalStatus.APPROVED)}
+                    className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 flex-1 sm:flex-initial"
+                  >
+                    <CheckCircle className="h-4 w-4" /> Phê duyệt
+                  </Button>
+                </div>
+              </PermissionGuard>
             ) : (
               <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
                 Thoát

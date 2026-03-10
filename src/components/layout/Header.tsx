@@ -128,9 +128,9 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="justify-center text-primary cursor-pointer font-medium"
-                disabled
+                asChild
               >
-                Xem tất cả thông báo
+                <Link href="/thong-bao">Xem tất cả thông báo</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

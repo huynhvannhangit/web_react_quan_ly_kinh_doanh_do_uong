@@ -8,7 +8,7 @@ import { PermissionGuard } from "@/components/shared/PermissionGuard";
 export default function DailyReportPage() {
   return (
     <PermissionGuard
-      permissions={[Permission.STATISTICS_VIEW]}
+      permissions={[Permission.STATISTICS_SEARCH]}
       redirect="/dashboard"
     >
       <StatisticsView

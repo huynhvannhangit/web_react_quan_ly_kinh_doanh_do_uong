@@ -36,12 +36,24 @@ import {
   Printer,
   Search,
   RotateCcw,
+  XCircle,
 } from "lucide-react";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { useRef } from "react";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import { Pagination } from "@/components/shared/Pagination";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function InvoicePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -58,6 +70,9 @@ export default function InvoicePage() {
   const [invoiceToPrint, setInvoiceToPrint] = useState<Invoice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [invoiceToCancel, setInvoiceToCancel] = useState<Invoice | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const pageSize = 10;
 
   const VN_DENOMINATIONS = [
@@ -138,6 +153,28 @@ export default function InvoicePage() {
     }, 100);
   };
 
+  const handleOpenCancel = (invoice: Invoice) => {
+    setInvoiceToCancel(invoice);
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleCancelInvoice = async () => {
+    if (!invoiceToCancel) return;
+
+    setIsCancelling(true);
+    try {
+      await invoiceService.cancel(invoiceToCancel.id);
+      toast.success("Hủy hóa đơn thành công");
+      setIsCancelDialogOpen(false);
+      loadInvoices();
+    } catch (error) {
+      console.error("Cancel invoice failed:", error);
+      toast.error("Hủy hóa đơn thất bại");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const getStatusBadge = (status: InvoiceStatus) => {
     switch (status) {
       case InvoiceStatus.PENDING:
@@ -159,7 +196,14 @@ export default function InvoicePage() {
           </Badge>
         );
       case InvoiceStatus.CANCELLED:
-        return <Badge variant="secondary">Đã hủy</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="bg-rose-50 text-rose-700 border-rose-200"
+          >
+            Đã hủy
+          </Badge>
+        );
       default:
         return <Badge>{status}</Badge>;
     }
@@ -209,7 +253,7 @@ export default function InvoicePage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.INVOICE_VIEW]}
+      permissions={[Permission.INVOICE_SEARCH]}
       redirect="/dashboard"
     >
       <Card>
@@ -367,31 +411,57 @@ export default function InvoicePage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right whitespace-nowrap">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewDetail(invoice)}
+                            <PermissionGuard
+                              permissions={[Permission.INVOICE_VIEW]}
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {invoice.status === InvoiceStatus.PENDING && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-emerald-600"
-                                onClick={() => handleOpenPayment(invoice)}
+                                onClick={() => handleViewDetail(invoice)}
                               >
-                                <CheckCircle2 className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
+                            </PermissionGuard>
+                            {invoice.status === InvoiceStatus.PENDING && (
+                              <PermissionGuard
+                                permissions={[Permission.INVOICE_PAY]}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-emerald-600"
+                                  onClick={() => handleOpenPayment(invoice)}
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </Button>
+                              </PermissionGuard>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-primary"
-                              onClick={() => handlePrint(invoice)}
+                            <PermissionGuard
+                              permissions={[Permission.INVOICE_CREATE]}
                             >
-                              <Printer className="h-4 w-4" />
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-primary"
+                                onClick={() => handlePrint(invoice)}
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </PermissionGuard>
+                            {invoice.status !== InvoiceStatus.CANCELLED && (
+                              <PermissionGuard
+                                permissions={[Permission.INVOICE_CANCEL]}
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleOpenCancel(invoice)}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </PermissionGuard>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
@@ -676,6 +746,38 @@ export default function InvoicePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setIsCancelDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận hủy hóa đơn?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này sẽ chuyển trạng thái hóa đơn thành &quot;Đã
+              hủy&quot; và không thể phục hồi. Bàn liên quan (nếu có) sẽ được
+              chuyển về trạng thái &quot;Trống&quot;.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelling}>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelInvoice}
+              disabled={isCancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCancelling ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
+              Xác nhận hủy
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PermissionGuard>
   );
 }

@@ -51,8 +51,16 @@ import {
 } from "@/lib/validators";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 
 export default function TablePage() {
+  const { user } = useAuth();
+  const roleName =
+    typeof user?.role === "string"
+      ? user.role
+      : (user?.role as { name?: string } | null)?.name;
+  const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
   const [tables, setTables] = useState<TableType[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,6 +94,15 @@ export default function TablePage() {
     description: "",
     onConfirm: () => {},
   });
+
+  // Approval Dialog States
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "create" | "update" | "delete" | "bulkDelete";
+    data?: Record<string, unknown>;
+    id?: number;
+    tableNumber?: string;
+  } | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(tables.length / pageSize));
   const paginatedTables = tables.slice(
@@ -152,18 +169,28 @@ export default function TablePage() {
       description: `Bạn có chắc muốn xóa bàn "${tableNumber}"?`,
       isDanger: true,
       onConfirm: async () => {
-        try {
-          await tableService.delete(id);
-          toast.success("Xóa bàn thành công");
-          loadData();
-        } catch (error) {
-          console.error("Failed to delete table:", error);
-          toast.error("Xóa bàn thất bại!");
-        } finally {
+        if (!isAdmin) {
+          setPendingAction({ type: "delete", id, tableNumber });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeDelete(id);
       },
     });
+  };
+
+  const executeDelete = async (id: number, reason?: string) => {
+    try {
+      await tableService.delete(id, reason);
+      toast.success(isAdmin ? "Xóa bàn thành công" : "Đã gửi yêu cầu xóa");
+      loadData();
+    } catch (error) {
+      console.error("Failed to delete table:", error);
+      toast.error("Xóa bàn thất bại!");
+    } finally {
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -189,21 +216,33 @@ export default function TablePage() {
       description: `Bạn có chắc muốn xóa ${selectedIds.length} bàn đã chọn?`,
       isDanger: true,
       onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await tableService.deleteMany(selectedIds);
-          setSelectedIds([]);
-          toast.success("Xóa hàng loạt thành công");
-          loadData();
-        } catch (error) {
-          console.error("Failed to bulk delete tables:", error);
-          toast.error("Xóa hàng loạt thất bại!");
-        } finally {
-          setIsDeletingBulk(false);
+        if (!isAdmin) {
+          setPendingAction({ type: "bulkDelete" });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeBulkDelete();
       },
     });
+  };
+
+  const executeBulkDelete = async (reason?: string) => {
+    setIsDeletingBulk(true);
+    try {
+      await tableService.deleteMany(selectedIds, reason);
+      setSelectedIds([]);
+      toast.success(
+        isAdmin ? "Xóa hàng loạt thành công" : "Đã gửi yêu cầu xóa hàng loạt",
+      );
+      loadData();
+    } catch (error) {
+      console.error("Failed to bulk delete tables:", error);
+      toast.error("Xóa hàng loạt thất bại!");
+    } finally {
+      setIsDeletingBulk(false);
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const handleCreateTable = async () => {
@@ -220,6 +259,17 @@ export default function TablePage() {
       setFormErrors(errors);
       return;
     }
+
+    if (!isAdmin && isEditMode) {
+      setPendingAction({ type: "update" });
+      setIsApprovalDialogOpen(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
+  const executeSave = async (reason?: string) => {
     setFormErrors({});
     setApiError(null);
     setIsSaving(true);
@@ -231,13 +281,20 @@ export default function TablePage() {
         status: newTable.status,
       };
       if (isEditMode && editingTable) {
-        await tableService.update(editingTable.id, payload);
+        await tableService.update(editingTable.id, payload, reason);
       } else {
         await tableService.create(payload);
       }
       resetForm();
       setIsDialogOpen(false);
       loadData();
+      toast.success(
+        isEditMode
+          ? isAdmin
+            ? "Cập nhật thành công"
+            : "Đã gửi yêu cầu cập nhật"
+          : "Thêm thành công",
+      );
     } catch (error) {
       console.error("Failed to save table:", error);
       const msg =
@@ -253,9 +310,24 @@ export default function TablePage() {
     }
   };
 
+  const handleConfirmApproval = async (reason: string) => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === "update") {
+      await executeSave(reason);
+    } else if (pendingAction.type === "delete" && pendingAction.id) {
+      await executeDelete(pendingAction.id, reason);
+    } else if (pendingAction.type === "bulkDelete") {
+      await executeBulkDelete(reason);
+    }
+
+    setIsApprovalDialogOpen(false);
+    setPendingAction(null);
+  };
+
   return (
     <PermissionGuard
-      permissions={[Permission.TABLE_VIEW]}
+      permissions={[Permission.TABLE_SEARCH]}
       redirect="/dashboard"
     >
       <Card>
@@ -620,6 +692,21 @@ export default function TablePage() {
             description={confirmState.description}
             isDanger={confirmState.isDanger}
             isLoading={isDeletingBulk}
+          />
+          <ApprovalReasonDialog
+            open={isApprovalDialogOpen}
+            onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setPendingAction(null);
+            }}
+            onConfirm={handleConfirmApproval}
+            actionTitle={
+              pendingAction?.type === "update"
+                ? "Cập nhật bàn"
+                : pendingAction?.type === "delete"
+                  ? "Xóa bàn"
+                  : "Xóa hàng loạt bàn"
+            }
           />
         </CardContent>
       </Card>

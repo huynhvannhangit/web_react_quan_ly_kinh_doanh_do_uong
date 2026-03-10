@@ -37,8 +37,16 @@ import {
 } from "@/lib/validators";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 
 export default function AreaPage() {
+  const { user } = useAuth();
+  const roleName =
+    typeof user?.role === "string"
+      ? user.role
+      : (user?.role as { name?: string } | null)?.name;
+  const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
   const [areas, setAreas] = useState<Area[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -66,6 +74,15 @@ export default function AreaPage() {
     description: "",
     onConfirm: () => {},
   });
+
+  // Approval Dialog States
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "create" | "update" | "delete" | "bulkDelete";
+    data?: Record<string, unknown>;
+    id?: number;
+    name?: string;
+  } | null>(null);
 
   useEffect(() => {
     void loadAreas();
@@ -121,18 +138,28 @@ export default function AreaPage() {
       description: `Bạn có chắc muốn xóa khu vực "${name}"?`,
       isDanger: true,
       onConfirm: async () => {
-        try {
-          await areaService.delete(id);
-          toast.success("Xóa khu vực thành công");
-          loadAreas();
-        } catch (error) {
-          console.error("Failed to delete area:", error);
-          toast.error("Xóa khu vực thất bại!");
-        } finally {
+        if (!isAdmin) {
+          setPendingAction({ type: "delete", id, name });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeDelete(id);
       },
     });
+  };
+
+  const executeDelete = async (id: number, reason?: string) => {
+    try {
+      await areaService.delete(id, reason);
+      toast.success(isAdmin ? "Xóa khu vực thành công" : "Đã gửi yêu cầu xóa");
+      loadAreas();
+    } catch (error) {
+      console.error("Failed to delete area:", error);
+      toast.error("Xóa khu vực thất bại!");
+    } finally {
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -158,21 +185,33 @@ export default function AreaPage() {
       description: `Bạn có chắc muốn xóa ${selectedIds.length} khu vực đã chọn?`,
       isDanger: true,
       onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await areaService.deleteMany(selectedIds);
-          setSelectedIds([]);
-          toast.success("Xóa hàng loạt thành công");
-          loadAreas();
-        } catch (error) {
-          console.error("Failed to bulk delete areas:", error);
-          toast.error("Xóa hàng loạt thất bại!");
-        } finally {
-          setIsDeletingBulk(false);
+        if (!isAdmin) {
+          setPendingAction({ type: "bulkDelete" });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeBulkDelete();
       },
     });
+  };
+
+  const executeBulkDelete = async (reason?: string) => {
+    setIsDeletingBulk(true);
+    try {
+      await areaService.deleteMany(selectedIds, reason);
+      setSelectedIds([]);
+      toast.success(
+        isAdmin ? "Xóa hàng loạt thành công" : "Đã gửi yêu cầu xóa hàng loạt",
+      );
+      loadAreas();
+    } catch (error) {
+      console.error("Failed to bulk delete areas:", error);
+      toast.error("Xóa hàng loạt thất bại!");
+    } finally {
+      setIsDeletingBulk(false);
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const handleCreateArea = async () => {
@@ -187,6 +226,17 @@ export default function AreaPage() {
       setFormErrors(errors);
       return;
     }
+
+    if (!isAdmin && isEditMode) {
+      setPendingAction({ type: "update" });
+      setIsApprovalDialogOpen(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
+  const executeSave = async (reason?: string) => {
     setFormErrors({});
     setApiError(null);
     setIsSaving(true);
@@ -196,13 +246,20 @@ export default function AreaPage() {
         description: newArea.description.trim(),
       };
       if (isEditMode && editingArea) {
-        await areaService.update(editingArea.id, payload);
+        await areaService.update(editingArea.id, payload, reason);
       } else {
         await areaService.create(payload);
       }
       resetForm();
       setIsDialogOpen(false);
       loadAreas();
+      toast.success(
+        isEditMode
+          ? isAdmin
+            ? "Cập nhật thành công"
+            : "Đã gửi yêu cầu cập nhật"
+          : "Thêm thành công",
+      );
     } catch (error) {
       console.error("Failed to save area:", error);
       const msg =
@@ -218,8 +275,26 @@ export default function AreaPage() {
     }
   };
 
+  const handleConfirmApproval = async (reason: string) => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === "update") {
+      await executeSave(reason);
+    } else if (pendingAction.type === "delete" && pendingAction.id) {
+      await executeDelete(pendingAction.id, reason);
+    } else if (pendingAction.type === "bulkDelete") {
+      await executeBulkDelete(reason);
+    }
+
+    setIsApprovalDialogOpen(false);
+    setPendingAction(null);
+  };
+
   return (
-    <PermissionGuard permissions={[Permission.AREA_VIEW]} redirect="/dashboard">
+    <PermissionGuard
+      permissions={[Permission.AREA_SEARCH]}
+      redirect="/dashboard"
+    >
       <Card>
         <CardContent className="p-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -511,6 +586,21 @@ export default function AreaPage() {
             description={confirmState.description}
             isDanger={confirmState.isDanger}
             isLoading={isDeletingBulk}
+          />
+          <ApprovalReasonDialog
+            open={isApprovalDialogOpen}
+            onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setPendingAction(null);
+            }}
+            onConfirm={handleConfirmApproval}
+            actionTitle={
+              pendingAction?.type === "update"
+                ? "Cập nhật khu vực"
+                : pendingAction?.type === "delete"
+                  ? "Xóa khu vực"
+                  : "Xóa hàng loạt khu vực"
+            }
           />
         </CardContent>
       </Card>

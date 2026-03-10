@@ -49,12 +49,18 @@ export const tableService = {
   update: async (
     id: number,
     data: Partial<Omit<Table, "id" | "createdAt" | "updatedAt" | "area">>,
+    reason?: string,
   ) => {
-    const response = await api.patch<{ data: Table }>(`/table/${id}`, data);
+    const response = await api.patch<{ data: Table }>(`/table/${id}`, {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
-  delete: async (id: number) => {
-    const response = await api.delete<{ data: Table }>(`/table/${id}`);
+  delete: async (id: number, reason?: string) => {
+    const response = await api.delete<{ data: Table }>(`/table/${id}`, {
+      data: { reason },
+    });
     return response.data.data;
   },
   deleteMany: async (ids: number[], reason?: string) => {

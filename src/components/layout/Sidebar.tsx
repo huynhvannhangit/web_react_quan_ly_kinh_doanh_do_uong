@@ -43,53 +43,61 @@ const menuItems: MenuItem[] = [
     title: "Dashboard",
     href: "/dashboard",
     icon: Home,
+    permissions: [Permission.DASHBOARD_VIEW],
   },
   {
     title: "Quản lý tài khoản",
     icon: Users,
-    permissions: [Permission.EMPLOYEE_VIEW, Permission.USER_MANAGE],
+    permissions: [Permission.EMPLOYEE_SEARCH, Permission.USER_SEARCH],
     children: [
       {
         title: "Danh sách nhân viên",
         href: "/nhan-vien",
-        permissions: [Permission.EMPLOYEE_VIEW],
+        permissions: [Permission.EMPLOYEE_SEARCH],
       },
       {
         title: "Danh sách tài khoản",
         href: "/tai-khoan",
-        permissions: [Permission.USER_MANAGE],
+        permissions: [Permission.USER_SEARCH],
       },
       {
         title: "Vai trò & Quyền",
         href: "/phan-quyen/vai-tro",
-        permissions: [Permission.USER_MANAGE],
+        permissions: [Permission.ROLE_SEARCH],
       },
       {
         title: "Phân quyền người dùng",
         href: "/phan-quyen/nguoi-dung",
-        permissions: [Permission.USER_MANAGE],
+        permissions: [Permission.USER_SEARCH],
       },
     ],
   },
   {
     title: "Quản lý cửa hàng",
     icon: Coffee,
+    permissions: [
+      Permission.AREA_SEARCH,
+      Permission.TABLE_SEARCH,
+      Permission.PRODUCT_SEARCH,
+      Permission.APPROVAL_VIEW,
+      Permission.CATEGORY_SEARCH,
+    ],
     children: [
       {
         title: "Khu vực",
         href: "/khu-vuc",
-        permissions: [Permission.AREA_VIEW],
+        permissions: [Permission.AREA_SEARCH],
       },
-      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_VIEW] },
+      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_SEARCH] },
       {
         title: "Danh mục",
         href: "/danh-muc",
-        permissions: [Permission.PRODUCT_VIEW],
+        permissions: [Permission.CATEGORY_SEARCH],
       },
       {
         title: "Sản phẩm",
         href: "/san-pham",
-        permissions: [Permission.PRODUCT_VIEW],
+        permissions: [Permission.PRODUCT_SEARCH],
       },
       {
         title: "Phê duyệt yêu cầu",
@@ -101,6 +109,7 @@ const menuItems: MenuItem[] = [
   {
     title: "Bán hàng",
     icon: CreditCard,
+    permissions: [Permission.ORDER_CREATE, Permission.INVOICE_SEARCH],
     children: [
       {
         title: "Gọi món",
@@ -110,18 +119,30 @@ const menuItems: MenuItem[] = [
       {
         title: "Danh sách hoá đơn",
         href: "/hoa-don",
-        permissions: [Permission.INVOICE_VIEW],
+        permissions: [Permission.INVOICE_SEARCH],
       },
     ],
   },
   {
     title: "Báo cáo & Thống kê",
     icon: BarChart3,
-    permissions: [Permission.STATISTICS_VIEW],
+    permissions: [Permission.STATISTICS_SEARCH],
     children: [
-      { title: "Doanh thu theo ngày", href: "/bao-cao/ngay" },
-      { title: "Thống kê theo tuần", href: "/bao-cao/tuan" },
-      { title: "Thống kê theo tháng", href: "/bao-cao/thang" },
+      {
+        title: "Doanh thu theo ngày",
+        href: "/bao-cao/ngay",
+        permissions: [Permission.STATISTICS_SEARCH],
+      },
+      {
+        title: "Thống kê theo tuần",
+        href: "/bao-cao/tuan",
+        permissions: [Permission.STATISTICS_SEARCH],
+      },
+      {
+        title: "Thống kê theo tháng",
+        href: "/bao-cao/thang",
+        permissions: [Permission.STATISTICS_SEARCH],
+      },
     ],
   },
   {

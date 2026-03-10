@@ -59,16 +59,22 @@ export const employeeService = {
     return response.data.data;
   },
 
-  update: async (id: number, data: Partial<Omit<Employee, "user">>) => {
-    const response = await api.patch<{ data: Employee }>(
-      `/employee/${id}`,
-      data,
-    );
+  update: async (
+    id: number,
+    data: Partial<Omit<Employee, "user">>,
+    reason?: string,
+  ) => {
+    const response = await api.patch<{ data: Employee }>(`/employee/${id}`, {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
 
-  delete: async (id: number) => {
-    await api.delete(`/employee/${id}`);
+  delete: async (id: number, reason?: string) => {
+    await api.delete(`/employee/${id}`, {
+      data: { reason },
+    });
   },
 
   deleteMany: async (ids: number[], reason?: string) => {

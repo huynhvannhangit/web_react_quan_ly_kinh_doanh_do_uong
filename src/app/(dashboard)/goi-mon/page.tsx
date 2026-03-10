@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -405,6 +406,72 @@ export default function OrderingPage() {
   const handlePrint = () => {
     if (lastInvoice) {
       window.print();
+    }
+  };
+
+  const handlePrintProvisional = async () => {
+    if (!selectedTable || (orderItems.length === 0 && !activeOrder)) return;
+
+    setIsSubmitting(true);
+    try {
+      let order: Order;
+      const newItems = orderItems.filter((item) => !item.isExisting);
+
+      if (activeOrder && newItems.length > 0) {
+        order = await orderService.addItems(
+          activeOrder.id,
+          newItems.map((item) => ({
+            productId: Number(item.product.id),
+            quantity: Number(item.quantity),
+            price: Number(item.product.price),
+          })),
+          orderNote,
+        );
+      } else if (!activeOrder) {
+        const orderData: CreateOrderDto = {
+          tableId: Number(selectedTable.id),
+          notes: orderNote,
+          items: orderItems.map((item) => ({
+            productId: Number(item.product.id),
+            quantity: Number(item.quantity),
+            price: Number(item.product.price),
+          })),
+          status: OrderStatus.PENDING,
+        };
+        order = await orderService.create(orderData);
+      } else {
+        order = activeOrder;
+      }
+
+      // Refresh order state
+      setActiveOrder(order);
+      setOrderItems(
+        order.items.map((item) => ({
+          product: item.product!,
+          quantity: item.quantity,
+          isExisting: true,
+        })),
+      );
+
+      // Create/Get provisional invoice
+      const invoice = await invoiceService.createFromOrder({
+        orderId: order.id,
+        discountPercent: 0,
+      });
+
+      setLastInvoice(invoice);
+      toast.success("Đã tạo phiếu tạm tính");
+
+      // Give a tick for the printable invoice to render the new data
+      setTimeout(() => {
+        window.print();
+        loadData();
+      }, 100);
+    } catch (error) {
+      console.error("Failed to print provisional invoice:", error);
+      toast.error("Không thể tạo phiếu tạm tính");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -771,17 +838,33 @@ export default function OrderingPage() {
                   >
                     Gọi món
                   </Button>
-                  <Button
-                    className="w-full"
-                    disabled={orderItems.length === 0 || isSubmitting}
-                    onClick={() => {
-                      setDiscountPercent(0);
-                      handleSubmitOrder(true);
-                    }}
-                  >
-                    Thanh toán
-                  </Button>
+                  <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
+                    <Button
+                      className="w-full"
+                      disabled={orderItems.length === 0 || isSubmitting}
+                      onClick={() => {
+                        setDiscountPercent(0);
+                        handleSubmitOrder(true);
+                      }}
+                    >
+                      Thanh toán
+                    </Button>
+                  </PermissionGuard>
                 </div>
+
+                <PermissionGuard permissions={[Permission.INVOICE_CREATE]}>
+                  <Button
+                    variant="secondary"
+                    className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                    disabled={
+                      (orderItems.length === 0 && !activeOrder) || isSubmitting
+                    }
+                    onClick={handlePrintProvisional}
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    In phiếu tạm tính
+                  </Button>
+                </PermissionGuard>
                 {activeOrder && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -1081,22 +1164,24 @@ export default function OrderingPage() {
                   >
                     Hủy
                   </Button>
-                  <Button
-                    className="flex-2 hover:bg-primary/90"
-                    disabled={
-                      isSubmitting ||
-                      (paymentMethod === PaymentMethod.CASH &&
-                        cashAmount < totalPrice)
-                    }
-                    onClick={handleProcessPayment}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    Xác nhận thanh toán
-                  </Button>
+                  <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
+                    <Button
+                      className="flex-2 hover:bg-primary/90"
+                      disabled={
+                        isSubmitting ||
+                        (paymentMethod === PaymentMethod.CASH &&
+                          cashAmount < totalPrice)
+                      }
+                      onClick={handleProcessPayment}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="mr-2 h-4 w-4" />
+                      )}
+                      Xác nhận thanh toán
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </div>
             </div>

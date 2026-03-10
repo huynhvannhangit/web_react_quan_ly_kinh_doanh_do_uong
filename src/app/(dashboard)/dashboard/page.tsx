@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { Permission } from "@/types";
+import { useAuth } from "@/components/providers/auth-provider";
 import {
   statisticsService,
   OverviewStats,
@@ -45,12 +48,16 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-    loadData();
-  }, []);
+  const { user } = useAuth();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    // Nếu không có quyền xem dashboard thì không gọi API để tránh lỗi 403
+    // Logic chuyển hướng sẽ được AuthProvider xử lý
+    if (!user?.permissions?.includes(Permission.DASHBOARD_VIEW)) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const data = await statisticsService.getDashboardData();
       setOverview(data.overview);
@@ -61,7 +68,12 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    setIsMounted(true);
+    loadData();
+  }, [loadData]);
 
   if (isLoading) {
     return (
@@ -72,209 +84,213 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
-          Tổng quan kinh doanh
-        </h1>
-      </div>
+    <PermissionGuard permissions={[Permission.DASHBOARD_VIEW]}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+            Tổng quan kinh doanh
+          </h1>
+        </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-              Tổng doanh thu
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Intl.NumberFormat("vi-VN").format(
-                overview?.totalRevenue ?? 0,
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+                Tổng doanh thu
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {new Intl.NumberFormat("vi-VN").format(
+                  overview?.totalRevenue ?? 0,
+                )}
+                đ
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+                Tổng đơn hàng
+              </CardTitle>
+              <ShoppingBag className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {overview?.totalOrders ?? 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-amber-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+                Đã thanh toán
+              </CardTitle>
+              <CheckCircle className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {overview?.paidOrders ?? 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-purple-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
+                Chờ phê duyệt
+              </CardTitle>
+              <Clock className="h-4 w-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {overview?.pendingApprovals ?? 0}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-7">
+          {/* Revenue Chart */}
+          <Card className="col-span-4 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Doanh thu 7 ngày qua
+              </CardTitle>
+              <CardDescription>
+                Thống kê doanh thu thực tế từ các đơn hàng đã thanh toán
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80 pt-4">
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <LineChart
+                    data={
+                      Array.isArray(revenueData)
+                        ? [...revenueData].reverse()
+                        : []
+                    }
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="currentColor"
+                      className="stroke-border"
+                    />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => dayjs(value).format("DD/MM")}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `${value / 1000}k`}
+                    />
+                    <Tooltip
+                      formatter={(value: number | string | undefined) => [
+                        new Intl.NumberFormat("vi-VN").format(
+                          Number(value || 0),
+                        ) + "đ",
+                        "Doanh thu",
+                      ]}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid hsl(var(--border))",
+                        backgroundColor: "hsl(var(--background))",
+                        color: "hsl(var(--foreground))",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: "white", strokeWidth: 2 }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               )}
-              đ
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-              Tổng đơn hàng
-            </CardTitle>
-            <ShoppingBag className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {overview?.totalOrders ?? 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-amber-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-              Đã thanh toán
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {overview?.paidOrders ?? 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-              Chờ phê duyệt
-            </CardTitle>
-            <Clock className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {overview?.pendingApprovals ?? 0}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Top Products */}
+          <Card className="col-span-3 shadow-sm">
+            <CardHeader>
+              <CardTitle>Sản phẩm bán chạy</CardTitle>
+              <CardDescription>
+                Top 5 sản phẩm đạt doanh thu cao nhất
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80 pt-4">
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart
+                    data={Array.isArray(topProducts) ? topProducts : []}
+                    layout="vertical"
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      stroke="currentColor"
+                      className="stroke-border"
+                    />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={100}
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "transparent" }}
+                      formatter={(value: number | string | undefined) => [
+                        new Intl.NumberFormat("vi-VN").format(
+                          Number(value || 0),
+                        ) + "đ",
+                        "Doanh thu",
+                      ]}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid hsl(var(--border))",
+                        backgroundColor: "hsl(var(--background))",
+                        color: "hsl(var(--foreground))",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
+                    <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={20}>
+                      {(Array.isArray(topProducts) ? topProducts : []).map(
+                        (_, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ),
+                      )}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-7">
-        {/* Revenue Chart */}
-        <Card className="col-span-4 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Doanh thu 7 ngày qua
-            </CardTitle>
-            <CardDescription>
-              Thống kê doanh thu thực tế từ các đơn hàng đã thanh toán
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-80 pt-4">
-            {isMounted && (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <LineChart
-                  data={
-                    Array.isArray(revenueData) ? [...revenueData].reverse() : []
-                  }
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="currentColor"
-                    className="stroke-border"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(value) => dayjs(value).format("DD/MM")}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(value) => `${value / 1000}k`}
-                  />
-                  <Tooltip
-                    formatter={(value: number | string | undefined) => [
-                      new Intl.NumberFormat("vi-VN").format(
-                        Number(value || 0),
-                      ) + "đ",
-                      "Doanh thu",
-                    ]}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "1px solid hsl(var(--border))",
-                      backgroundColor: "hsl(var(--background))",
-                      color: "hsl(var(--foreground))",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}
-                    itemStyle={{ color: "hsl(var(--foreground))" }}
-                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "white", strokeWidth: 2 }}
-                    activeDot={{ r: 6, strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Top Products */}
-        <Card className="col-span-3 shadow-sm">
-          <CardHeader>
-            <CardTitle>Sản phẩm bán chạy</CardTitle>
-            <CardDescription>
-              Top 5 sản phẩm đạt doanh thu cao nhất
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-80 pt-4">
-            {isMounted && (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart
-                  data={Array.isArray(topProducts) ? topProducts : []}
-                  layout="vertical"
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    horizontal={false}
-                    stroke="currentColor"
-                    className="stroke-border"
-                  />
-                  <XAxis type="number" hide />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={100}
-                    tick={{ fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "transparent" }}
-                    formatter={(value: number | string | undefined) => [
-                      new Intl.NumberFormat("vi-VN").format(
-                        Number(value || 0),
-                      ) + "đ",
-                      "Doanh thu",
-                    ]}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "1px solid hsl(var(--border))",
-                      backgroundColor: "hsl(var(--background))",
-                      color: "hsl(var(--foreground))",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}
-                    itemStyle={{ color: "hsl(var(--foreground))" }}
-                    labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-                  />
-                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]} barSize={20}>
-                    {(Array.isArray(topProducts) ? topProducts : []).map(
-                      (_, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ),
-                    )}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    </PermissionGuard>
   );
 }

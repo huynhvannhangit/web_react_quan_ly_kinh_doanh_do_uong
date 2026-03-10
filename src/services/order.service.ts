@@ -51,8 +51,11 @@ export interface AppendedOrderItem {
 
 export const orderService = {
   getAll: async () => {
-    const response = await api.get<{ data: Order[] }>("/order");
-    return response.data.data;
+    const response = await api.get<{ data: Order[] | { items: Order[] } }>(
+      "/order",
+    );
+    const data = response.data.data;
+    return Array.isArray(data) ? data : data.items;
   },
 
   getById: async (id: number) => {

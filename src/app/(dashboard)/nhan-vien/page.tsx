@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -74,6 +76,12 @@ const months = Array.from({ length: 12 }, (_, i) => i + 1);
 const NO_USER_VALUE = "__none__";
 
 export default function StaffPage() {
+  const { user } = useAuth();
+  const roleName =
+    typeof user?.role === "string"
+      ? user.role
+      : (user?.role as { name?: string } | null)?.name;
+  const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -113,6 +121,15 @@ export default function StaffPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+
+  // Approval Dialog States
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "create" | "update" | "delete" | "bulkDelete";
+    data?: Record<string, unknown>;
+    id?: number;
+    name?: string;
+  } | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -221,18 +238,30 @@ export default function StaffPage() {
       description: `Bạn có chắc muốn xóa nhân viên "${name}"?`,
       isDanger: true,
       onConfirm: async () => {
-        try {
-          await employeeService.delete(id);
-          toast.success("Xóa nhân viên thành công");
-          loadEmployees();
-        } catch (error) {
-          console.error("Failed to delete employee:", error);
-          toast.error("Xóa nhân viên thất bại!");
-        } finally {
+        if (!isAdmin) {
+          setPendingAction({ type: "delete", id, name });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeDelete(id);
       },
     });
+  };
+
+  const executeDelete = async (id: number, reason?: string) => {
+    try {
+      await employeeService.delete(id, reason);
+      toast.success(
+        isAdmin ? "Xóa nhân viên thành công" : "Đã gửi yêu cầu xóa",
+      );
+      loadEmployees();
+    } catch (error) {
+      console.error("Failed to delete employee:", error);
+      toast.error("Xóa nhân viên thất bại!");
+    } finally {
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -258,24 +287,39 @@ export default function StaffPage() {
       description: `Bạn có chắc muốn xóa ${selectedIds.length} nhân viên đã chọn?`,
       isDanger: true,
       onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await employeeService.deleteMany(selectedIds);
-          setSelectedIds([]);
-          toast.success("Xóa hàng loạt thành công");
-          loadEmployees();
-        } catch (error) {
-          console.error("Failed to bulk delete employees:", error);
-          toast.error("Xóa hàng loạt thất bại!");
-        } finally {
-          setIsDeletingBulk(false);
+        if (!isAdmin) {
+          setPendingAction({ type: "bulkDelete" });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeBulkDelete();
       },
     });
   };
 
+  const executeBulkDelete = async (reason?: string) => {
+    setIsDeletingBulk(true);
+    try {
+      await employeeService.deleteMany(selectedIds, reason);
+      setSelectedIds([]);
+      toast.success(
+        isAdmin ? "Xóa hàng loạt thành công" : "Đã gửi yêu cầu xóa hàng loạt",
+      );
+      loadEmployees();
+    } catch (error) {
+      console.error("Failed to bulk delete employees:", error);
+      toast.error("Xóa hàng loạt thất bại!");
+    } finally {
+      setIsDeletingBulk(false);
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+    }
+  };
+
   const handleToggleEmployeeStatus = async (emp: Employee) => {
+    // This method doesn't seem to have approval logic in backend yet,
+    // but I'll leave it as is or add it if needed.
+    // For now, focusing on standard update/delete.
     const isCurrentlyWorking = emp.status === EmployeeStatus.WORKING;
     const newStatus = isCurrentlyWorking
       ? EmployeeStatus.RESIGNED
@@ -333,12 +377,24 @@ export default function StaffPage() {
       setFormErrors(errors);
       return;
     }
+
+    if (!isAdmin && isEditMode) {
+      setPendingAction({ type: "update" });
+      setIsApprovalDialogOpen(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
+  const executeSave = async (reason?: string) => {
     setFormErrors({});
     setApiError(null);
     setIsSaving(true);
     try {
       const payload: Partial<Parameters<typeof employeeService.create>[0]> & {
         status?: string;
+        reason?: string;
       } = {
         fullName: newEmployee.fullName.trim(),
         position: newEmployee.position?.trim() || undefined,
@@ -359,6 +415,7 @@ export default function StaffPage() {
         await employeeService.update(
           editingEmployee.id,
           payload as Parameters<typeof employeeService.update>[1],
+          reason,
         );
       } else {
         await employeeService.create(
@@ -368,6 +425,13 @@ export default function StaffPage() {
       resetForm();
       setIsDialogOpen(false);
       loadEmployees();
+      toast.success(
+        isEditMode
+          ? isAdmin
+            ? "Cập nhật thành công"
+            : "Đã gửi yêu cầu cập nhật"
+          : "Thêm thành công",
+      );
     } catch (error: unknown) {
       console.error("Failed to save employee:", error);
       const msg =
@@ -383,6 +447,21 @@ export default function StaffPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConfirmApproval = async (reason: string) => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === "update") {
+      await executeSave(reason);
+    } else if (pendingAction.type === "delete" && pendingAction.id) {
+      await executeDelete(pendingAction.id, reason);
+    } else if (pendingAction.type === "bulkDelete") {
+      await executeBulkDelete(reason);
+    }
+
+    setIsApprovalDialogOpen(false);
+    setPendingAction(null);
   };
 
   const filteredEmployees = employees;
@@ -408,7 +487,7 @@ export default function StaffPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.EMPLOYEE_VIEW]}
+      permissions={[Permission.EMPLOYEE_SEARCH]}
       redirect="/dashboard"
     >
       <Card>
@@ -1119,6 +1198,21 @@ export default function StaffPage() {
             description={confirmState.description}
             isDanger={confirmState.isDanger}
             isLoading={isDeletingBulk}
+          />
+          <ApprovalReasonDialog
+            open={isApprovalDialogOpen}
+            onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setPendingAction(null);
+            }}
+            onConfirm={handleConfirmApproval}
+            actionTitle={
+              pendingAction?.type === "update"
+                ? "Cập nhật nhân viên"
+                : pendingAction?.type === "delete"
+                  ? "Xóa nhân viên"
+                  : "Xóa hàng loạt nhân viên"
+            }
           />
         </CardContent>
       </Card>
