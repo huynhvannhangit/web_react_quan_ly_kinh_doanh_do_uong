@@ -1,25 +1,21 @@
 // cspell:disable
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
-  Bell,
-  CheckCircle2,
   Trash2,
-  Filter,
   Eye,
-  Calendar,
-  Clock,
   Inbox,
-  Loader2,
+  RotateCcw,
 } from "lucide-react";
+import { Pagination } from "@/components/shared/Pagination";
 import {
   notificationService,
-  Notification,
 } from "@/services/notification.service";
+import { AppNotification } from "@/hooks/useSocket";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -28,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useNotificationContext } from "@/components/providers/notification-provider";
 import {
   Select,
   SelectContent,
@@ -45,72 +42,50 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
+
 
 export default function NotificationPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { notifications, markAsRead, markAllAsRead, refresh } = useNotificationContext();
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
-  const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+  const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
-  const fetchNotifications = useCallback(async () => {
+  const handleDelete = async (id: string | undefined) => {
+    if (!id) return;
     try {
-      setLoading(true);
-      const data = await notificationService.findAll(1, 100);
-      setNotifications(data.items);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-      toast.error("Không thể tải danh sách thông báo");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  const handleMarkAsRead = async (id: number) => {
-    try {
-      await notificationService.markAsRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-      );
-      // Also update context if possible (hook normally handles it via socket/firebase,
-      // but we might need a way to trigger a re-sync or manually update)
-      // Actually the local state here is enough for the page.
-      toast.success("Đã đánh dấu đã đọc");
-    } catch {
-      toast.error("Thao tác thất bại");
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await notificationService.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      toast.success("Đã đánh dấu tất cả là đã đọc");
-    } catch {
-      toast.error("Thao tác thất bại");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await notificationService.delete(id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      const numericId = Number(id);
+      if (!isNaN(numericId)) {
+        await notificationService.delete(numericId);
+      }
       toast.success("Đã xóa thông báo");
+      // Refresh to ensure sync with context data
+      window.location.reload(); 
     } catch (err) {
       console.error("Failed to delete notification:", err);
       toast.error("Không thể xóa thông báo");
     }
   };
 
-  const filteredNotifications = notifications.filter((n) => {
-    if (filter === "unread") return !n.isRead;
-    if (filter === "read") return n.isRead;
-    return true;
-  });
+  const filteredNotifications = (notifications || [])
+    .filter((n) => {
+      if (filter === "unread") return !n.read;
+      if (filter === "read") return n.read;
+      return true;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+  const totalPages = Math.ceil(filteredNotifications.length / pageSize);
+  const paginatedNotifications = filteredNotifications.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const globalOffset = (currentPage - 1) * pageSize;
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -144,93 +119,100 @@ export default function NotificationPage() {
 
   return (
     <>
-      <div className="p-6 space-y-6 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Bell className="w-8 h-8 text-primary" />
-              </div>
-              Tất cả thông báo
+      <Card>
+        <CardContent className="p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
+              Thông báo
             </h1>
-            <p className="text-muted-foreground mt-1 text-lg">
-              Quản lý và xem lại lịch sử các thông báo trong hệ thống.
-            </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={fetchNotifications}
-              disabled={loading}
-              className="rounded-xl"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Làm mới"
-              )}
-            </Button>
-            <Button
-              onClick={handleMarkAllAsRead}
-              className="bg-primary hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20"
-            >
-              Đánh dấu đọc tất cả
-            </Button>
-          </div>
-        </div>
+          <div className="flex flex-wrap items-end justify-between mt-6 w-full gap-4">
+            <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await refresh();
+                    toast.success("Đã làm mới danh sách");
+                  } catch (err) {
+                    console.error("Refresh failed:", err);
+                    toast.error("Không thể làm mới");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="gap-2 rounded-lg"
+              >
+                <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                Làm mới
+              </Button>
 
-        <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-none bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl rounded-3xl overflow-hidden">
-          <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <Select value={filter} onValueChange={setFilter}>
-                  <SelectTrigger className="w-45 bg-white dark:bg-slate-800 rounded-xl">
+              <Button
+                onClick={() => {
+                  markAllAsRead();
+                  toast.success("Đã đánh dấu tất cả là đã đọc");
+                }}
+                className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+              >
+                Đã đọc tất cả
+              </Button>
+            </div>
+          </div>
+
+          <Card className="border-none shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Danh sách thông báo
+              </CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+                  Tổng số: {filteredNotifications.length} thông báo
+                </div>
+                <Select
+                  value={filter}
+                  onValueChange={(v) => {
+                    setFilter(v);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-45 bg-white dark:bg-slate-800 rounded-lg">
                     <SelectValue placeholder="Lọc thông báo" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent className="rounded-lg">
                     <SelectItem value="all">Tất cả thông báo</SelectItem>
                     <SelectItem value="unread">Chưa đọc</SelectItem>
                     <SelectItem value="read">Đã đọc</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="text-sm font-medium text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-                Tổng số: {filteredNotifications.length} thông báo
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-20 text-center">STT</TableHead>
-                    <TableHead className="w-37.5">Loại</TableHead>
-                    <TableHead className="min-w-75">Nội dung</TableHead>
-                    <TableHead className="w-45">Thời gian</TableHead>
-                    <TableHead className="w-25 text-center">
-                      Trạng thái
-                    </TableHead>
-                    <TableHead className="w-37.5 text-right">
-                      Thao tác
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={6} className="h-16 text-center">
-                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                            <Loader2 className="w-4 h-4 animate-spin" />
+            </CardHeader>
+            <CardContent className="px-0">
+              <div className="overflow-x-auto [&_th]:bg-muted [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:py-4">
+                <Table className="min-w-325 font-sans">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-border">
+                      <TableHead className="w-16 text-center">STT</TableHead>
+                      <TableHead className="w-37.5">Loại</TableHead>
+                      <TableHead>Nội dung</TableHead>
+                      <TableHead className="w-45">Thời gian</TableHead>
+                      <TableHead className="w-25 text-center">Trạng thái</TableHead>
+                      <TableHead className="text-right">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {false ? ( // Context doesn't expose loading yet, so we assume no long loading state for now
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             Đang tải dữ liệu...
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : filteredNotifications.length === 0 ? (
+                    ) : paginatedNotifications.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="h-64 text-center">
                         <div className="flex flex-col items-center justify-center space-y-3 opacity-40">
@@ -242,95 +224,96 @@ export default function NotificationPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredNotifications.map((notif, index) => (
-                      <TableRow
-                        key={notif.id}
-                        className={`group transition-colors duration-300 ${!notif.isRead ? "bg-primary/2 border-l-4 border-l-primary" : ""}`}
-                      >
-                        <TableCell className="text-center font-medium text-slate-500">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`rounded-full px-3 py-0.5 ${getTypeColor(notif.type)}`}
-                          >
-                            {getTypeName(notif.type)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span
-                              className={`text-sm ${!notif.isRead ? "font-bold text-slate-900 dark:text-slate-100" : "font-medium text-slate-700 dark:text-slate-300"}`}
+                      paginatedNotifications.map((notif, index) => (
+                        <TableRow
+                          key={notif.id}
+                          className={`hover:bg-muted/50 transition-all duration-300 border-border cursor-pointer ${
+                            !notif.read ? "bg-blue-50/30 dark:bg-blue-900/10 font-medium" : ""
+                          }`}
+                          onClick={async () => {
+                            setSelectedNotif(notif);
+                            if (!notif.read && notif.id) {
+                              markAsRead(notif.id);
+                            }
+                          }}
+                        >
+                          <TableCell className="text-center font-medium text-slate-500">
+                            {globalOffset + index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`rounded-full px-3 py-0.5 ${getTypeColor(notif.type)}`}
                             >
-                              {notif.title}
-                            </span>
-                            <span className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                              {notif.message}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {format(new Date(notif.createdAt), "dd/MM/yyyy")}
-                            </span>
-                            <span className="flex items-center gap-1.5 opacity-60">
-                              <Clock className="w-3.5 h-3.5" />
-                              {format(new Date(notif.createdAt), "HH:mm")}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {notif.isRead ? (
-                            <div className="flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center">
-                              <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setSelectedNotif(notif)}
-                              className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                            >
-                              <Eye className="w-4.5 h-4.5" />
-                            </Button>
-                            {!notif.isRead && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleMarkAsRead(notif.id)}
-                                className="h-9 w-9 text-green-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                              {getTypeName(notif.type)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span
+                                className={`text-sm ${!notif.read ? "font-bold text-slate-900 dark:text-slate-100" : "font-medium text-slate-700 dark:text-slate-300"}`}
                               >
-                                <CheckCircle2 className="w-4.5 h-4.5" />
-                              </Button>
+                                {notif.title}
+                              </span>
+                              <span className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                                {notif.message}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap py-4">
+                            {notif.createdAt && !isNaN(new Date(notif.createdAt).getTime())
+                              ? format(new Date(notif.createdAt), "HH:mm dd/MM/yyyy")
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {!notif.read ? (
+                              <span className="flex h-2.5 w-2.5 rounded-full bg-blue-600 mx-auto shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
+                            ) : (
+                              <span className="flex h-2 w-2 rounded-full bg-slate-200 dark:bg-slate-700 mx-auto" />
                             )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(notif.id)}
-                              className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                            >
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                                <button
+                                  className="p-2 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Avoid double triggering row click
+                                    setSelectedNotif(notif);
+                                    if (!notif.read && notif.id) markAsRead(notif.id);
+                                  }}
+                                  title="Xem chi tiết"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(notif.id);
+                                  }}
+                                  title="Xóa"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredNotifications.length}
+                onPageChange={setCurrentPage}
+              />
+            </CardContent>
+          </Card>
+        </CardContent>
+      </Card>
 
         {/* Notification Detail Dialog */}
         <Dialog
@@ -339,88 +322,51 @@ export default function NotificationPage() {
             if (!open) setSelectedNotif(null);
           }}
         >
-          <DialogContent className="max-w-xl rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-md">
             {selectedNotif && (
-              <div className="flex flex-col">
-                <div
-                  className={`p-8 ${selectedNotif.isRead ? "bg-slate-50 dark:bg-slate-800/40" : "bg-primary/5"}`}
-                >
-                  <DialogHeader>
-                    <div className="flex justify-between items-start">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full px-4 py-1.5 mb-4 ${getTypeColor(selectedNotif.type)}`}
-                      >
-                        {getTypeName(selectedNotif.type)}
-                      </Badge>
-                    </div>
-                    <DialogTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                      {selectedNotif.title}
-                    </DialogTitle>
-                    <DialogDescription className="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-4">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" />
-                        {format(
-                          new Date(selectedNotif.createdAt),
-                          "iiii, do MMMM yyyy",
-                          { locale: vi },
-                        )}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4" />
-                        {format(new Date(selectedNotif.createdAt), "HH:mm")}
-                      </span>
-                    </DialogDescription>
-                  </DialogHeader>
-                </div>
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge
+                      variant="outline"
+                      className={`rounded-full px-3 py-0.5 ${getTypeColor(selectedNotif.type)}`}
+                    >
+                      {getTypeName(selectedNotif.type)}
+                    </Badge>
+                  </div>
+                  <DialogTitle className="text-xl font-bold">
+                    {selectedNotif.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground mt-1.5">
+                    {selectedNotif.createdAt && !isNaN(new Date(selectedNotif.createdAt).getTime())
+                      ? format(new Date(selectedNotif.createdAt), "HH:mm dd/MM/yyyy")
+                      : "N/A"}
+                  </DialogDescription>
+                </DialogHeader>
 
-                <div className="p-8 pb-10 space-y-6">
-                  <div className="bg-slate-100/50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
-                    <p className="text-lg leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-medium">
+                <div className="space-y-4 py-4">
+                  <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
+                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap font-medium">
                       {selectedNotif.message}
                     </p>
                   </div>
 
-                  {selectedNotif.data && (
-                    <div className="pt-2">
-                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">
-                        Dữ liệu chi tiết
-                      </h4>
-                      <pre className="bg-slate-900 text-slate-300 p-4 rounded-xl overflow-auto text-xs font-mono border border-slate-800">
-                        {JSON.stringify(selectedNotif.data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                  {/* Removed raw JSON display as it's not user-friendly */}
                 </div>
 
-                <DialogFooter className="p-6 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex justify-end gap-3 w-full">
-                    {!selectedNotif.isRead && (
-                      <Button
-                        onClick={() => {
-                          handleMarkAsRead(selectedNotif.id);
-                          setSelectedNotif(null);
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-xl"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Đánh dấu đã đọc
-                      </Button>
-                    )}
-                    <Button
-                      variant="secondary"
-                      onClick={() => setSelectedNotif(null)}
-                      className="rounded-xl px-8"
-                    >
-                      Đóng
-                    </Button>
-                  </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedNotif(null)}
+                    className="rounded-lg px-6"
+                  >
+                    Đóng
+                  </Button>
                 </DialogFooter>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>
-      </div>
     </>
   );
 }

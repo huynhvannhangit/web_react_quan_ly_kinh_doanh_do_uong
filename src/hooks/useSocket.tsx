@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+// cspell:disable
+import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { db } from "@/lib/firebase";
@@ -6,9 +7,10 @@ import {
   collection,
   query,
   orderBy,
-  limit,
+  limit as fsLimit,
   onSnapshot,
 } from "firebase/firestore";
+import { notificationService, Notification as SQLNotification } from "@/services/notification.service";
 
 export interface AppNotification {
   id?: string;
@@ -27,24 +29,38 @@ export const useSocket = (user: AuthUser | null | undefined) => {
   const [isConnected, setIsConnected] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const initialFetchedRef = useRef(false);
+
+  const fetchHistory = useCallback(async () => {
+    if (!user || !user.id) return;
+    try {
+      const response = await notificationService.findAll(1, 100);
+      if (response && response.items) {
+        const mapped: AppNotification[] = response.items.map((item: SQLNotification) => ({
+          ...item,
+          id: item.id.toString(),
+          read: item.isRead,
+        }));
+        setNotifications(mapped);
+        setUnreadCount(mapped.filter((n) => !n.read).length);
+        initialFetchedRef.current = true;
+      }
+    } catch (error) {
+      console.error("Failed to fetch notification history from SQL:", error);
+    }
+  }, [user]);
 
   // Initialize Socket.IO connection
   useEffect(() => {
     if (!user || !user.id) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
-      }
+      initialFetchedRef.current = false;
       return;
     }
 
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999/api";
-    // Extract base backend URL from API URL for WebSocket
     const backendUrl = apiUrl.endsWith("/api") ? apiUrl.slice(0, -4) : apiUrl;
 
-    // Connect to /notifications namespace
     const socketInstance = io(`${backendUrl}/notifications`, {
       query: { userId: user.id },
       withCredentials: true,
@@ -64,7 +80,6 @@ export const useSocket = (user: AuthUser | null | undefined) => {
       setIsConnected(false);
     });
 
-    // Listen for realtime notifications from server
     socketInstance.on("notification", (payload: AppNotification) => {
       console.log("New notification received:", payload);
 
@@ -77,10 +92,8 @@ export const useSocket = (user: AuthUser | null | undefined) => {
           rounded-2xl pointer-events-auto overflow-hidden relative group
           transition-all duration-500 ease-in-out
           animate-in slide-in-from-right-full
-          data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:slide-out-to-top-full
         `}
           >
-            {/* Ambient background glow matching type */}
             <div
               className={`
               absolute -left-20 -top-20 w-40 h-40 blur-[60px] opacity-20 pointer-events-none
@@ -125,7 +138,6 @@ export const useSocket = (user: AuthUser | null | undefined) => {
         },
       );
 
-      // Update local state immediately
       const newNotification = {
         ...payload,
         id: Date.now().toString(),
@@ -135,63 +147,99 @@ export const useSocket = (user: AuthUser | null | undefined) => {
       setUnreadCount((prev) => prev + 1);
     });
 
-    setSocket(socketInstance);
+    // Use setTimeout to avoid synchronous state update in effect (cascading renders)
+    setTimeout(() => {
+      setSocket(socketInstance);
+    }, 0);
 
     return () => {
       socketInstance.disconnect();
+      setSocket(null);
+      setIsConnected(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user]);
 
-  // Sync data with Firebase Firestore (notification history)
+  // Initial fetch from SQL API
   useEffect(() => {
-    if (!db || !user || !user.id) return;
+    // Use setTimeout to avoid synchronous state update in effect
+    setTimeout(() => {
+      fetchHistory();
+    }, 0);
+  }, [user, fetchHistory]);
 
-    // Listen for realtime updates from Firebase Firestore (notification history)
+  // Optional Firestore sync
+  useEffect(() => {
+    if (!db || !user || !user.id || !initialFetchedRef.current) return;
+
     const q = query(
       collection(db, "notifications"),
       orderBy("createdAt", "desc"),
-      limit(50),
+      fsLimit(50),
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        if (snapshot.empty) return;
+        
         const data: AppNotification[] = [];
-        let unread = 0;
-
         snapshot.forEach((doc) => {
           const item = { id: doc.id, ...doc.data() } as AppNotification;
           data.push(item);
-          if (!item.read) unread++;
         });
 
-        setNotifications(data);
-        setUnreadCount(unread);
+        // Merge logic: prefer local/new notifications, but update from firestore if helpful
+        setNotifications((prev) => {
+          const merged = [...prev];
+          data.forEach(item => {
+            if (!merged.find(n => n.id === item.id)) {
+              merged.push(item);
+            }
+          });
+          return merged.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        });
+        
+        setUnreadCount(prev => {
+          const unreadCountFs = data.filter(n => !n.read).length;
+          return Math.max(prev, unreadCountFs);
+        });
       },
       (error) => {
-        console.error("Error fetching notifications from Firestore:", error);
+        console.warn("Firestore sync unavailable (expected if API disabled):", error.message);
       },
     );
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user]);
 
-  // Mark notification as read
   const markAsRead = useCallback(async (notificationId: string) => {
-    // Update local state (ideally sync with Firebase as well)
+    try {
+      if (!isNaN(Number(notificationId))) {
+        await notificationService.markAsRead(Number(notificationId));
+      }
+    } catch (err) {
+      console.error("Failed to mark as read in SQL:", err);
+    }
+    
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
   }, []);
 
-  // Mark all as read
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
+    try {
+      await notificationService.markAllAsRead();
+    } catch (err) {
+      console.error("Failed to mark all as read in SQL:", err);
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
   }, []);
+
+  const refresh = useCallback(async () => {
+    await fetchHistory();
+  }, [fetchHistory]);
 
   return {
     socket,
@@ -200,5 +248,6 @@ export const useSocket = (user: AuthUser | null | undefined) => {
     unreadCount,
     markAsRead,
     markAllAsRead,
+    refresh,
   };
 };

@@ -22,15 +22,15 @@ export interface NotificationResponse {
 
 export const notificationService = {
   findAll: async (page = 1, limit = 20): Promise<NotificationResponse> => {
-    const response = await api.get<NotificationResponse>("/notifications", {
+    const response = await api.get<{ data: NotificationResponse }>("/notifications", {
       params: { page, limit },
     });
-    return response.data;
+    return response.data.data;
   },
 
   findOne: async (id: number): Promise<Notification> => {
-    const response = await api.get<Notification>(`/notifications/${id}`);
-    return response.data;
+    const response = await api.get<{ data: Notification }>(`/notifications/${id}`);
+    return response.data.data;
   },
 
   markAsRead: async (id: number): Promise<void> => {

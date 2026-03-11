@@ -41,12 +41,14 @@ type ActionKey =
   | "create"
   | "update"
   | "delete"
+  | "lock"
   | "cancel"
   | "export"
   | "manageUser"
   | "manageApproval"
   | "manageSetting"
   | "viewLog"
+  | "pay"
   | "all";
 
 interface MatrixRow {
@@ -106,10 +108,18 @@ const MATRIX: MatrixRow[] = [
     permissions: {
       viewAll: Permission.USER_VIEW_ALL,
       viewId: Permission.USER_VIEW_ID,
-      create: Permission.USER_CREATE,
-      update: Permission.USER_UPDATE,
-      delete: Permission.USER_DELETE,
+      lock: Permission.USER_DELETE,
       manageUser: Permission.USER_MANAGE,
+    },
+  },
+  {
+    label: "Nhân viên",
+    permissions: {
+      viewAll: Permission.EMPLOYEE_VIEW_ALL,
+      viewId: Permission.EMPLOYEE_VIEW_ID,
+      create: Permission.EMPLOYEE_CREATE,
+      update: Permission.EMPLOYEE_UPDATE,
+      delete: Permission.EMPLOYEE_DELETE,
     },
   },
   {
@@ -138,8 +148,7 @@ const MATRIX: MatrixRow[] = [
     permissions: {
       viewAll: Permission.INVOICE_VIEW_ALL,
       viewId: Permission.INVOICE_VIEW_ID,
-      create: Permission.INVOICE_CREATE,
-      update: Permission.INVOICE_PAY,
+      pay: Permission.INVOICE_PAY,
       cancel: Permission.INVOICE_CANCEL,
     },
   },
@@ -181,12 +190,14 @@ const COLUMNS: { key: ActionKey; label: string }[] = [
   { key: "viewId", label: "Chi tiết" },
   { key: "update", label: "Sửa" },
   { key: "delete", label: "Xóa" },
+  { key: "lock", label: "Khóa/Mở" },
   { key: "export", label: "Xuất file" },
   { key: "cancel", label: "Hủy" },
-  { key: "manageUser", label: "QL Vai trò" },
+  { key: "manageUser", label: "Phân quyền" },
   { key: "manageApproval", label: "Duyệt" },
   { key: "manageSetting", label: "Cấu hình" },
   { key: "viewLog", label: "Xem nhật ký" },
+  { key: "pay", label: "Thanh toán" },
   { key: "all", label: "Tất cả" },
 ];
 

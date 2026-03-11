@@ -36,8 +36,8 @@ export function UserList() {
   const { user: currentUser } = useAuth();
 
   const canManageRoles =
-    currentUser?.permissions?.includes(Permission.USER_UPDATE) &&
-    currentUser?.permissions?.includes(Permission.ROLE_VIEW_ALL);
+    currentUser?.permissions?.includes(Permission.USER_UPDATE) ||
+    currentUser?.permissions?.includes(Permission.USER_MANAGE);
 
   const fetchUsers = async () => {
     setIsLoading(true);

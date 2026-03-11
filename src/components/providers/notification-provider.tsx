@@ -11,6 +11,7 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  refresh: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(

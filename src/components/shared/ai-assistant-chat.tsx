@@ -24,11 +24,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAiChat } from "@/hooks/use-ai-chat";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useSystemConfig } from "@/components/providers/system-config-provider";
+import { getImageUrl, getAvatarUrl } from "@/utils/url";
+import Image from "next/image";
 
 export function AiAssistantChat() {
   const [isOpen, setIsOpen] = useState(false);
   const { currentConversation, sendMessage, isLoading, createNewChat } =
     useAiChat();
+  const { user } = useAuth();
+  const { config } = useSystemConfig();
   const [input, setInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -86,8 +92,17 @@ export function AiAssistantChat() {
         <SheetContent className="p-0 border shadow-2xl rounded-t-2xl sm:rounded-2xl w-full sm:max-w-110 h-full sm:h-[80vh] sm:max-h-175 fixed sm:right-6 sm:bottom-6 sm:top-auto flex flex-col overflow-hidden [&>button]:hidden">
           <div className="p-4 border-b bg-primary text-primary-foreground flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <div className="bg-white/20 p-1.5 rounded-full ring-2 ring-white/10 shrink-0">
-                <Sparkles className="h-4 w-4" />
+              <div className="bg-white/20 rounded-full ring-2 ring-white/10 shrink-0 h-8 w-8 relative overflow-hidden flex items-center justify-center">
+                {config?.logoUrl ? (
+                  <Image
+                    src={getImageUrl(config.logoUrl)}
+                    alt="AI Logo"
+                    fill
+                    className="object-contain p-1"
+                  />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
               </div>
               <div>
                 <SheetTitle className="text-primary-foreground font-semibold text-base leading-none">
@@ -125,7 +140,18 @@ export function AiAssistantChat() {
               {!currentConversation ||
               currentConversation.messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center opacity-60">
-                  <Bot className="h-10 w-10 mb-2" />
+                  <div className="p-2 rounded-full bg-primary/10 border border-primary/20 mb-3 relative h-12 w-12 overflow-hidden flex items-center justify-center shrink-0">
+                    {config?.logoUrl ? (
+                      <Image
+                        src={getImageUrl(config.logoUrl)}
+                        alt="AI Logo"
+                        fill
+                        className="object-contain p-2"
+                      />
+                    ) : (
+                      <Bot className="h-6 w-6 text-primary" />
+                    )}
+                  </div>
                   <p className="text-sm">Bắt đầu trò chuyện với trợ lý AI!</p>
                 </div>
               ) : (
@@ -139,14 +165,30 @@ export function AiAssistantChat() {
                   >
                     <div
                       className={cn(
-                        "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm",
+                        "flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full border shadow-sm relative overflow-hidden",
                         m.role === "assistant"
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary/10 text-primary border-primary/20"
                           : "bg-background text-foreground",
                       )}
                     >
                       {m.role === "assistant" ? (
-                        <Bot className="h-4 w-4" />
+                        config?.logoUrl ? (
+                          <Image
+                            src={getImageUrl(config.logoUrl)}
+                            alt="AI"
+                            fill
+                            className="object-contain p-1"
+                          />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )
+                      ) : user?.avatar ? (
+                        <Image
+                          src={getAvatarUrl(user.avatar)}
+                          alt="User"
+                          fill
+                          className="object-cover"
+                        />
                       ) : (
                         <User className="h-4 w-4" />
                       )}
@@ -166,8 +208,17 @@ export function AiAssistantChat() {
               )}
               {isLoading && (
                 <div className="flex gap-3">
-                  <div className="bg-primary text-primary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm">
-                    <Bot className="h-4 w-4 animate-pulse" />
+                  <div className="bg-primary/10 text-primary border border-primary/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm relative overflow-hidden">
+                    {config?.logoUrl ? (
+                      <Image
+                        src={getImageUrl(config.logoUrl)}
+                        alt="AI"
+                        fill
+                        className="object-contain p-1 animate-pulse"
+                      />
+                    ) : (
+                      <Bot className="h-4 w-4 animate-pulse" />
+                    )}
                   </div>
                   <div className="bg-muted/50 rounded-2xl px-4 py-2.5 rounded-tl-none border shadow-sm flex items-center gap-2">
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />

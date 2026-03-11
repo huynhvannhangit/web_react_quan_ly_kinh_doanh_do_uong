@@ -648,7 +648,7 @@ export default function OrderingPage() {
           <DialogHeader className="p-6 pb-2">
             <DialogTitle className="flex items-center gap-2 text-xl">
               <ShoppingCart className="h-5 w-5" />
-              {activeOrder ? "Chi tiết Hóa đơn" : "Gọi món"} cho{" "}
+              {activeOrder ? "Chi tiết Đơn hàng" : "Gọi món"} cho{" "}
               {selectedTable?.tableNumber}
             </DialogTitle>
             <DialogDescription>
@@ -737,7 +737,7 @@ export default function OrderingPage() {
             {/* Current Order */}
             <div className="w-80 flex flex-col border rounded-lg bg-muted/50 p-4">
               <h3 className="font-bold mb-4 flex items-center justify-between">
-                {activeOrder ? "Hóa đơn tạm tính" : "Đơn hàng mới"}
+                {activeOrder ? "Đơn hàng hiện tại" : "Đơn hàng mới"}
                 <Badge className="bg-primary text-primary-foreground shadow-sm">
                   {orderItems.length} món
                 </Badge>
@@ -836,7 +836,7 @@ export default function OrderingPage() {
                     disabled={orderItems.length === 0 || isSubmitting}
                     onClick={() => handleSubmitOrder(false)}
                   >
-                    Gọi món
+                    Lưu đơn hàng
                   </Button>
                   <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
                     <Button

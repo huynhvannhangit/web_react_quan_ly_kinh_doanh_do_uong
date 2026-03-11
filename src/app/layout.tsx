@@ -50,7 +50,7 @@ export default function RootLayout({
             expand
             closeButton
             toastOptions={{
-              duration: 5000,
+              duration: 2500,
               className: "font-sans",
             }}
           />

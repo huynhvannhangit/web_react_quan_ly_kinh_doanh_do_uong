@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, RotateCcw, Eye, FileText } from "lucide-react";
+import { Search, RotateCcw, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -224,8 +224,7 @@ export default function SystemLogPage() {
       <Card>
         <CardContent className="p-8 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase flex items-center gap-3">
-              <FileText className="h-6 w-6" />
+            <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">
               Nhật ký hệ thống
             </h1>
           </div>
@@ -491,7 +490,7 @@ export default function SystemLogPage() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Chi tiết nhật ký #{selectedLog?.id}</DialogTitle>
+            <DialogTitle>Chi tiết nhật ký {selectedLog?.id}</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="grid gap-4 py-2">
