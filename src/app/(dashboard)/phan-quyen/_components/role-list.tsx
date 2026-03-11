@@ -20,8 +20,15 @@ import { RoleDialog } from "./RoleDialog";
 import { DeleteRoleDialog } from "./delete-role-dialog";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/components/providers/auth-provider";
+import { Permission } from "@/types";
 
 export function RoleList() {
+  const { user } = useAuth();
+  const canCreate = user?.permissions?.includes(Permission.ROLE_CREATE);
+  const canUpdate = user?.permissions?.includes(Permission.ROLE_UPDATE);
+  const canDelete = user?.permissions?.includes(Permission.ROLE_DELETE);
+
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -145,13 +152,15 @@ export function RoleList() {
               <RotateCcw className="h-4 w-4" />
               Làm mới
             </Button>
-            <Button
-              onClick={handleCreate}
-              className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
-            >
-              <Plus className="h-4 w-4" />
-              Thêm vai trò
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={handleCreate}
+                className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+              >
+                <Plus className="h-4 w-4" />
+                Thêm vai trò
+              </Button>
+            )}
           </div>
         </div>
 
@@ -170,7 +179,9 @@ export function RoleList() {
                     <TableHead>Tên vai trò</TableHead>
                     <TableHead>Mô tả</TableHead>
                     <TableHead>Số quyền</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
+                    {(canUpdate || canDelete) && (
+                      <TableHead className="text-right">Thao tác</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -206,24 +217,30 @@ export function RoleList() {
                             {role.permissions?.length || 0} quyền
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end items-center gap-3 text-muted-foreground">
-                            <button
-                              className="hover:text-foreground transition-colors"
-                              onClick={() => handleEdit(role)}
-                              title="Chỉnh sửa"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              className="text-red-500 hover:text-red-600 transition-colors"
-                              onClick={() => handleDeleteClick(role)}
-                              title="Xóa"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </TableCell>
+                        {(canUpdate || canDelete) && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end items-center gap-3 text-muted-foreground">
+                              {canUpdate && (
+                                <button
+                                  className="hover:text-foreground transition-colors"
+                                  onClick={() => handleEdit(role)}
+                                  title="Chỉnh sửa"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                  onClick={() => handleDeleteClick(role)}
+                                  title="Xóa"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}

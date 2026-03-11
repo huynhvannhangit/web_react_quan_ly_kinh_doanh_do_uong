@@ -61,6 +61,10 @@ export default function TablePage() {
       ? user.role
       : (user?.role as { name?: string } | null)?.name;
   const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
+  const canCreate = user?.permissions?.includes(Permission.TABLE_CREATE);
+  const canUpdate = user?.permissions?.includes(Permission.TABLE_UPDATE);
+  const canDelete = user?.permissions?.includes(Permission.TABLE_DELETE);
+
   const [tables, setTables] = useState<TableType[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -327,7 +331,7 @@ export default function TablePage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.TABLE_SEARCH]}
+      permissions={[Permission.TABLE_VIEW_ALL]}
       redirect="/dashboard"
     >
       <Card>
@@ -373,167 +377,170 @@ export default function TablePage() {
                 Làm mới
               </Button>
 
-              <Dialog
-                open={isDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) resetForm();
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
-                    <Plus className="mr-2 h-4 w-4" /> Thêm
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {isEditMode ? "Chỉnh sửa bàn" : "Thêm bàn mới"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    {apiError && (
-                      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
-                        {apiError}
+              {canCreate && (
+                <Dialog
+                  open={isDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsDialogOpen(open);
+                    if (!open) resetForm();
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
+                      <Plus className="mr-2 h-4 w-4" /> Thêm
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {isEditMode ? "Chỉnh sửa bàn" : "Thêm bàn mới"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      {apiError && (
+                        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                          {apiError}
+                        </div>
+                      )}
+                      <div className="grid gap-2">
+                        <Label htmlFor="tableNumber">
+                          Tên bàn <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="tableNumber"
+                          value={newTable.tableNumber}
+                          onChange={(e) => {
+                            setNewTable({
+                              ...newTable,
+                              tableNumber: e.target.value,
+                            });
+                            if (formErrors.tableNumber)
+                              setFormErrors((p) => ({ ...p, tableNumber: "" }));
+                          }}
+                          placeholder="VD: Bàn 1, Bàn 2..."
+                          className={inputErrorClass(formErrors.tableNumber)}
+                          required
+                          onInvalid={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity(
+                              "Vui lòng điền vào trường này",
+                            )
+                          }
+                          onInput={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity("")
+                          }
+                        />
+                        {formErrors.tableNumber && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.tableNumber}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    <div className="grid gap-2">
-                      <Label htmlFor="tableNumber">
-                        Tên bàn <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="tableNumber"
-                        value={newTable.tableNumber}
-                        onChange={(e) => {
-                          setNewTable({
-                            ...newTable,
-                            tableNumber: e.target.value,
-                          });
-                          if (formErrors.tableNumber)
-                            setFormErrors((p) => ({ ...p, tableNumber: "" }));
-                        }}
-                        placeholder="VD: Bàn 1, Bàn 2..."
-                        className={inputErrorClass(formErrors.tableNumber)}
-                        required
-                        onInvalid={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity(
-                            "Vui lòng điền vào trường này",
-                          )
-                        }
-                        onInput={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity("")
-                        }
-                      />
-                      {formErrors.tableNumber && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.tableNumber}
-                        </p>
-                      )}
-                    </div>
 
-                    <div className="grid gap-2">
-                      <Label htmlFor="areaId">
-                        Khu vực <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={newTable.areaId}
-                        onValueChange={(val) =>
-                          setNewTable({ ...newTable, areaId: val })
-                        }
+                      <div className="grid gap-2">
+                        <Label htmlFor="areaId">
+                          Khu vực <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={newTable.areaId}
+                          onValueChange={(val) =>
+                            setNewTable({ ...newTable, areaId: val })
+                          }
+                        >
+                          <SelectTrigger id="areaId">
+                            <SelectValue placeholder="Chọn khu vực" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {areas.map((area) => (
+                              <SelectItem
+                                key={area.id}
+                                value={area.id.toString()}
+                              >
+                                {area.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {formErrors.areaId && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.areaId}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="status">Trạng thái</Label>
+                        <Select
+                          value={newTable.status}
+                          onValueChange={(val: TableStatus) =>
+                            setNewTable({ ...newTable, status: val })
+                          }
+                        >
+                          <SelectTrigger id="status">
+                            <SelectValue placeholder="Chọn trạng thái" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AVAILABLE">Trống</SelectItem>
+                            <SelectItem value="OCCUPIED">Có khách</SelectItem>
+                            <SelectItem value="RESERVED">Đã đặt</SelectItem>
+                            <SelectItem value="MAINTENANCE">Bảo trì</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor="capacity">
+                          Số chỗ ngồi{" "}
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="capacity"
+                          type="number"
+                          min="1"
+                          value={newTable.capacity}
+                          onChange={(e) => {
+                            setNewTable({
+                              ...newTable,
+                              capacity: parseInt(e.target.value) || 0,
+                            });
+                            if (formErrors.capacity)
+                              setFormErrors((p) => ({ ...p, capacity: "" }));
+                          }}
+                          placeholder="VD: 4, 6, 8..."
+                          className={inputErrorClass(formErrors.capacity)}
+                          required
+                        />
+                        {formErrors.capacity && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.capacity}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsDialogOpen(false)}
                       >
-                        <SelectTrigger id="areaId">
-                          <SelectValue placeholder="Chọn khu vực" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {areas.map((area) => (
-                            <SelectItem
-                              key={area.id}
-                              value={area.id.toString()}
-                            >
-                              {area.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {formErrors.areaId && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.areaId}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Trạng thái</Label>
-                      <Select
-                        value={newTable.status}
-                        onValueChange={(val: TableStatus) =>
-                          setNewTable({ ...newTable, status: val })
-                        }
-                      >
-                        <SelectTrigger id="status">
-                          <SelectValue placeholder="Chọn trạng thái" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="AVAILABLE">Trống</SelectItem>
-                          <SelectItem value="OCCUPIED">Có khách</SelectItem>
-                          <SelectItem value="RESERVED">Đã đặt</SelectItem>
-                          <SelectItem value="MAINTENANCE">Bảo trì</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="capacity">
-                        Số chỗ ngồi <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="capacity"
-                        type="number"
-                        min="1"
-                        value={newTable.capacity}
-                        onChange={(e) => {
-                          setNewTable({
-                            ...newTable,
-                            capacity: parseInt(e.target.value) || 0,
-                          });
-                          if (formErrors.capacity)
-                            setFormErrors((p) => ({ ...p, capacity: "" }));
-                        }}
-                        placeholder="VD: 4, 6, 8..."
-                        className={inputErrorClass(formErrors.capacity)}
-                        required
-                      />
-                      {formErrors.capacity && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.capacity}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                    >
-                      Hủy
-                    </Button>
-                    <Button onClick={handleCreateTable} disabled={isSaving}>
-                      {isSaving
-                        ? "Đang lưu..."
-                        : isEditMode
-                          ? "Cập nhật"
-                          : "Lưu"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                        Hủy
+                      </Button>
+                      <Button onClick={handleCreateTable} disabled={isSaving}>
+                        {isSaving
+                          ? "Đang lưu..."
+                          : isEditMode
+                            ? "Cập nhật"
+                            : "Lưu"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
           <Card className="border-none shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
               <div className="flex items-center gap-4">
-                {selectedIds.length > 0 && (
+                {canDelete && selectedIds.length > 0 && (
                   <Button
                     variant="destructive"
                     size="sm"
@@ -571,7 +578,9 @@ export default function TablePage() {
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead>Người cập nhật</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      {(canUpdate || canDelete) && (
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -650,24 +659,30 @@ export default function TablePage() {
                                     : "Bảo trì"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2 text-slate-500">
-                              <button
-                                className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                                onClick={() => handleEdit(table)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                onClick={() =>
-                                  handleDelete(table.id, table.tableNumber)
-                                }
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </TableCell>
+                          {(canUpdate || canDelete) && (
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-2 text-slate-500">
+                                {canUpdate && (
+                                  <button
+                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    onClick={() => handleEdit(table)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    onClick={() =>
+                                      handleDelete(table.id, table.tableNumber)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}

@@ -47,9 +47,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
-import { Permission } from "@/types";
-import { PermissionGuard } from "@/components/shared/PermissionGuard";
-
 export default function NotificationPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,10 +143,7 @@ export default function NotificationPage() {
   };
 
   return (
-    <PermissionGuard
-      permissions={[Permission.NOTIFICATION_SEARCH]}
-      redirect="/dashboard"
-    >
+    <>
       <div className="p-6 space-y-6 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -427,6 +421,6 @@ export default function NotificationPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </PermissionGuard>
+    </>
   );
 }

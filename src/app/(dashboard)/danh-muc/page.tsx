@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { useAuth } from "@/components/providers/auth-provider";
 import {
   collectErrors,
   required,
@@ -42,6 +43,11 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const canCreate = user?.permissions?.includes(Permission.CATEGORY_CREATE);
+  const canUpdate = user?.permissions?.includes(Permission.CATEGORY_UPDATE);
+  const canDelete = user?.permissions?.includes(Permission.CATEGORY_DELETE);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -220,7 +226,7 @@ export default function CategoryPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.CATEGORY_SEARCH]}
+      permissions={[Permission.CATEGORY_VIEW_ALL]}
       redirect="/dashboard"
     >
       <Card>
@@ -266,113 +272,121 @@ export default function CategoryPage() {
                 Làm mới
               </Button>
 
-              <Dialog
-                open={isDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) resetForm();
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
-                    <Plus className="mr-2 h-4 w-4" /> Thêm
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {isEditMode ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    {apiError && (
-                      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
-                        {apiError}
+              {canCreate && (
+                <Dialog
+                  open={isDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsDialogOpen(open);
+                    if (!open) resetForm();
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
+                      <Plus className="mr-2 h-4 w-4" /> Thêm
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {isEditMode
+                          ? "Chỉnh sửa danh mục"
+                          : "Thêm danh mục mới"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      {apiError && (
+                        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                          {apiError}
+                        </div>
+                      )}
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">
+                          {" "}
+                          {/* Changed id from categoryName to name */}
+                          Tên danh mục{" "}
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="name"
+                          value={newCategory.name}
+                          onChange={(e) => {
+                            setNewCategory({
+                              ...newCategory,
+                              name: e.target.value,
+                            });
+                            if (formErrors.name)
+                              setFormErrors((p) => ({ ...p, name: "" }));
+                          }}
+                          placeholder="VD: Cà phê, Trà sữa..."
+                          className={inputErrorClass(formErrors.name)}
+                          required
+                          onInvalid={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity(
+                              "Vui lòng điền vào trường này",
+                            )
+                          }
+                          onInput={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity("")
+                          }
+                        />
+                        {formErrors.name && ( // Changed from categoryName to name
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.name}{" "}
+                            {/* Changed from categoryName to name */}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">
-                        {" "}
-                        {/* Changed id from categoryName to name */}
-                        Tên danh mục <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="name"
-                        value={newCategory.name}
-                        onChange={(e) => {
-                          setNewCategory({
-                            ...newCategory,
-                            name: e.target.value,
-                          });
-                          if (formErrors.name)
-                            setFormErrors((p) => ({ ...p, name: "" }));
-                        }}
-                        placeholder="VD: Cà phê, Trà sữa..."
-                        className={inputErrorClass(formErrors.name)}
-                        required
-                        onInvalid={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity(
-                            "Vui lòng điền vào trường này",
-                          )
-                        }
-                        onInput={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity("")
-                        }
-                      />
-                      {formErrors.name && ( // Changed from categoryName to name
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.name}{" "}
-                          {/* Changed from categoryName to name */}
-                        </p>
-                      )}
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Mô tả</Label>
+                        <Textarea
+                          id="description"
+                          value={newCategory.description}
+                          onChange={(e) => {
+                            setNewCategory({
+                              ...newCategory,
+                              description: e.target.value,
+                            });
+                            if (formErrors.description)
+                              setFormErrors((p) => ({ ...p, description: "" }));
+                          }}
+                          placeholder="Mô tả danh mục..."
+                          className={inputErrorClass(formErrors.description)}
+                        />
+                        {formErrors.description && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="description">Mô tả</Label>
-                      <Textarea
-                        id="description"
-                        value={newCategory.description}
-                        onChange={(e) => {
-                          setNewCategory({
-                            ...newCategory,
-                            description: e.target.value,
-                          });
-                          if (formErrors.description)
-                            setFormErrors((p) => ({ ...p, description: "" }));
-                        }}
-                        placeholder="Mô tả danh mục..."
-                        className={inputErrorClass(formErrors.description)}
-                      />
-                      {formErrors.description && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                    >
-                      Hủy
-                    </Button>
-                    <Button onClick={handleCreateCategory} disabled={isSaving}>
-                      {isSaving
-                        ? "Đang lưu..."
-                        : isEditMode
-                          ? "Cập nhật"
-                          : "Lưu"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsDialogOpen(false)}
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleCreateCategory}
+                        disabled={isSaving}
+                      >
+                        {isSaving
+                          ? "Đang lưu..."
+                          : isEditMode
+                            ? "Cập nhật"
+                            : "Lưu"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
           <Card className="border-none shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
               <div className="flex items-center gap-4">
-                {selectedIds.length > 0 && (
+                {canDelete && selectedIds.length > 0 && (
                   <Button
                     variant="destructive"
                     size="sm"
@@ -409,7 +423,9 @@ export default function CategoryPage() {
                       <TableHead>Mô tả</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead>Người cập nhật</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      {(canUpdate || canDelete) && (
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -473,26 +489,33 @@ export default function CategoryPage() {
                               category.creator?.fullName ||
                               "—"}
                           </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2 text-slate-500">
-                              <button
-                                className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                                onClick={() => handleEdit(category)}
-                                title="Chỉnh sửa" // Added title
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                onClick={
-                                  () => handleDelete(category.id, category.name) // Changed from categoryName to name
-                                }
-                                title="Xóa" // Added title
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </TableCell>
+                          {(canUpdate || canDelete) && (
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-2 text-slate-500">
+                                {canUpdate && (
+                                  <button
+                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    onClick={() => handleEdit(category)}
+                                    title="Chỉnh sửa" // Added title
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    onClick={
+                                      () =>
+                                        handleDelete(category.id, category.name) // Changed from categoryName to name
+                                    }
+                                    title="Xóa" // Added title
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}

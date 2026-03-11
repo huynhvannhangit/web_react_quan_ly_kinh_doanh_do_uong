@@ -99,6 +99,10 @@ export default function ProductPage() {
       ? user.role
       : (user?.role as { name?: string } | null)?.name;
   const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
+  const canCreate = user?.permissions?.includes(Permission.PRODUCT_CREATE);
+  const canUpdate = user?.permissions?.includes(Permission.PRODUCT_UPDATE);
+  const canDelete = user?.permissions?.includes(Permission.PRODUCT_DELETE);
+
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -437,7 +441,7 @@ export default function ProductPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.PRODUCT_SEARCH]}
+      permissions={[Permission.PRODUCT_VIEW_ALL]}
       redirect="/dashboard"
     >
       {isMounted && (
@@ -486,133 +490,60 @@ export default function ProductPage() {
                     Làm mới
                   </Button>
 
-                  <Dialog
-                    open={isDialogOpen}
-                    onOpenChange={(open) => {
-                      setIsDialogOpen(open);
-                      if (!open) resetForm();
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white h-10 rounded-lg px-6">
-                        <Plus className="mr-2 h-4 w-4" /> Thêm
-                      </Button>
-                    </DialogTrigger>
+                  {canCreate && (
+                    <Dialog
+                      open={isDialogOpen}
+                      onOpenChange={(open) => {
+                        setIsDialogOpen(open);
+                        if (!open) resetForm();
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white h-10 rounded-lg px-6">
+                          <Plus className="mr-2 h-4 w-4" /> Thêm
+                        </Button>
+                      </DialogTrigger>
 
-                    <DialogContent className="sm:max-w-150">
-                      <DialogHeader>
-                        <DialogTitle>
-                          {isEditMode
-                            ? "Chỉnh sửa sản phẩm"
-                            : "Thêm sản phẩm mới"}
-                        </DialogTitle>
-                        <DialogDescription>
-                          Cung cấp thông tin chi tiết về sản phẩm để quản lý
-                          kinh doanh. Các trường đánh dấu * là bắt buộc.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1">
-                        <div className="grid gap-4 py-4">
-                          {apiError && (
-                            <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
-                              {apiError}
-                            </div>
-                          )}
-                          <div className="grid gap-2">
-                            <Label
-                              htmlFor="name"
-                              className="text-sm font-medium"
-                            >
-                              Tên sản phẩm{" "}
-                              <span className="text-destructive">*</span>
-                            </Label>
-                            <Input
-                              id="name"
-                              value={newProduct.name}
-                              onChange={(e) => {
-                                setNewProduct({
-                                  ...newProduct,
-                                  name: e.target.value,
-                                });
-                                if (formErrors.name)
-                                  setFormErrors((p) => ({ ...p, name: "" }));
-                              }}
-                              placeholder="VD: Cà phê đá, Matcha..."
-                              className={inputErrorClass(formErrors.name)}
-                              required
-                              onInvalid={(e) =>
-                                (
-                                  e.target as HTMLInputElement
-                                ).setCustomValidity(
-                                  "Vui lòng điền vào trường này",
-                                )
-                              }
-                              onInput={(e) =>
-                                (
-                                  e.target as HTMLInputElement
-                                ).setCustomValidity("")
-                              }
-                            />
-                            {formErrors.name && (
-                              <p className="text-xs text-destructive mt-1">
-                                {formErrors.name}
-                              </p>
+                      <DialogContent className="sm:max-w-150">
+                        <DialogHeader>
+                          <DialogTitle>
+                            {isEditMode
+                              ? "Chỉnh sửa sản phẩm"
+                              : "Thêm sản phẩm mới"}
+                          </DialogTitle>
+                          <DialogDescription>
+                            Cung cấp thông tin chi tiết về sản phẩm để quản lý
+                            kinh doanh. Các trường đánh dấu * là bắt buộc.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-[70vh] overflow-y-auto px-1 -mx-1">
+                          <div className="grid gap-4 py-4">
+                            {apiError && (
+                              <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                                {apiError}
+                              </div>
                             )}
-                          </div>
-                          <div className="grid gap-2">
-                            <Label
-                              htmlFor="description"
-                              className="text-sm font-medium"
-                            >
-                              Mô tả
-                            </Label>
-                            <Textarea
-                              id="description"
-                              value={newProduct.description}
-                              onChange={(e) => {
-                                setNewProduct({
-                                  ...newProduct,
-                                  description: e.target.value,
-                                });
-                                if (formErrors.description)
-                                  setFormErrors((p) => ({
-                                    ...p,
-                                    description: "",
-                                  }));
-                              }}
-                              placeholder="Mô tả sản phẩm..."
-                              className={inputErrorClass(
-                                formErrors.description,
-                              )}
-                            />
-                            {formErrors.description && (
-                              <p className="text-xs text-destructive mt-1">
-                                {formErrors.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2 col-span-2">
+                            <div className="grid gap-2">
                               <Label
-                                htmlFor="price"
+                                htmlFor="name"
                                 className="text-sm font-medium"
                               >
-                                Giá bán (VNĐ){" "}
+                                Tên sản phẩm{" "}
                                 <span className="text-destructive">*</span>
                               </Label>
                               <Input
-                                id="price"
-                                value={formatNumber(newProduct.price)}
+                                id="name"
+                                value={newProduct.name}
                                 onChange={(e) => {
                                   setNewProduct({
                                     ...newProduct,
-                                    price: parseNumber(e.target.value),
+                                    name: e.target.value,
                                   });
-                                  if (formErrors.price)
-                                    setFormErrors((p) => ({ ...p, price: "" }));
+                                  if (formErrors.name)
+                                    setFormErrors((p) => ({ ...p, name: "" }));
                                 }}
-                                placeholder="VD: 20.000"
-                                className={inputErrorClass(formErrors.price)}
+                                placeholder="VD: Cà phê đá, Matcha..."
+                                className={inputErrorClass(formErrors.name)}
                                 required
                                 onInvalid={(e) =>
                                   (
@@ -627,182 +558,263 @@ export default function ProductPage() {
                                   ).setCustomValidity("")
                                 }
                               />
-                              {formErrors.price && (
+                              {formErrors.name && (
                                 <p className="text-xs text-destructive mt-1">
-                                  {formErrors.price}
+                                  {formErrors.name}
                                 </p>
                               )}
                             </div>
                             <div className="grid gap-2">
-                              <Label htmlFor="categoryId">
-                                Danh mục{" "}
-                                <span className="text-destructive">*</span>
+                              <Label
+                                htmlFor="description"
+                                className="text-sm font-medium"
+                              >
+                                Mô tả
                               </Label>
-                              <Select
-                                value={
-                                  newProduct.categoryId
-                                    ? newProduct.categoryId.toString()
-                                    : undefined
-                                }
-                                onValueChange={(val) =>
+                              <Textarea
+                                id="description"
+                                value={newProduct.description}
+                                onChange={(e) => {
                                   setNewProduct({
                                     ...newProduct,
-                                    categoryId: val,
-                                  })
-                                }
-                              >
-                                <SelectTrigger id="categoryId">
-                                  <SelectValue placeholder="Chọn danh mục" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.isArray(categories) &&
-                                    categories.map((cat) => (
-                                      <SelectItem
-                                        key={cat.id}
-                                        value={cat.id.toString()}
-                                      >
-                                        {cat.name}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                              {formErrors.categoryId && (
+                                    description: e.target.value,
+                                  });
+                                  if (formErrors.description)
+                                    setFormErrors((p) => ({
+                                      ...p,
+                                      description: "",
+                                    }));
+                                }}
+                                placeholder="Mô tả sản phẩm..."
+                                className={inputErrorClass(
+                                  formErrors.description,
+                                )}
+                              />
+                              {formErrors.description && (
                                 <p className="text-xs text-destructive mt-1">
-                                  {formErrors.categoryId}
+                                  {formErrors.description}
                                 </p>
                               )}
                             </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="status">Trạng thái</Label>
-                              <Select
-                                value={
-                                  newProduct.isAvailable ? "true" : "false"
-                                }
-                                onValueChange={(val) =>
-                                  setNewProduct({
-                                    ...newProduct,
-                                    isAvailable: val === "true",
-                                  })
-                                }
-                              >
-                                <SelectTrigger id="status">
-                                  <SelectValue placeholder="Chọn trạng thái" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="true">Đang bán</SelectItem>
-                                  <SelectItem value="false">
-                                    Ngừng bán
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid gap-2 col-span-2">
-                              <Label>Hình đại diện sản phẩm</Label>
-                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mt-2">
-                                <div
-                                  className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors w-32 h-32 flex items-center justify-center bg-slate-50 shrink-0"
-                                  onClick={handleImageClick}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2 col-span-2">
+                                <Label
+                                  htmlFor="price"
+                                  className="text-sm font-medium"
                                 >
-                                  {productPreviewUrl || newProduct.imageUrl ? (
-                                    <>
-                                      <Image
-                                        src={
-                                          productPreviewUrl ||
-                                          (newProduct.imageUrl.startsWith(
-                                            "http",
-                                          )
-                                            ? newProduct.imageUrl
-                                            : `${API_BASE_URL.replace("/api", "")}${newProduct.imageUrl}`)
-                                        }
-                                        alt="Product"
-                                        fill
-                                        sizes="128px"
-                                        className="object-cover transition-transform group-hover:scale-110"
-                                      />
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {isUploading ? (
-                                          <Loader2 className="h-6 w-6 text-white animate-spin" />
-                                        ) : (
-                                          <Upload className="h-6 w-6 text-white" />
-                                        )}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                      {isUploading ? (
-                                        <Loader2 className="h-8 w-8 animate-spin" />
-                                      ) : (
-                                        <>
-                                          <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
-                                          <span className="text-xs font-medium">
-                                            Chọn ảnh
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-1 text-sm text-muted-foreground">
-                                  <p>Định dạng hỗ trợ: JPG, PNG, GIF</p>
-                                  <p>Kích thước tối đa: 5MB</p>
-                                  <p>Tỉ lệ khuyến nghị: 1:1 (Vuông)</p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
+                                  Giá bán (VNĐ){" "}
+                                  <span className="text-destructive">*</span>
+                                </Label>
+                                <Input
+                                  id="price"
+                                  value={formatNumber(newProduct.price)}
+                                  onChange={(e) => {
+                                    setNewProduct({
+                                      ...newProduct,
+                                      price: parseNumber(e.target.value),
+                                    });
+                                    if (formErrors.price)
+                                      setFormErrors((p) => ({
+                                        ...p,
+                                        price: "",
+                                      }));
+                                  }}
+                                  placeholder="VD: 20.000"
+                                  className={inputErrorClass(formErrors.price)}
+                                  required
+                                  onInvalid={(e) =>
+                                    (
+                                      e.target as HTMLInputElement
+                                    ).setCustomValidity(
+                                      "Vui lòng điền vào trường này",
+                                    )
+                                  }
+                                  onInput={(e) =>
+                                    (
+                                      e.target as HTMLInputElement
+                                    ).setCustomValidity("")
+                                  }
+                                />
+                                {formErrors.price && (
+                                  <p className="text-xs text-destructive mt-1">
+                                    {formErrors.price}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="categoryId">
+                                  Danh mục{" "}
+                                  <span className="text-destructive">*</span>
+                                </Label>
+                                <Select
+                                  value={
+                                    newProduct.categoryId
+                                      ? newProduct.categoryId.toString()
+                                      : undefined
+                                  }
+                                  onValueChange={(val) =>
+                                    setNewProduct({
+                                      ...newProduct,
+                                      categoryId: val,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger id="categoryId">
+                                    <SelectValue placeholder="Chọn danh mục" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.isArray(categories) &&
+                                      categories.map((cat) => (
+                                        <SelectItem
+                                          key={cat.id}
+                                          value={cat.id.toString()}
+                                        >
+                                          {cat.name}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                                {formErrors.categoryId && (
+                                  <p className="text-xs text-destructive mt-1">
+                                    {formErrors.categoryId}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="status">Trạng thái</Label>
+                                <Select
+                                  value={
+                                    newProduct.isAvailable ? "true" : "false"
+                                  }
+                                  onValueChange={(val) =>
+                                    setNewProduct({
+                                      ...newProduct,
+                                      isAvailable: val === "true",
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger id="status">
+                                    <SelectValue placeholder="Chọn trạng thái" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="true">
+                                      Đang bán
+                                    </SelectItem>
+                                    <SelectItem value="false">
+                                      Ngừng bán
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2 col-span-2">
+                                <Label>Hình đại diện sản phẩm</Label>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mt-2">
+                                  <div
+                                    className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors w-32 h-32 flex items-center justify-center bg-slate-50 shrink-0"
                                     onClick={handleImageClick}
-                                    disabled={isUploading}
                                   >
-                                    {isUploading ? (
+                                    {productPreviewUrl ||
+                                    newProduct.imageUrl ? (
                                       <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Đang tải...
+                                        <Image
+                                          src={
+                                            productPreviewUrl ||
+                                            (newProduct.imageUrl.startsWith(
+                                              "http",
+                                            )
+                                              ? newProduct.imageUrl
+                                              : `${API_BASE_URL.replace("/api", "")}${newProduct.imageUrl}`)
+                                          }
+                                          alt="Product"
+                                          fill
+                                          sizes="128px"
+                                          className="object-cover transition-transform group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          {isUploading ? (
+                                            <Loader2 className="h-6 w-6 text-white animate-spin" />
+                                          ) : (
+                                            <Upload className="h-6 w-6 text-white" />
+                                          )}
+                                        </div>
                                       </>
                                     ) : (
-                                      "Tải ảnh lên"
+                                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                        {isUploading ? (
+                                          <Loader2 className="h-8 w-8 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
+                                            <span className="text-xs font-medium">
+                                              Chọn ảnh
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
                                     )}
-                                  </Button>
-                                  <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleFileChange}
-                                    accept="image/png, image/jpeg, image/gif"
-                                    className="hidden"
-                                  />
+                                  </div>
+                                  <div className="space-y-1 text-sm text-muted-foreground">
+                                    <p>Định dạng hỗ trợ: JPG, PNG, GIF</p>
+                                    <p>Kích thước tối đa: 5MB</p>
+                                    <p>Tỉ lệ khuyến nghị: 1:1 (Vuông)</p>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="mt-2"
+                                      onClick={handleImageClick}
+                                      disabled={isUploading}
+                                    >
+                                      {isUploading ? (
+                                        <>
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                          Đang tải...
+                                        </>
+                                      ) : (
+                                        "Tải ảnh lên"
+                                      )}
+                                    </Button>
+                                    <input
+                                      type="file"
+                                      ref={fileInputRef}
+                                      onChange={handleFileChange}
+                                      accept="image/png, image/jpeg, image/gif"
+                                      className="hidden"
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsDialogOpen(false)}
-                        >
-                          Hủy
-                        </Button>
-                        <Button
-                          onClick={() => void handleCreateProduct()}
-                          disabled={isSaving}
-                        >
-                          {isSaving
-                            ? "Đang lưu..."
-                            : isEditMode
-                              ? "Cập nhật"
-                              : "Lưu"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsDialogOpen(false)}
+                          >
+                            Hủy
+                          </Button>
+                          <Button
+                            onClick={() => void handleCreateProduct()}
+                            disabled={isSaving}
+                          >
+                            {isSaving
+                              ? "Đang lưu..."
+                              : isEditMode
+                                ? "Cập nhật"
+                                : "Lưu"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               </div>
 
               <Card className="border-none shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
                   <div className="flex items-center gap-4">
-                    {selectedIds.length > 0 && (
+                    {canDelete && selectedIds.length > 0 && (
                       <Button
                         variant="destructive"
                         size="sm"
@@ -860,7 +872,11 @@ export default function ProductPage() {
                           <TableHead className="whitespace-nowrap">
                             Trạng thái
                           </TableHead>
-                          <TableHead className="text-right">Thao tác</TableHead>
+                          {(canUpdate || canDelete) && (
+                            <TableHead className="text-right">
+                              Thao tác
+                            </TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -963,29 +979,35 @@ export default function ProductPage() {
                                   </span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-2 text-slate-500">
-                                  <button
-                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                                    onClick={() => void handleEdit(product)}
-                                    title="Chỉnh sửa"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                    onClick={() =>
-                                      void handleDelete(
-                                        product.id,
-                                        product.name,
-                                      )
-                                    }
-                                    title="Xóa"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </TableCell>
+                              {(canUpdate || canDelete) && (
+                                <TableCell className="text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-2 text-slate-500">
+                                    {canUpdate && (
+                                      <button
+                                        className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                        onClick={() => void handleEdit(product)}
+                                        title="Chỉnh sửa"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                    {canDelete && (
+                                      <button
+                                        className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        onClick={() =>
+                                          void handleDelete(
+                                            product.id,
+                                            product.name,
+                                          )
+                                        }
+                                        title="Xóa"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))
                         )}

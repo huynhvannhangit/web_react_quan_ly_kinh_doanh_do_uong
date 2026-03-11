@@ -47,6 +47,10 @@ export default function AreaPage() {
       ? user.role
       : (user?.role as { name?: string } | null)?.name;
   const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
+  const canCreate = user?.permissions?.includes(Permission.AREA_CREATE);
+  const canUpdate = user?.permissions?.includes(Permission.AREA_UPDATE);
+  const canDelete = user?.permissions?.includes(Permission.AREA_DELETE);
+
   const [areas, setAreas] = useState<Area[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -292,7 +296,7 @@ export default function AreaPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.AREA_SEARCH]}
+      permissions={[Permission.AREA_VIEW_ALL]}
       redirect="/dashboard"
     >
       <Card>
@@ -343,107 +347,110 @@ export default function AreaPage() {
                 Làm mới
               </Button>
 
-              <Dialog
-                open={isDialogOpen}
-                onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) resetForm();
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
-                    <Plus className="mr-2 h-4 w-4" /> Thêm
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {isEditMode ? "Chỉnh sửa khu vực" : "Thêm khu vực mới"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    {apiError && (
-                      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
-                        {apiError}
+              {canCreate && (
+                <Dialog
+                  open={isDialogOpen}
+                  onOpenChange={(open) => {
+                    setIsDialogOpen(open);
+                    if (!open) resetForm();
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg">
+                      <Plus className="mr-2 h-4 w-4" /> Thêm
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {isEditMode ? "Chỉnh sửa khu vực" : "Thêm khu vực mới"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      {apiError && (
+                        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive">
+                          {apiError}
+                        </div>
+                      )}
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">
+                          Tên khu vực{" "}
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="name"
+                          value={newArea.name}
+                          onChange={(e) => {
+                            setNewArea({ ...newArea, name: e.target.value });
+                            if (formErrors.name)
+                              setFormErrors((p) => ({ ...p, name: "" }));
+                          }}
+                          placeholder="VD: Tầng 1, Sân vườn..."
+                          className={inputErrorClass(formErrors.name)}
+                          required
+                          onInvalid={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity(
+                              "Vui lòng điền vào trường này",
+                            )
+                          }
+                          onInput={(e) =>
+                            (e.target as HTMLInputElement).setCustomValidity("")
+                          }
+                        />
+                        {formErrors.name && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.name}
+                          </p>
+                        )}
                       </div>
-                    )}
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">
-                        Tên khu vực <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="name"
-                        value={newArea.name}
-                        onChange={(e) => {
-                          setNewArea({ ...newArea, name: e.target.value });
-                          if (formErrors.name)
-                            setFormErrors((p) => ({ ...p, name: "" }));
-                        }}
-                        placeholder="VD: Tầng 1, Sân vườn..."
-                        className={inputErrorClass(formErrors.name)}
-                        required
-                        onInvalid={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity(
-                            "Vui lòng điền vào trường này",
-                          )
-                        }
-                        onInput={(e) =>
-                          (e.target as HTMLInputElement).setCustomValidity("")
-                        }
-                      />
-                      {formErrors.name && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.name}
-                        </p>
-                      )}
+                      <div className="grid gap-2">
+                        <Label htmlFor="description">Mô tả</Label>
+                        <Input
+                          id="description"
+                          value={newArea.description}
+                          onChange={(e) => {
+                            setNewArea({
+                              ...newArea,
+                              description: e.target.value,
+                            });
+                            if (formErrors.description)
+                              setFormErrors((p) => ({ ...p, description: "" }));
+                          }}
+                          placeholder="Mô tả cho khu vực này"
+                          className={inputErrorClass(formErrors.description)}
+                        />
+                        {formErrors.description && (
+                          <p className="text-xs text-destructive mt-1">
+                            {formErrors.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="description">Mô tả</Label>
-                      <Input
-                        id="description"
-                        value={newArea.description}
-                        onChange={(e) => {
-                          setNewArea({
-                            ...newArea,
-                            description: e.target.value,
-                          });
-                          if (formErrors.description)
-                            setFormErrors((p) => ({ ...p, description: "" }));
-                        }}
-                        placeholder="Mô tả cho khu vực này"
-                        className={inputErrorClass(formErrors.description)}
-                      />
-                      {formErrors.description && (
-                        <p className="text-xs text-destructive mt-1">
-                          {formErrors.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                    >
-                      Hủy
-                    </Button>
-                    <Button onClick={handleCreateArea} disabled={isSaving}>
-                      {isSaving
-                        ? "Đang lưu..."
-                        : isEditMode
-                          ? "Cập nhật"
-                          : "Lưu"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsDialogOpen(false)}
+                      >
+                        Hủy
+                      </Button>
+                      <Button onClick={handleCreateArea} disabled={isSaving}>
+                        {isSaving
+                          ? "Đang lưu..."
+                          : isEditMode
+                            ? "Cập nhật"
+                            : "Lưu"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
 
           <Card className="border-none shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
               <div className="flex items-center gap-4">
-                {selectedIds.length > 0 && (
+                {canDelete && selectedIds.length > 0 && (
                   <Button
                     variant="destructive"
                     size="sm"
@@ -480,7 +487,9 @@ export default function AreaPage() {
                       <TableHead>Mô tả</TableHead>
                       <TableHead>Ngày cập nhật</TableHead>
                       <TableHead>Người cập nhật</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
+                      {(canUpdate || canDelete) && (
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -543,24 +552,32 @@ export default function AreaPage() {
                               area.creator?.fullName ||
                               "—"}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2 text-slate-500">
-                              <button
-                                className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
-                                onClick={() => handleEdit(area)}
-                                title="Chỉnh sửa"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                onClick={() => handleDelete(area.id, area.name)}
-                                title="Xóa"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </TableCell>
+                          {(canUpdate || canDelete) && (
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2 text-slate-500">
+                                {canUpdate && (
+                                  <button
+                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    onClick={() => handleEdit(area)}
+                                    title="Chỉnh sửa"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    onClick={() =>
+                                      handleDelete(area.id, area.name)
+                                    }
+                                    title="Xóa"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}

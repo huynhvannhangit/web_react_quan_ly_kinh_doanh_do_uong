@@ -3,6 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { User, userService } from "@/services/user.service";
+import { Permission } from "@/types";
+import { useAuth } from "@/components/providers/auth-provider";
 import {
   Table,
   TableBody,
@@ -30,6 +32,12 @@ export function UserList() {
   const [searchName, setSearchName] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
+  const { user: currentUser } = useAuth();
+
+  const canManageRoles =
+    currentUser?.permissions?.includes(Permission.USER_UPDATE) &&
+    currentUser?.permissions?.includes(Permission.ROLE_VIEW_ALL);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -164,7 +172,9 @@ export function UserList() {
                     <TableHead>Vai trò hiện tại</TableHead>
                     <TableHead>Nhân viên liên kết</TableHead>
                     <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
+                    {canManageRoles && (
+                      <TableHead className="text-right">Thao tác</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -229,14 +239,16 @@ export function UserList() {
                               : "Đang khoá"}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
-                            onClick={() => handleEditRole(user)}
-                          >
-                            Phân quyền
-                          </Button>
-                        </TableCell>
+                        {canManageRoles && (
+                          <TableCell className="text-center">
+                            <Button
+                              className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
+                              onClick={() => handleEditRole(user)}
+                            >
+                              Phân quyền
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}

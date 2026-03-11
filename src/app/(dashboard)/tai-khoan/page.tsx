@@ -103,7 +103,7 @@ export default function AccountPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.USER_SEARCH]}
+      permissions={[Permission.USER_VIEW_ALL]}
       redirect="/dashboard"
     >
       <Card>

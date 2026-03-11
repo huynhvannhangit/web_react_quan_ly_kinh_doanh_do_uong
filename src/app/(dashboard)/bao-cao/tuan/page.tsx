@@ -8,7 +8,7 @@ import { PermissionGuard } from "@/components/shared/PermissionGuard";
 export default function WeeklyReportPage() {
   return (
     <PermissionGuard
-      permissions={[Permission.STATISTICS_SEARCH]}
+      permissions={[Permission.STATISTICS_VIEW_ALL]}
       redirect="/dashboard"
     >
       <StatisticsView defaultGroupBy="week" title="Thống kê theo tuần" />

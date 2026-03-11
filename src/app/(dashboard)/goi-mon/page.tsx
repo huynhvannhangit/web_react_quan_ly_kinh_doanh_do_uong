@@ -866,39 +866,42 @@ export default function OrderingPage() {
                   </Button>
                 </PermissionGuard>
                 {activeOrder && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                        disabled={isSubmitting}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Huỷ đơn hàng
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Xác nhận huỷ đơn hàng?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại của
-                          bàn {selectedTable?.tableNumber} và trả bàn về trạng
-                          thái trống. Bạn không thể hoàn tác hành động này.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleCancelOrder}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  <PermissionGuard permissions={[Permission.ORDER_DELETE]}>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={isSubmitting}
                         >
-                          Xác nhận huỷ
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Huỷ đơn hàng
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Xác nhận huỷ đơn hàng?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại
+                            của bàn {selectedTable?.tableNumber} và trả bàn về
+                            trạng thái trống. Bạn không thể hoàn tác hành động
+                            này.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleCancelOrder}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Xác nhận huỷ
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </PermissionGuard>
                 )}
               </div>
             </div>

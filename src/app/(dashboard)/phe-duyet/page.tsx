@@ -320,7 +320,7 @@ export default function ApprovalPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.APPROVAL_SEARCH]}
+      permissions={[Permission.APPROVAL_VIEW_ALL]}
       redirect="/dashboard"
     >
       <Card>
@@ -375,16 +375,18 @@ export default function ApprovalPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
               <div className="flex items-center gap-4">
                 {selectedIds.length > 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    disabled={isDeletingBulk}
-                    className="flex items-center gap-2 rounded-lg"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Xóa {selectedIds.length} mục
-                  </Button>
+                  <PermissionGuard permissions={[Permission.APPROVAL_DELETE]}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={isDeletingBulk}
+                      className="flex items-center gap-2 rounded-lg"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Xóa {selectedIds.length} mục
+                    </Button>
+                  </PermissionGuard>
                 )}
                 <CardTitle className="text-lg font-semibold text-foreground">
                   Danh sách yêu cầu phê duyệt

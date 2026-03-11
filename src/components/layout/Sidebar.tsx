@@ -43,32 +43,32 @@ const menuItems: MenuItem[] = [
     title: "Dashboard",
     href: "/dashboard",
     icon: Home,
-    permissions: [Permission.DASHBOARD_VIEW],
+    permissions: [Permission.DASHBOARD_VIEW_ALL],
   },
   {
     title: "Quản lý tài khoản",
     icon: Users,
-    permissions: [Permission.EMPLOYEE_SEARCH, Permission.USER_SEARCH],
+    permissions: [Permission.EMPLOYEE_VIEW_ALL, Permission.USER_VIEW_ALL],
     children: [
       {
         title: "Danh sách nhân viên",
         href: "/nhan-vien",
-        permissions: [Permission.EMPLOYEE_SEARCH],
+        permissions: [Permission.EMPLOYEE_VIEW_ALL],
       },
       {
         title: "Danh sách tài khoản",
         href: "/tai-khoan",
-        permissions: [Permission.USER_SEARCH],
+        permissions: [Permission.USER_VIEW_ALL],
       },
       {
         title: "Vai trò & Quyền",
         href: "/phan-quyen/vai-tro",
-        permissions: [Permission.ROLE_SEARCH],
+        permissions: [Permission.ROLE_VIEW_ALL],
       },
       {
         title: "Phân quyền người dùng",
         href: "/phan-quyen/nguoi-dung",
-        permissions: [Permission.USER_SEARCH],
+        permissions: [Permission.USER_VIEW_ALL],
       },
     ],
   },
@@ -76,40 +76,40 @@ const menuItems: MenuItem[] = [
     title: "Quản lý cửa hàng",
     icon: Coffee,
     permissions: [
-      Permission.AREA_SEARCH,
-      Permission.TABLE_SEARCH,
-      Permission.PRODUCT_SEARCH,
-      Permission.APPROVAL_VIEW,
-      Permission.CATEGORY_SEARCH,
+      Permission.AREA_VIEW_ALL,
+      Permission.TABLE_VIEW_ALL,
+      Permission.PRODUCT_VIEW_ALL,
+      Permission.APPROVAL_VIEW_ALL,
+      Permission.CATEGORY_VIEW_ALL,
     ],
     children: [
       {
         title: "Khu vực",
         href: "/khu-vuc",
-        permissions: [Permission.AREA_SEARCH],
+        permissions: [Permission.AREA_VIEW_ALL],
       },
-      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_SEARCH] },
+      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_VIEW_ALL] },
       {
         title: "Danh mục",
         href: "/danh-muc",
-        permissions: [Permission.CATEGORY_SEARCH],
+        permissions: [Permission.CATEGORY_VIEW_ALL],
       },
       {
         title: "Sản phẩm",
         href: "/san-pham",
-        permissions: [Permission.PRODUCT_SEARCH],
+        permissions: [Permission.PRODUCT_VIEW_ALL],
       },
       {
         title: "Phê duyệt yêu cầu",
         href: "/phe-duyet",
-        permissions: [Permission.APPROVAL_VIEW],
+        permissions: [Permission.APPROVAL_VIEW_ALL],
       },
     ],
   },
   {
     title: "Bán hàng",
     icon: CreditCard,
-    permissions: [Permission.ORDER_CREATE, Permission.INVOICE_SEARCH],
+    permissions: [Permission.ORDER_CREATE, Permission.INVOICE_VIEW_ALL],
     children: [
       {
         title: "Gọi món",
@@ -119,29 +119,29 @@ const menuItems: MenuItem[] = [
       {
         title: "Danh sách hoá đơn",
         href: "/hoa-don",
-        permissions: [Permission.INVOICE_SEARCH],
+        permissions: [Permission.INVOICE_VIEW_ALL],
       },
     ],
   },
   {
     title: "Báo cáo & Thống kê",
     icon: BarChart3,
-    permissions: [Permission.STATISTICS_SEARCH],
+    permissions: [Permission.STATISTICS_VIEW_ALL],
     children: [
       {
         title: "Doanh thu theo ngày",
         href: "/bao-cao/ngay",
-        permissions: [Permission.STATISTICS_SEARCH],
+        permissions: [Permission.STATISTICS_VIEW_ALL],
       },
       {
         title: "Thống kê theo tuần",
         href: "/bao-cao/tuan",
-        permissions: [Permission.STATISTICS_SEARCH],
+        permissions: [Permission.STATISTICS_VIEW_ALL],
       },
       {
         title: "Thống kê theo tháng",
         href: "/bao-cao/thang",
-        permissions: [Permission.STATISTICS_SEARCH],
+        permissions: [Permission.STATISTICS_VIEW_ALL],
       },
     ],
   },
@@ -152,18 +152,37 @@ const menuItems: MenuItem[] = [
     permissions: [Permission.AI_ASSISTANT_CHAT],
   },
   {
-    title: "Cấu hình hệ thống",
-    href: "/cau-hinh",
+    title: "Quản trị hệ thống",
     icon: Settings,
-    permissions: [Permission.SETTING_MANAGE],
+    permissions: [Permission.SETTING_MANAGE, Permission.LOGGING_VIEW_ALL],
+    children: [
+      {
+        title: "Cấu hình hệ thống",
+        href: "/cau-hinh",
+        permissions: [Permission.SETTING_MANAGE],
+      },
+      {
+        title: "Nhật ký hệ thống",
+        href: "/nhat-ky",
+        permissions: [Permission.LOGGING_VIEW_ALL],
+      },
+    ],
   },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
+  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+    // Pre-expand any group whose child matches the current pathname at mount,
+    // so menus stay open after F5 (before auth resolves filteredMenuItems)
+    return menuItems
+      .filter((item) =>
+        item.children?.some((child) => pathname.startsWith(child.href)),
+      )
+      .map((item) => item.title);
+  });
   const { config } = useSystemConfig();
   const { user } = useAuth();
 

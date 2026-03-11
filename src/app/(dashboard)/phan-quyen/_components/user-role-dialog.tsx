@@ -40,16 +40,17 @@ export function UserRoleDialog({
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
     const fetchRoles = async () => {
       try {
         const data = await roleService.getAll();
         setRoles(data);
-      } catch (error) {
+      } catch {
         console.error("Failed to load roles");
       }
     };
     fetchRoles();
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (user && open) {

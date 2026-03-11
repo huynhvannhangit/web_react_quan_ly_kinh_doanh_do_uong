@@ -71,11 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!checkUserRole(user)) return "/waiting-approval";
 
     const perms = user.permissions || [];
-    if (perms.includes(Permission.DASHBOARD_VIEW)) return "/dashboard";
+    if (perms.includes(Permission.DASHBOARD_VIEW_ALL)) return "/dashboard";
     if (perms.includes(Permission.ORDER_CREATE)) return "/goi-mon";
-    if (perms.includes(Permission.INVOICE_SEARCH)) return "/hoa-don";
-    if (perms.includes(Permission.PRODUCT_SEARCH)) return "/san-pham";
-    if (perms.includes(Permission.TABLE_SEARCH)) return "/ban";
+    if (perms.includes(Permission.INVOICE_VIEW_ALL)) return "/hoa-don";
+    if (perms.includes(Permission.PRODUCT_VIEW_ALL)) return "/san-pham";
+    if (perms.includes(Permission.TABLE_VIEW_ALL)) return "/ban";
 
     return "/dashboard"; // Fallback
   }, []);
@@ -96,7 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userHasRole &&
           (pathname === "/waiting-approval" ||
             (pathname === "/dashboard" &&
-              !currentUser.permissions?.includes(Permission.DASHBOARD_VIEW)))
+              !currentUser.permissions?.includes(
+                Permission.DASHBOARD_VIEW_ALL,
+              )))
         ) {
           if (pathname === "/dashboard") {
             toast.error("Bạn không có quyền truy cập trang Tổng quan");

@@ -42,6 +42,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Permission } from "@/types";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 const ExcelIcon = ({ className }: { className?: string }) => (
   <svg
@@ -140,19 +142,21 @@ export function StatisticsView({ defaultGroupBy, title }: StatisticsViewProps) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={exporting || isLoading}
-              className="h-10 px-4 text-[#008272] border-[#21a366] hover:bg-[#21a366]/10 hover:text-[#006655] dark:border-[#21a366] dark:hover:bg-[#21a366]/20 transition-all font-medium bg-white dark:bg-slate-900 shadow-sm rounded-md"
-            >
-              {exporting ? (
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-              ) : (
-                <ExcelIcon className="mr-2 h-7 w-7" />
-              )}
-              Xuất Excel
-            </Button>
+            <PermissionGuard permissions={[Permission.STATISTICS_EXPORT]}>
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting || isLoading}
+                className="h-10 px-4 text-[#008272] border-[#21a366] hover:bg-[#21a366]/10 hover:text-[#006655] dark:border-[#21a366] dark:hover:bg-[#21a366]/20 transition-all font-medium bg-white dark:bg-slate-900 shadow-sm rounded-md"
+              >
+                {exporting ? (
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                ) : (
+                  <ExcelIcon className="mr-2 h-7 w-7" />
+                )}
+                Xuất Excel
+              </Button>
+            </PermissionGuard>
           </div>
         </div>
 

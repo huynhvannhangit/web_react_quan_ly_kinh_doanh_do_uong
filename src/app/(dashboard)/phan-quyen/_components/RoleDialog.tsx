@@ -1,3 +1,4 @@
+// cspell:disable
 "use client";
 
 import { useEffect, useState } from "react";
@@ -30,238 +31,164 @@ interface RoleDialogProps {
   onSuccess: () => void;
 }
 
-// Group permissions by module for better UI
-const PERMISSION_GROUPS = {
-  USER: [
-    Permission.USER_VIEW,
-    Permission.USER_CREATE,
-    Permission.USER_UPDATE,
-    Permission.USER_DELETE,
-    Permission.USER_SEARCH,
-    Permission.USER_APPROVE,
-    Permission.USER_MANAGE,
-  ],
-  PRODUCT: [
-    Permission.PRODUCT_VIEW,
-    Permission.PRODUCT_CREATE,
-    Permission.PRODUCT_UPDATE,
-    Permission.PRODUCT_DELETE,
-    Permission.PRODUCT_SEARCH,
-    Permission.PRODUCT_APPROVE,
-  ],
-  CATEGORY: [
-    Permission.CATEGORY_VIEW,
-    Permission.CATEGORY_CREATE,
-    Permission.CATEGORY_UPDATE,
-    Permission.CATEGORY_DELETE,
-    Permission.CATEGORY_SEARCH,
-    Permission.CATEGORY_APPROVE,
-  ],
-  ORDER: [
-    Permission.ORDER_VIEW,
-    Permission.ORDER_CREATE,
-    Permission.ORDER_UPDATE,
-    Permission.ORDER_DELETE,
-    Permission.ORDER_SEARCH,
-    Permission.ORDER_APPROVE,
-    Permission.ORDER_CANCEL,
-  ],
-  INVOICE: [
-    Permission.INVOICE_VIEW,
-    Permission.INVOICE_CREATE,
-    Permission.INVOICE_SEARCH,
-    Permission.INVOICE_APPROVE,
-    Permission.INVOICE_PAY,
-    Permission.INVOICE_CANCEL,
-  ],
-  EMPLOYEE: [
-    Permission.EMPLOYEE_VIEW,
-    Permission.EMPLOYEE_CREATE,
-    Permission.EMPLOYEE_UPDATE,
-    Permission.EMPLOYEE_DELETE,
-    Permission.EMPLOYEE_SEARCH,
-    Permission.EMPLOYEE_APPROVE,
-  ],
-  AREA: [
-    Permission.AREA_VIEW,
-    Permission.AREA_CREATE,
-    Permission.AREA_UPDATE,
-    Permission.AREA_DELETE,
-    Permission.AREA_SEARCH,
-    Permission.AREA_APPROVE,
-  ],
-  TABLE: [
-    Permission.TABLE_VIEW,
-    Permission.TABLE_CREATE,
-    Permission.TABLE_UPDATE,
-    Permission.TABLE_DELETE,
-    Permission.TABLE_SEARCH,
-    Permission.TABLE_APPROVE,
-  ],
-  APPROVAL: [
-    Permission.APPROVAL_VIEW,
-    Permission.APPROVAL_CREATE,
-    Permission.APPROVAL_UPDATE,
-    Permission.APPROVAL_DELETE,
-    Permission.APPROVAL_SEARCH,
-    Permission.APPROVAL_APPROVE,
-    Permission.APPROVAL_MANAGE,
-  ],
-  ROLE: [
-    Permission.ROLE_VIEW,
-    Permission.ROLE_CREATE,
-    Permission.ROLE_UPDATE,
-    Permission.ROLE_DELETE,
-    Permission.ROLE_SEARCH,
-    Permission.ROLE_APPROVE,
-  ],
-  STATISTICS: [
-    Permission.STATISTICS_VIEW,
-    Permission.STATISTICS_EXPORT,
-    Permission.STATISTICS_SEARCH,
-    Permission.STATISTICS_APPROVE,
-  ],
-  AI_ASSISTANT: [
-    Permission.AI_ASSISTANT_CHAT,
-    Permission.AI_ASSISTANT_MANAGE,
-    Permission.AI_ASSISTANT_SEARCH,
-    Permission.AI_ASSISTANT_APPROVE,
-  ],
-  NOTIFICATION: [
-    Permission.NOTIFICATION_VIEW,
-    Permission.NOTIFICATION_CREATE,
-    Permission.NOTIFICATION_UPDATE,
-    Permission.NOTIFICATION_DELETE,
-    Permission.NOTIFICATION_SEARCH,
-    Permission.NOTIFICATION_APPROVE,
-  ],
-  SYSTEM: [
-    Permission.SETTING_MANAGE,
-    Permission.LOG_VIEW,
-    Permission.LOG_DELETE,
-    Permission.LOGGING_VIEW,
-    Permission.LOGGING_DELETE,
-  ],
-  DASHBOARD: [Permission.DASHBOARD_VIEW],
-};
+// ─── Permission Matrix Definition ───────────────────────────────────────────
+// Each module row defines which permission maps to which action column.
+// null = not applicable for that module.
 
-const GROUP_LABELS: Record<string, string> = {
-  USER: "NGƯỜI DÙNG",
-  PRODUCT: "SẢN PHẨM",
-  CATEGORY: "DANH MỤC",
-  ORDER: "ĐƠN HÀNG",
-  INVOICE: "HÓA ĐƠN",
-  EMPLOYEE: "NHÂN VIÊN",
-  AREA: "KHU VỰC",
-  TABLE: "BÀN",
-  APPROVAL: "PHÊ DUYỆT",
-  ROLE: "VAI TRÒ",
-  STATISTICS: "THỐNG KÊ",
-  AI_ASSISTANT: "TRỢ LÝ AI",
-  NOTIFICATION: "THÔNG BÁO",
-  SYSTEM: "HỆ THỐNG",
-  DASHBOARD: "TỔNG QUAN",
-};
+type ActionKey =
+  | "viewAll"
+  | "viewId"
+  | "create"
+  | "update"
+  | "delete"
+  | "cancel"
+  | "export"
+  | "manageUser"
+  | "manageApproval"
+  | "manageSetting"
+  | "viewLog"
+  | "all";
 
-const PERMISSION_LABELS: Record<string, string> = {
-  [Permission.USER_VIEW]: "Xem danh sách",
-  [Permission.USER_CREATE]: "Thêm mới",
-  [Permission.USER_UPDATE]: "Cập nhật",
-  [Permission.USER_DELETE]: "Xóa",
-  [Permission.USER_SEARCH]: "Tìm kiếm",
-  [Permission.USER_APPROVE]: "Phê duyệt",
-  [Permission.USER_MANAGE]: "Quản lý nâng cao",
+interface MatrixRow {
+  label: string;
+  permissions: Partial<Record<ActionKey, Permission>>;
+}
 
-  [Permission.PRODUCT_VIEW]: "Xem danh sách",
-  [Permission.PRODUCT_CREATE]: "Thêm mới",
-  [Permission.PRODUCT_UPDATE]: "Cập nhật",
-  [Permission.PRODUCT_DELETE]: "Xóa",
-  [Permission.PRODUCT_SEARCH]: "Tìm kiếm",
-  [Permission.PRODUCT_APPROVE]: "Phê duyệt",
+const MATRIX: MatrixRow[] = [
+  {
+    label: "Tổng quan",
+    permissions: {
+      viewAll: Permission.DASHBOARD_VIEW_ALL,
+    },
+  },
+  {
+    label: "Khu vực",
+    permissions: {
+      viewAll: Permission.AREA_VIEW_ALL,
+      viewId: Permission.AREA_VIEW_ID,
+      create: Permission.AREA_CREATE,
+      update: Permission.AREA_UPDATE,
+      delete: Permission.AREA_DELETE,
+    },
+  },
+  {
+    label: "Bàn",
+    permissions: {
+      viewAll: Permission.TABLE_VIEW_ALL,
+      viewId: Permission.TABLE_VIEW_ID,
+      create: Permission.TABLE_CREATE,
+      update: Permission.TABLE_UPDATE,
+      delete: Permission.TABLE_DELETE,
+    },
+  },
+  {
+    label: "Danh mục",
+    permissions: {
+      viewAll: Permission.CATEGORY_VIEW_ALL,
+      viewId: Permission.CATEGORY_VIEW_ID,
+      create: Permission.CATEGORY_CREATE,
+      update: Permission.CATEGORY_UPDATE,
+      delete: Permission.CATEGORY_DELETE,
+    },
+  },
+  {
+    label: "Sản phẩm",
+    permissions: {
+      viewAll: Permission.PRODUCT_VIEW_ALL,
+      viewId: Permission.PRODUCT_VIEW_ID,
+      create: Permission.PRODUCT_CREATE,
+      update: Permission.PRODUCT_UPDATE,
+      delete: Permission.PRODUCT_DELETE,
+    },
+  },
+  {
+    label: "Người dùng",
+    permissions: {
+      viewAll: Permission.USER_VIEW_ALL,
+      viewId: Permission.USER_VIEW_ID,
+      create: Permission.USER_CREATE,
+      update: Permission.USER_UPDATE,
+      delete: Permission.USER_DELETE,
+      manageUser: Permission.USER_MANAGE,
+    },
+  },
+  {
+    label: "Vai trò",
+    permissions: {
+      viewAll: Permission.ROLE_VIEW_ALL,
+      viewId: Permission.ROLE_VIEW_ID,
+      create: Permission.ROLE_CREATE,
+      update: Permission.ROLE_UPDATE,
+      delete: Permission.ROLE_DELETE,
+    },
+  },
+  {
+    label: "Đơn hàng",
+    permissions: {
+      viewAll: Permission.ORDER_VIEW_ALL,
+      viewId: Permission.ORDER_VIEW_ID,
+      create: Permission.ORDER_CREATE,
+      update: Permission.ORDER_UPDATE,
+      delete: Permission.ORDER_DELETE,
+      cancel: Permission.ORDER_CANCEL,
+    },
+  },
+  {
+    label: "Hoá đơn",
+    permissions: {
+      viewAll: Permission.INVOICE_VIEW_ALL,
+      viewId: Permission.INVOICE_VIEW_ID,
+      create: Permission.INVOICE_CREATE,
+      update: Permission.INVOICE_PAY,
+      cancel: Permission.INVOICE_CANCEL,
+    },
+  },
+  {
+    label: "Thống kê",
+    permissions: {
+      viewAll: Permission.STATISTICS_VIEW_ALL,
+      export: Permission.STATISTICS_EXPORT,
+    },
+  },
+  {
+    label: "Trợ lý AI",
+    permissions: {
+      viewAll: Permission.AI_ASSISTANT_CHAT,
+    },
+  },
+  {
+    label: "Phê duyệt",
+    permissions: {
+      viewAll: Permission.APPROVAL_VIEW_ALL,
+      viewId: Permission.APPROVAL_VIEW_ID,
+      delete: Permission.APPROVAL_DELETE,
+      manageApproval: Permission.APPROVAL_MANAGE,
+    },
+  },
+  {
+    label: "Hệ thống",
+    permissions: {
+      viewLog: Permission.LOG_VIEW_ALL,
+      manageSetting: Permission.SETTING_MANAGE,
+    },
+  },
+];
 
-  [Permission.CATEGORY_VIEW]: "Xem danh sách",
-  [Permission.CATEGORY_CREATE]: "Thêm mới",
-  [Permission.CATEGORY_UPDATE]: "Cập nhật",
-  [Permission.CATEGORY_DELETE]: "Xóa",
-  [Permission.CATEGORY_SEARCH]: "Tìm kiếm",
-  [Permission.CATEGORY_APPROVE]: "Phê duyệt",
-
-  [Permission.ORDER_VIEW]: "Xem danh sách",
-  [Permission.ORDER_CREATE]: "Tạo đơn hàng",
-  [Permission.ORDER_UPDATE]: "Sửa đơn (Thêm/Gỡ món ăn)",
-  [Permission.ORDER_DELETE]: "Xóa lịch sử đơn (Mất dữ liệu)",
-  [Permission.ORDER_SEARCH]: "Tìm kiếm",
-  [Permission.ORDER_APPROVE]: "Phê duyệt",
-  [Permission.ORDER_CANCEL]: "Hủy toàn bộ đơn hàng",
-
-  [Permission.INVOICE_VIEW]: "Xem danh sách",
-  [Permission.INVOICE_CREATE]: "Tạm tính / In hóa đơn",
-  [Permission.INVOICE_SEARCH]: "Tìm kiếm",
-  [Permission.INVOICE_APPROVE]: "Phê duyệt",
-  [Permission.INVOICE_PAY]: "Thanh toán",
-  [Permission.INVOICE_CANCEL]: "Hủy thanh toán sai / Khách đổi ý",
-
-  [Permission.EMPLOYEE_VIEW]: "Xem danh sách",
-  [Permission.EMPLOYEE_CREATE]: "Thêm mới",
-  [Permission.EMPLOYEE_UPDATE]: "Cập nhật",
-  [Permission.EMPLOYEE_DELETE]: "Xóa",
-  [Permission.EMPLOYEE_SEARCH]: "Tìm kiếm",
-  [Permission.EMPLOYEE_APPROVE]: "Phê duyệt",
-
-  [Permission.AREA_VIEW]: "Xem danh sách",
-  [Permission.AREA_CREATE]: "Thêm mới",
-  [Permission.AREA_UPDATE]: "Cập nhật",
-  [Permission.AREA_DELETE]: "Xóa",
-  [Permission.AREA_SEARCH]: "Tìm kiếm",
-  [Permission.AREA_APPROVE]: "Phê duyệt",
-
-  [Permission.TABLE_VIEW]: "Xem danh sách",
-  [Permission.TABLE_CREATE]: "Thêm mới",
-  [Permission.TABLE_UPDATE]: "Cập nhật",
-  [Permission.TABLE_DELETE]: "Xóa",
-  [Permission.TABLE_SEARCH]: "Tìm kiếm",
-  [Permission.TABLE_APPROVE]: "Phê duyệt",
-
-  [Permission.APPROVAL_VIEW]: "Xem danh sách",
-  [Permission.APPROVAL_CREATE]: "Gửi yêu cầu",
-  [Permission.APPROVAL_UPDATE]: "Cập nhật yêu cầu",
-  [Permission.APPROVAL_DELETE]: "Xóa yêu cầu",
-  [Permission.APPROVAL_SEARCH]: "Tìm kiếm",
-  [Permission.APPROVAL_APPROVE]: "Phê duyệt yêu cầu",
-  [Permission.APPROVAL_MANAGE]: "Thực hiện phê duyệt",
-
-  [Permission.ROLE_VIEW]: "Xem danh sách",
-  [Permission.ROLE_CREATE]: "Thêm mới",
-  [Permission.ROLE_UPDATE]: "Cập nhật",
-  [Permission.ROLE_DELETE]: "Xóa",
-  [Permission.ROLE_SEARCH]: "Tìm kiếm",
-  [Permission.ROLE_APPROVE]: "Phê duyệt",
-
-  [Permission.STATISTICS_VIEW]: "Xem thống kê",
-  [Permission.STATISTICS_EXPORT]: "Xuất báo cáo",
-  [Permission.STATISTICS_SEARCH]: "Tìm kiếm",
-  [Permission.STATISTICS_APPROVE]: "Phê duyệt báo cáo",
-
-  [Permission.AI_ASSISTANT_CHAT]: "Sử dụng trò chuyện",
-  [Permission.AI_ASSISTANT_MANAGE]: "Quản lý trợ lý",
-  [Permission.AI_ASSISTANT_SEARCH]: "Tìm kiếm",
-  [Permission.AI_ASSISTANT_APPROVE]: "Phê duyệt AI",
-
-  [Permission.NOTIFICATION_VIEW]: "Xem danh sách",
-  [Permission.NOTIFICATION_CREATE]: "Thêm mới",
-  [Permission.NOTIFICATION_UPDATE]: "Cập nhật",
-  [Permission.NOTIFICATION_DELETE]: "Xóa",
-  [Permission.NOTIFICATION_SEARCH]: "Tìm kiếm",
-  [Permission.NOTIFICATION_APPROVE]: "Phê duyệt thông báo",
-
-  [Permission.SETTING_MANAGE]: "Quản lý cài đặt",
-  [Permission.LOG_VIEW]: "Xem nhật ký hệ thống",
-  [Permission.LOG_DELETE]: "Xóa nhật ký",
-  [Permission.LOGGING_VIEW]: "Xem nhật ký chi tiết",
-  [Permission.LOGGING_DELETE]: "Xóa nhật ký chi tiết",
-
-  [Permission.DASHBOARD_VIEW]: "Xem trang tổng quan",
-};
+// Column definitions
+const COLUMNS: { key: ActionKey; label: string }[] = [
+  { key: "viewAll", label: "Xem" },
+  { key: "create", label: "Thêm" },
+  { key: "viewId", label: "Chi tiết" },
+  { key: "update", label: "Sửa" },
+  { key: "delete", label: "Xóa" },
+  { key: "export", label: "Xuất file" },
+  { key: "cancel", label: "Hủy" },
+  { key: "manageUser", label: "QL Vai trò" },
+  { key: "manageApproval", label: "Duyệt" },
+  { key: "manageSetting", label: "Cấu hình" },
+  { key: "viewLog", label: "Xem nhật ký" },
+  { key: "all", label: "Tất cả" },
+];
 
 export function RoleDialog({
   open,
@@ -323,24 +250,40 @@ export function RoleDialog({
     }
   };
 
-  const togglePermission = (perm: Permission) => {
+  const toggle = (perm: Permission) => {
     setPermissions((prev) =>
       prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm],
     );
   };
 
-  const toggleGroup = (groupPerms: Permission[]) => {
-    const allSelected = groupPerms.every((p) => permissions.includes(p));
-    if (allSelected) {
-      setPermissions((prev) => prev.filter((p) => !groupPerms.includes(p)));
+  // Toggle all permissions in a row
+  const toggleRow = (row: MatrixRow) => {
+    const rowPerms = Object.values(row.permissions) as Permission[];
+    const allChecked = rowPerms.every((p) => permissions.includes(p));
+    if (allChecked) {
+      setPermissions((prev) => prev.filter((p) => !rowPerms.includes(p)));
     } else {
-      setPermissions((prev) => [...new Set([...prev, ...groupPerms])]); // Add missing ones
+      setPermissions((prev) => [...new Set([...prev, ...rowPerms])]);
     }
+  };
+
+  const isRowAllChecked = (row: MatrixRow) => {
+    const rowPerms = Object.values(row.permissions) as Permission[];
+    return (
+      rowPerms.length > 0 && rowPerms.every((p) => permissions.includes(p))
+    );
+  };
+
+  const isRowPartialChecked = (row: MatrixRow) => {
+    const rowPerms = Object.values(row.permissions) as Permission[];
+    return (
+      rowPerms.some((p) => permissions.includes(p)) && !isRowAllChecked(row)
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {role ? "Chỉnh sửa vai trò" : "Thêm vai trò mới"}
@@ -351,7 +294,8 @@ export function RoleDialog({
           onSubmit={handleSubmit}
           className="flex-1 overflow-hidden flex flex-col gap-4"
         >
-          <div className="grid gap-4 py-4">
+          {/* Name & Description */}
+          <div className="grid gap-3">
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="name" className="text-right mt-2">
                 Tên vai trò <span className="text-destructive">*</span>
@@ -407,49 +351,80 @@ export function RoleDialog({
             </div>
           </div>
 
-          <div className="flex-1 border rounded-md p-4 flex flex-col min-h-0">
-            <h3 className="mb-2 font-medium shrink-0">Phân quyền</h3>
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="grid grid-cols-2 gap-6 pr-2">
-                {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
-                  <div key={group} className="space-y-2">
-                    <div className="flex items-center space-x-2 pb-1 border-b">
-                      <Checkbox
-                        id={`group-${group}`}
-                        checked={perms.every((p) => permissions.includes(p))}
-                        onCheckedChange={() => toggleGroup(perms)}
-                      />
-                      <Label
-                        htmlFor={`group-${group}`}
-                        className="font-semibold cursor-pointer"
+          {/* Permission Matrix */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-sm">
+                <tbody>
+                  {MATRIX.map((row) => {
+                    const rowAllChecked = isRowAllChecked(row);
+                    const rowPartial = isRowPartialChecked(row);
+                    return (
+                      <tr
+                        key={row.label}
+                        className="bg-background hover:bg-muted/30"
                       >
-                        {GROUP_LABELS[group] || group} ({perms.length})
-                      </Label>
-                    </div>
-                    <div className="grid gap-1 pl-4">
-                      {perms.map((perm) => (
-                        <div key={perm} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={perm}
-                            checked={permissions.includes(perm)}
-                            onCheckedChange={() => togglePermission(perm)}
-                          />
-                          <Label
-                            htmlFor={perm}
-                            className="text-sm cursor-pointer font-normal"
-                          >
-                            {PERMISSION_LABELS[perm] || perm}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        {/* Module name */}
+                        <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap align-middle w-[15%]">
+                          {row.label}
+                        </td>
+
+                        {/* Action columns flex container */}
+                        <td className="px-4 py-3 w-full">
+                          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                            {COLUMNS.map((col) => {
+                              if (col.key === "all") return null;
+
+                              const perm = row.permissions[col.key];
+                              if (!perm) return null;
+
+                              const checked = permissions.includes(perm);
+                              return (
+                                <label
+                                  key={col.key}
+                                  className="inline-flex items-center gap-2 cursor-pointer select-none"
+                                >
+                                  <Checkbox
+                                    id={perm}
+                                    checked={checked}
+                                    onCheckedChange={() => toggle(perm)}
+                                    className="data-[state=checked]:bg-[#0b5c9b] data-[state=checked]:border-[#0b5c9b]"
+                                  />
+                                  <span className="text-sm whitespace-nowrap">
+                                    {col.label}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </td>
+
+                        {/* "Tất cả" column */}
+                        <td className="px-4 py-3 align-middle whitespace-nowrap w-28 border-l border-border/40">
+                          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <Checkbox
+                              checked={
+                                rowAllChecked
+                                  ? true
+                                  : rowPartial
+                                    ? "indeterminate"
+                                    : false
+                              }
+                              onCheckedChange={() => toggleRow(row)}
+                              className="data-[state=checked]:bg-[#0b5c9b] data-[state=checked]:border-[#0b5c9b] data-[state=indeterminate]:bg-[#0b5c9b] data-[state=indeterminate]:border-[#0b5c9b]"
+                            />
+                            <span className="text-sm font-medium">Tất cả</span>
+                          </label>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <DialogFooter className="pt-4">
+          <DialogFooter className="pt-2 shrink-0">
             <Button
               type="button"
               variant="outline"
