@@ -13,7 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Lock, Unlock, Search, RotateCcw } from "lucide-react";
+import {
+  Lock,
+  Unlock,
+  Search,
+  RotateCcw,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Pagination } from "@/components/shared/Pagination";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -21,11 +30,49 @@ import { toast } from "sonner";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { roleService, Role } from "@/services/role.service";
+import {
+  collectErrors,
+  required,
+  noSpecialChars,
+  inputErrorClass,
+} from "@/lib/validators";
 
 export default function AccountPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const [formData, setFormData] = useState({
+    email: "",
+    fullName: "",
+    password: "",
+    roleId: "",
+    status: "ACTIVE",
+  });
+
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     title: string;
@@ -42,19 +89,122 @@ export default function AccountPage() {
   const pageSize = 15;
 
   useEffect(() => {
-    loadUsers();
+    loadData();
   }, []);
 
-  const loadUsers = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const data = await userService.getAll();
-      setUsers(data);
+      const [userData, roleData] = await Promise.all([
+        userService.getAll(),
+        roleService.getAll(),
+      ]);
+      setUsers(userData);
+      setRoles(roleData);
     } catch (error) {
-      console.error("Failed to load users:", error);
-      toast.error("Không thể tải danh sách tài khoản");
+      console.error("Failed to load data:", error);
+      toast.error("Không thể tải danh sách dữ liệu");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      email: "",
+      fullName: "",
+      password: "",
+      roleId: "",
+      status: "ACTIVE",
+    });
+    setEditingUser(null);
+    setIsEditMode(false);
+    setFormErrors({});
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setIsEditMode(true);
+    setFormData({
+      email: user.email,
+      fullName: user.fullName || "",
+      password: "", // Don't populate password
+      roleId:
+        typeof user.role === "object"
+          ? (user.role as Role).id.toString()
+          : user.role || "",
+      status: (user.status as string) || "ACTIVE",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (user: User) => {
+    setConfirmState({
+      isOpen: true,
+      title: "Xác nhận xóa tài khoản",
+      description: `Bạn có chắc muốn xóa tài khoản "${user.email}"? Hành động này không thể hoàn tác.`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await userService.remove(user.id);
+          toast.success("Xóa tài khoản thành công");
+          loadData();
+        } catch (error) {
+          console.error("Failed to delete account:", error);
+          toast.error("Xóa tài khoản thất bại!");
+        } finally {
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
+  const handleSubmit = async () => {
+    const errors = collectErrors({
+      email: required(formData.email),
+      fullName: required(formData.fullName) || noSpecialChars(formData.fullName),
+      roleId: required(formData.roleId),
+      password: !isEditMode ? required(formData.password) : "",
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    setIsSaving(true);
+    try {
+      if (isEditMode && editingUser) {
+        await userService.update(editingUser.id, {
+          email: formData.email,
+          fullName: formData.fullName,
+          password: formData.password || undefined,
+          roleId: parseInt(formData.roleId),
+          status: formData.status,
+        });
+        toast.success("Cập nhật tài khoản thành công");
+      } else {
+        await userService.create({
+          email: formData.email,
+          fullName: formData.fullName,
+          password: formData.password,
+          roleId: parseInt(formData.roleId),
+        });
+        toast.success("Thêm tài khoản thành công");
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+      loadData();
+    } catch (error: unknown) {
+      console.error("Failed to save user:", error);
+      const msg =
+        (error as { response?: { data?: { message?: string } } }).response?.data
+          ?.message || "Lưu thông tin thất bại!";
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -74,7 +224,7 @@ export default function AccountPage() {
           toast.success(
             `${isCurrentlyActive ? "Khoá" : "Mở khoá"} tài khoản thành công`,
           );
-          loadUsers();
+          loadData();
         } catch (error: unknown) {
           console.error(`Failed to ${actionText} account:`, error);
           const msg =
@@ -91,7 +241,7 @@ export default function AccountPage() {
   const filteredUsers = users.filter(
     (u) =>
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
+      (u.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
@@ -129,17 +279,12 @@ export default function AccountPage() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    // Search is filtered client-side in the current implementation
-                  }
-                }}
               />
             </div>
 
             <div className="flex-1 flex justify-end items-end gap-2 mb-0.5 min-w-fit">
               <Button
-                onClick={() => loadUsers()}
+                onClick={() => loadData()}
                 className="gap-2 bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
                 disabled={isLoading}
               >
@@ -156,6 +301,18 @@ export default function AccountPage() {
                 <RotateCcw className="h-4 w-4" />
                 Làm mới
               </Button>
+
+              <PermissionGuard permissions={[Permission.USER_MANAGE]}>
+                <Button
+                  className="bg-[#00509E] hover:bg-[#00509E]/90 text-white h-10 rounded-lg px-6"
+                  onClick={() => {
+                    resetForm();
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Thêm
+                </Button>
+              </PermissionGuard>
             </div>
           </div>
 
@@ -219,7 +376,7 @@ export default function AccountPage() {
                             {user.email}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
-                            {user.fullName}
+                            {user.fullName || "—"}
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
                             {user.role && typeof user.role === "object"
@@ -259,10 +416,10 @@ export default function AccountPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-center whitespace-nowrap">
-                            <PermissionGuard
-                              permissions={[Permission.USER_MANAGE]}
-                            >
-                              <div className="flex justify-center gap-3">
+                            <div className="flex justify-center gap-3">
+                              <PermissionGuard
+                                permissions={[Permission.USER_MANAGE]}
+                              >
                                 <button
                                   onClick={() => handleToggleStatus(user)}
                                   className={cn(
@@ -283,8 +440,26 @@ export default function AccountPage() {
                                     <Unlock className="h-4 w-4" />
                                   )}
                                 </button>
-                              </div>
-                            </PermissionGuard>
+                                <button
+                                  onClick={() => handleEdit(user)}
+                                  className="text-slate-400 hover:text-blue-500 transition-colors"
+                                  title="Chỉnh sửa"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                              </PermissionGuard>
+                              <PermissionGuard
+                                permissions={[Permission.USER_DELETE]}
+                              >
+                                <button
+                                  onClick={() => handleDelete(user)}
+                                  className="text-slate-400 hover:text-destructive transition-colors"
+                                  title="Xóa tài khoản"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </PermissionGuard>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -301,6 +476,146 @@ export default function AccountPage() {
               onPageChange={setCurrentPage}
             />
           </Card>
+
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm(); 
+            }}
+          >
+            <DialogContent className="sm:max-w-125">
+              <DialogHeader>
+                <DialogTitle>
+                  {isEditMode ? "Chỉnh sửa tài khoản" : "Thêm tài khoản mới"}
+                </DialogTitle>
+                <DialogDescription>
+                  Nhập thông tin chi tiết cho tài khoản hệ thống.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    placeholder="VD: admin@example.com"
+                    className={inputErrorClass(formErrors.email)}
+                  />
+                  {formErrors.email && (
+                    <p className="text-xs text-destructive">
+                      {formErrors.email}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="fullName">
+                    Họ và tên <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="fullName"
+                    value={formData.fullName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                    placeholder="VD: Nguyễn Văn A"
+                    className={inputErrorClass(formErrors.fullName)}
+                  />
+                  {formErrors.fullName && (
+                    <p className="text-xs text-destructive">
+                      {formErrors.fullName}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">
+                    Mật khẩu{" "}
+                    {!isEditMode && <span className="text-destructive">*</span>}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    placeholder={
+                      isEditMode
+                        ? "Để trống nếu không muốn đổi"
+                        : "Nhập mật khẩu..."
+                    }
+                    className={inputErrorClass(formErrors.password)}
+                  />
+                  {formErrors.password && (
+                    <p className="text-xs text-destructive">
+                      {formErrors.password}
+                    </p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="roleId">
+                    Vai trò <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.roleId}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, roleId: val })
+                    }
+                  >
+                    <SelectTrigger className={inputErrorClass(formErrors.roleId)}>
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id.toString()}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.roleId && (
+                    <p className="text-xs text-destructive">
+                      {formErrors.roleId}
+                    </p>
+                  )}
+                </div>
+                {isEditMode && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="status">Trạng thái</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, status: val })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Hoạt động</SelectItem>
+                        <SelectItem value="INACTIVE">Đã khoá</SelectItem>
+                        <SelectItem value="BANNED">Bị cấm</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Hủy
+                </Button>
+                <Button onClick={handleSubmit} disabled={isSaving}>
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isEditMode ? "Cập nhật" : "Lưu tài khoản"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <ConfirmDialog
             isOpen={confirmState.isOpen}

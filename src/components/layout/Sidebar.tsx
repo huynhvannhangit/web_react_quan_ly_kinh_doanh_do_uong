@@ -40,7 +40,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    title: "Dashboard",
+    title: "Tổng quan",
     href: "/dashboard",
     icon: Home,
     permissions: [Permission.DASHBOARD_VIEW_ALL],

@@ -76,6 +76,8 @@ import {
   Printer,
   ArrowRightLeft,
   Combine,
+  Save,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
@@ -532,28 +534,33 @@ export default function OrderingPage() {
         order = activeOrder;
       }
 
-      // Refresh order state
-      setActiveOrder(order);
-      setOrderItems(
-        order.items.map((item) => ({
-          product: item.product!,
-          quantity: item.quantity,
-          isExisting: true,
-        })),
-      );
-
-      // Create/Get provisional invoice
-      const invoice = await invoiceService.createFromOrder({
-        orderId: order.id,
+      // 2. Create mock Invoice object for printing (Non-persistent)
+      const mockInvoice: Partial<Invoice> = {
+        id: -1, // Temporary ID
+        invoiceNumber: "PHẦN TẠM TÍNH",
+        table: selectedTable || undefined,
+        subtotal: Number(order.totalPrice),
         discountPercent: 0,
-      });
+        discountAmount: 0,
+        total: Number(order.totalPrice),
+        status: InvoiceStatus.PENDING,
+        items: order.items.map((item) => ({
+          id: item.id,
+          productName: item.product?.name,
+          quantity: item.quantity,
+          price: Number(item.price),
+          total: Number(item.price) * Number(item.quantity),
+        })),
+        createdAt: new Date().toISOString(),
+      };
 
-      setLastInvoice(invoice);
-      toast.success("Đã tạo phiếu tạm tính");
+      setLastInvoice(mockInvoice as Invoice);
+      toast.success("Đã tạo phiếu in tạm tính");
 
-      // Give a tick for the printable invoice to render the new data
+      // 3. Print and cleanup (matching Save Order behavior)
       setTimeout(() => {
         window.print();
+        setIsOrderDialogOpen(false);
         loadData();
       }, 100);
     } catch (error) {
@@ -799,12 +806,12 @@ export default function OrderingPage() {
       {/* Order Dialog */}
       <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
         <DialogContent className="sm:max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden">
-          <div className="flex flex-1 overflow-hidden p-3 pt-12 gap-3">
+          <div className="flex flex-1 overflow-hidden p-3 pt-4 gap-3">
             {/* Product Selection */}
             <div className="flex-1 flex flex-col gap-2">
               <div>
-                <DialogTitle className="flex items-center gap-1.5 text-sm font-bold">
-                  <ShoppingCart className="h-3.5 w-3.5" />
+                <DialogTitle className="flex items-center gap-1.5 text-xl font-bold">
+                  <ShoppingCart className="h-5 w-5" />
                   {activeOrder ? "Đơn hàng" : "Gọi món"}: {selectedTable?.tableNumber}
                 </DialogTitle>
               </div>
@@ -878,8 +885,8 @@ export default function OrderingPage() {
             </div>
 
             {/* Current Order */}
-            <div className="w-105 flex flex-col border rounded-lg bg-muted/50 p-4 shadow-inner">
-              <h3 className="font-bold mb-2 flex items-center justify-between text-base">
+            <div className="w-105 flex flex-col border rounded-lg bg-muted/50 p-4 shadow-inner mt-6">
+              <h3 className="font-bold mb-2 flex items-center justify-between text-xl">
                 {activeOrder ? "Đơn hàng hiện tại" : "Đơn hàng mới"}
                 <Badge className="bg-primary text-primary-foreground shadow-sm">
                   {orderItems.length} món
@@ -895,62 +902,57 @@ export default function OrderingPage() {
                     orderItems.map((item) => (
                       <div
                         key={item.product.id}
-                        className="flex flex-col gap-1 border-b border-muted-foreground/10 pb-2 last:border-0"
+                        className="flex items-center gap-3 border-b border-muted-foreground/10 py-3 last:border-0"
                       >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              {item.isExisting && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] h-4 bg-muted text-muted-foreground border-border"
-                                >
-                                  Đã có
-                                </Badge>
-                              )}
-                              <p className="font-medium text-sm truncate">
-                                {item.product.name}
-                              </p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {new Intl.NumberFormat("vi-VN").format(
-                                item.product.price,
-                              )}
-                              đ
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            {item.isExisting && (
+                              <Badge
+                                className="text-[10px] h-4 bg-blue-600 text-white border-0 font-medium whitespace-nowrap hover:bg-blue-700"
+                              >
+                                Đã có
+                              </Badge>
+                            )}
+                            <p className="font-bold text-lg truncate">
+                              {item.product.name}
                             </p>
                           </div>
-                          <span className="text-sm font-bold">
+                          <p className="text-base font-bold text-primary">
                             {new Intl.NumberFormat("vi-VN").format(
                               item.product.price * item.quantity,
                             )}
                             đ
-                          </span>
+                          </p>
                         </div>
-                        <div className="flex items-center gap-3 bg-background/50 rounded-md p-1 border w-fit">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => removeFromOrder(item.product.id)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="text-sm font-bold w-4 text-center">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
-                            onClick={() => addToOrder(item.product)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center bg-background rounded-md border shadow-sm overflow-hidden h-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-full w-8 rounded-none hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => removeFromOrder(item.product.id)}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="text-xs font-bold w-6 text-center">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-full w-8 rounded-none hover:bg-primary/10 hover:text-primary border-l"
+                              onClick={() => addToOrder(item.product)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+
                           {item.isExisting && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive border-l rounded-none pl-3 ml-1"
+                              className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive border rounded-md"
                               onClick={() => {
                                 setProductToRemove(item.product);
                                 setIsRemoveItemDialogOpen(true);
@@ -966,9 +968,9 @@ export default function OrderingPage() {
                 </div>
               </ScrollArea>
               <div className="mt-1 pt-1 border-t space-y-1">
-                <div className="flex justify-between items-center font-bold text-xs mb-0">
+                <div className="flex justify-between items-center font-bold text-lg mb-0">
                   <span>Tổng cộng:</span>
-                  <span className="text-primary text-sm">
+                  <span className="text-primary text-xl">
                     {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
                   </span>
                 </div>
@@ -985,85 +987,91 @@ export default function OrderingPage() {
                     className="min-h-12 text-sm resize-none p-2"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    className="w-full font-semibold border-2"
-                    disabled={orderItems.length === 0 || isSubmitting}
-                    onClick={() => handleSubmitOrder(false)}
-                  >
-                    Lưu đơn hàng
-                  </Button>
-                  <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
+                <div className="space-y-2 mt-2">
+                  {/* Management Row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {activeOrder && (
+                      <>
+                        <PermissionGuard permissions={[Permission.ORDER_UPDATE]}>
+                          <Button
+                            variant="outline"
+                            className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 h-11 font-bold shadow-sm"
+                            onClick={() => {
+                              setDestinationTableId("");
+                              setIsTransferDialogOpen(true);
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            Chuyển bàn
+                          </Button>
+                        </PermissionGuard>
+                        <PermissionGuard permissions={[Permission.ORDER_UPDATE]}>
+                          <Button
+                            variant="outline"
+                            className="w-full text-amber-600 border-amber-200 hover:bg-amber-50 h-11 font-bold shadow-sm"
+                            onClick={() => {
+                              setTargetOrderId("");
+                              setIsMergeDialogOpen(true);
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <Combine className="mr-2 h-4 w-4" />
+                            Gộp đơn
+                          </Button>
+                        </PermissionGuard>
+                      </>
+                    )}
+
+                    <PermissionGuard permissions={[Permission.ORDER_UPDATE]}>
+                      <Button
+                        className="col-span-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white h-11 font-bold shadow-md active:scale-95 transition-all border-0"
+                        disabled={
+                          (orderItems.length === 0 && !activeOrder) || isSubmitting
+                        }
+                        onClick={handlePrintProvisional}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Phiếu tạm tính
+                      </Button>
+                    </PermissionGuard>
+
                     <Button
-                      className="w-full font-semibold shadow-md active:scale-95 transition-transform"
+                      className="w-full font-bold bg-green-700 hover:bg-green-800 text-white h-11 shadow-md active:scale-95 transition-all border-0"
                       disabled={orderItems.length === 0 || isSubmitting}
-                      onClick={() => {
-                        setDiscountPercent(0);
-                        handleSubmitOrder(true);
-                      }}
+                      onClick={() => handleSubmitOrder(false)}
                     >
-                      Thanh toán
+                      <Save className="mr-2 h-4 w-4" />
+                      Lưu đơn hàng
                     </Button>
-                  </PermissionGuard>
-                </div>
 
-                <PermissionGuard permissions={[Permission.ORDER_UPDATE]}>
-                  {activeOrder && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
                       <Button
-                        variant="outline"
-                        className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
+                        className="w-full font-bold h-11 shadow-md active:scale-95 transition-transform"
+                        disabled={orderItems.length === 0 || isSubmitting}
                         onClick={() => {
-                          setDestinationTableId("");
-                          setIsTransferDialogOpen(true);
+                          setDiscountPercent(0);
+                          handleSubmitOrder(true);
                         }}
-                        disabled={isSubmitting}
                       >
-                        <ArrowRightLeft className="mr-2 h-4 w-4" />
-                        Chuyển bàn
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Thanh toán
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
-                        onClick={() => {
-                          setTargetOrderId("");
-                          setIsMergeDialogOpen(true);
-                        }}
-                        disabled={isSubmitting}
-                      >
-                        <Combine className="mr-2 h-4 w-4" />
-                        Gộp đơn
-                      </Button>
-                    </div>
-                  )}
-                </PermissionGuard>
+                    </PermissionGuard>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <PermissionGuard permissions={[Permission.INVOICE_CREATE]}>
-                    <Button
-                      variant="secondary"
-                      className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
-                      disabled={
-                        (orderItems.length === 0 && !activeOrder) || isSubmitting
-                      }
-                      onClick={handlePrintProvisional}
-                    >
-                      <Printer className="mr-2 h-4 w-4" />
-                      Tạm tính
-                    </Button>
-                  </PermissionGuard>
+                  {/* Danger Zone */}
                   {activeOrder && (
                     <PermissionGuard permissions={[Permission.ORDER_DELETE]}>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border border-destructive/10"
+                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border border-destructive/10 h-8 text-xs font-semibold"
                             disabled={isSubmitting}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Huỷ đơn
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            Huỷ đơn hàng hiện tại
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>

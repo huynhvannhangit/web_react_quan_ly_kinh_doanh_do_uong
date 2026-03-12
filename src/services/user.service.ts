@@ -20,7 +20,17 @@ export interface User {
   };
 }
 
+export interface CreateUserDto {
+  email: string;
+  fullName: string;
+  password?: string;
+  roleId: number;
+}
+
 export interface UpdateUserDto {
+  email?: string;
+  fullName?: string;
+  password?: string;
   roleId?: number;
   status?: string;
 }
@@ -36,9 +46,19 @@ export const userService = {
     return response.data.data;
   },
 
+  create: async (data: CreateUserDto) => {
+    const response = await api.post<{ data: User }>("/user", data);
+    return response.data.data;
+  },
+
   update: async (id: number, data: UpdateUserDto) => {
     const response = await api.patch<{ data: User }>(`/user/${id}`, data);
     return response.data.data;
+  },
+
+  remove: async (id: number) => {
+    const response = await api.delete(`/user/${id}`);
+    return response.data;
   },
 
   uploadAvatar: async (id: number, file: File) => {
