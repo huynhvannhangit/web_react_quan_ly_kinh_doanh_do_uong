@@ -102,4 +102,24 @@ export const orderService = {
     const response = await api.post<{ data: Order }>(`/order/${id}/cancel`);
     return response.data.data;
   },
+  transferTable: async (orderId: number, targetTableId: number) => {
+    const response = await api.post<{ data: Order }>(
+      `/order/${orderId}/transfer-table`,
+      { targetTableId },
+    );
+    return response.data.data;
+  },
+  mergeOrder: async (sourceOrderId: number, targetTableId: number) => {
+    const response = await api.post<{ data: Order }>(
+      `/order/${sourceOrderId}/merge-order`,
+      { targetTableId },
+    );
+    return response.data.data;
+  },
+  removeItem: async (orderId: number, productId: number) => {
+    const response = await api.delete<{ data: Order }>(
+      `/order/${orderId}/items/${productId}`,
+    );
+    return response.data.data;
+  },
 };

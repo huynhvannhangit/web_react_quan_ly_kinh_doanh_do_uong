@@ -12,10 +12,14 @@ import {
 } from "@/services/product.service";
 import { areaService, Area } from "@/services/area.service";
 import {
+  useNotificationContext,
+} from "@/components/providers/notification-provider";
+import {
   orderService,
   Order,
   CreateOrderDto,
   OrderStatus,
+  OrderItem as OrderItemType,
 } from "@/services/order.service";
 import {
   invoiceService,
@@ -69,6 +73,8 @@ import {
   Check,
   Trash2,
   Printer,
+  ArrowRightLeft,
+  Combine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
@@ -108,6 +114,12 @@ export default function OrderingPage() {
   const [vnpayQrUrl, setVnpayQrUrl] = useState<string | null>(null);
   const [pendingInvoiceId, setPendingInvoiceId] = useState<number | null>(null);
   const [orderNote, setOrderNote] = useState("");
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [destinationTableId, setDestinationTableId] = useState<string>("");
+  const [targetOrderId, setTargetOrderId] = useState<string>("");
+  const [isRemoveItemDialogOpen, setIsRemoveItemDialogOpen] = useState(false);
+  const [productToRemove, setProductToRemove] = useState<Product | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   const VN_DENOMINATIONS = [
@@ -220,6 +232,24 @@ export default function OrderingPage() {
     }
   };
 
+  const groupOrderItems = (items: OrderItemType[]) => {
+    const grouped: Record<number, { product: Product; quantity: number; isExisting: boolean }> = {};
+    items.forEach(item => {
+      if (!item.product) return;
+      const pId = item.product.id;
+      if (grouped[pId]) {
+        grouped[pId].quantity += item.quantity;
+      } else {
+        grouped[pId] = {
+          product: item.product,
+          quantity: item.quantity,
+          isExisting: true
+        };
+      }
+    });
+    return Object.values(grouped);
+  };
+
   const handleTableClick = async (table: Table) => {
     setSelectedTable(table);
     setOrderItems([]);
@@ -232,13 +262,8 @@ export default function OrderingPage() {
         if (active) {
           setActiveOrder(active);
           setOrderNote(active.notes || "");
-          // Convert active order items to the state format
-          const existingItems = active.items.map((item) => ({
-            product: item.product!,
-            quantity: item.quantity,
-            isExisting: true,
-          }));
-          setOrderItems(existingItems);
+          // Convert active order items to the state format with grouping
+          setOrderItems(groupOrderItems(active.items));
         }
       } catch (error) {
         console.error("Failed to fetch active order:", error);
@@ -267,15 +292,18 @@ export default function OrderingPage() {
       const item = prev.find((i) => i.product.id === productId);
       if (!item) return prev;
 
-      // Don't allow removing/reducing existing items from this specific ordering UI
-      // They should be managed via a proper "Order Management" if needed
-      if (
-        item.isExisting &&
-        item.quantity <=
-          (activeOrder?.items.find((i) => i.product?.id === productId)
-            ?.quantity || 0)
-      ) {
-        return prev;
+      if (item.isExisting) {
+        const originalItem = activeOrder?.items.find(
+          (i) => i.product?.id === productId,
+        );
+        const originalQuantity = originalItem?.quantity || 0;
+        
+        // If they want to reduce below original, show confirmation
+        if (item.quantity <= originalQuantity) {
+          setProductToRemove(item.product);
+          setIsRemoveItemDialogOpen(true);
+          return prev;
+        }
       }
 
       if (item.quantity > 1) {
@@ -283,18 +311,60 @@ export default function OrderingPage() {
           i.product.id === productId ? { ...i, quantity: i.quantity - 1 } : i,
         );
       }
+      
+      // If quantity is 1 and they click minus, it should remove it (maybe with confirmation if it's existing, but we handled that above)
       return prev.filter((i) => i.product.id !== productId);
     });
+  };
+
+  const handleConfirmRemoveItem = async () => {
+    if (!activeOrder || !productToRemove) return;
+
+    setIsSubmitting(true);
+    try {
+      await orderService.removeItem(activeOrder.id, productToRemove.id);
+      setIsRemoveItemDialogOpen(false);
+      setProductToRemove(null);
+      
+      // Reload order data to refresh the UI
+      const table = selectedTable;
+      if (table) {
+        const active = await orderService.getActiveByTable(table.id);
+        if (active) {
+          setActiveOrder(active);
+          // Group items by product ID to avoid duplicate keys in UI
+          setOrderItems(groupOrderItems(active.items));
+        } else {
+          // If no active order left (all items removed)
+          loadData();
+          setIsOrderDialogOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to remove item:", error);
+      toast.error("Không thể xoá món");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmitOrder = async (payNow = false) => {
     if (!selectedTable || orderItems.length === 0) return;
 
-    // Filter out only new items if we have an active order
-    const newItems = orderItems.filter((item) => !item.isExisting);
+    // Calculate only the increased quantities to send to backend
+    const changedItems = orderItems.map((item) => {
+      const originalItem = activeOrder?.items.find(
+        (i) => Number(i.product?.id) === Number(item.product.id),
+      );
+      const originalQuantity = originalItem?.quantity || 0;
+      return {
+        ...item,
+        quantity: item.quantity - originalQuantity,
+      };
+    }).filter((item) => item.quantity > 0);
 
-    // If no new items and not paying now, just close
-    if (newItems.length === 0 && !payNow) {
+    // If no changes and not paying now, just close
+    if (changedItems.length === 0 && !payNow) {
       setIsOrderDialogOpen(false);
       return;
     }
@@ -303,11 +373,11 @@ export default function OrderingPage() {
     try {
       let order: Order;
 
-      if (activeOrder && newItems.length > 0) {
-        // Append to existing order
+      if (activeOrder && changedItems.length > 0) {
+        // Update existing order with increments
         order = await orderService.addItems(
           activeOrder.id,
-          newItems.map((item) => ({
+          changedItems.map((item) => ({
             productId: Number(item.product.id),
             quantity: Number(item.quantity),
             price: Number(item.product.price),
@@ -328,7 +398,7 @@ export default function OrderingPage() {
         };
         order = await orderService.create(orderData);
       } else {
-        // Fallback for payNow without new items
+        // Fallback for payNow without new changes
         order = activeOrder;
       }
 
@@ -338,11 +408,14 @@ export default function OrderingPage() {
         setCashAmount(0);
         setIsPaymentDialogOpen(true);
       } else {
+        notifySuccess("Đã cập nhật đơn hàng thành công");
         setIsOrderDialogOpen(false);
         loadData();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to submit order:", error);
+      const message = error instanceof Error ? error.message : "Không thể cập nhật đơn hàng";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -354,10 +427,13 @@ export default function OrderingPage() {
     setIsSubmitting(true);
     try {
       await orderService.cancel(activeOrder.id);
+      notifySuccess("Đã hủy đơn hàng");
       setIsOrderDialogOpen(false);
       loadData();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to cancel order:", error);
+      const message = error instanceof Error ? error.message : "Không thể hủy đơn hàng";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -415,12 +491,21 @@ export default function OrderingPage() {
     setIsSubmitting(true);
     try {
       let order: Order;
-      const newItems = orderItems.filter((item) => !item.isExisting);
+      const changedItems = orderItems.map((item) => {
+        const originalItem = activeOrder?.items.find(
+          (i) => i.product?.id === item.product.id,
+        );
+        const originalQuantity = originalItem?.quantity || 0;
+        return {
+          ...item,
+          quantity: item.quantity - originalQuantity,
+        };
+      }).filter((item) => item.quantity > 0);
 
-      if (activeOrder && newItems.length > 0) {
+      if (activeOrder && changedItems.length > 0) {
         order = await orderService.addItems(
           activeOrder.id,
-          newItems.map((item) => ({
+          changedItems.map((item) => ({
             productId: Number(item.product.id),
             quantity: Number(item.quantity),
             price: Number(item.product.price),
@@ -475,6 +560,40 @@ export default function OrderingPage() {
     }
   };
 
+  const handleTransferTable = async () => {
+    if (!activeOrder || !destinationTableId) return;
+    setIsSubmitting(true);
+    try {
+      await orderService.transferTable(activeOrder.id, Number(destinationTableId));
+      notifySuccess("Đã chuyển bàn thành công");
+      setIsTransferDialogOpen(false);
+      setIsOrderDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error("Failed to transfer table:", error);
+      toast.error("Không thể chuyển bàn");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMergeOrder = async () => {
+    if (!activeOrder || !targetOrderId) return;
+    setIsSubmitting(true);
+    try {
+      await orderService.mergeOrder(activeOrder.id, Number(targetOrderId));
+      notifySuccess("Đã gộp đơn hàng thành công");
+      setIsMergeDialogOpen(false);
+      setIsOrderDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error("Failed to merge order:", error);
+      toast.error("Không thể gộp đơn hàng");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const totalPrice = orderItems.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0,
@@ -506,6 +625,14 @@ export default function OrderingPage() {
 
     return result;
   }, [tables, statusFilter, selectedAreaId]);
+
+  const { isConnected } = useNotificationContext();
+
+  const notifySuccess = (message: string) => {
+    if (!isConnected) {
+      toast.success(message);
+    }
+  };
 
   const getTableStatusColor = (status: TableStatus) => {
     switch (status) {
@@ -644,42 +771,32 @@ export default function OrderingPage() {
 
       {/* Order Dialog */}
       <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="p-6 pb-2">
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <ShoppingCart className="h-5 w-5" />
-              {activeOrder ? "Chi tiết Đơn hàng" : "Gọi món"} cho{" "}
-              {selectedTable?.tableNumber}
-            </DialogTitle>
-            <DialogDescription>
-              {activeOrder
-                ? "Xem các món đã gọi và thêm món mới vào đơn hàng."
-                : "Chọn các món đồ uống từ thực đơn bên dưới để thêm vào giỏ hàng."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-1 overflow-hidden p-6 gap-6">
+        <DialogContent className="sm:max-w-6xl h-[90vh] flex flex-col p-0 overflow-hidden">
+          <div className="flex flex-1 overflow-hidden p-3 pt-12 gap-3">
             {/* Product Selection */}
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-2">
+              <div>
+                <DialogTitle className="flex items-center gap-1.5 text-sm font-bold">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  {activeOrder ? "Đơn hàng" : "Gọi món"}: {selectedTable?.tableNumber}
+                </DialogTitle>
+              </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Tìm món ăn, đồ uống..."
-                  className="pl-10"
+                  placeholder="Tìm món..."
+                  className="pl-8 h-8 text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  Danh mục:
-                </span>
+              <div className="flex items-center gap-1.5">
                 <Select
                   value={selectedCategoryId}
                   onValueChange={setSelectedCategoryId}
                 >
-                  <SelectTrigger className="w-full h-9">
+                  <SelectTrigger className="w-full h-8 text-xs">
                     <SelectValue placeholder="Tất cả danh mục" />
                   </SelectTrigger>
                   <SelectContent>
@@ -693,39 +810,38 @@ export default function OrderingPage() {
                 </Select>
               </div>
 
-              <ScrollArea className="flex-1 pr-4">
-                <div className="grid grid-cols-2 gap-3">
+              <ScrollArea className="flex-1">
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 pr-3">
                   {filteredProducts.map((product) => (
                     <Card
                       key={product.id}
-                      className="cursor-pointer hover:border-primary transition-colors flex flex-col overflow-hidden"
+                      className="cursor-pointer hover:shadow-md transition-shadow group overflow-hidden border-muted"
                       onClick={() => addToOrder(product)}
                     >
-                      <div className="relative aspect-square bg-muted">
-                        {product.imageUrl ? (
-                          <Image
-                            src={
-                              product.imageUrl.startsWith("http")
-                                ? product.imageUrl
-                                : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
-                            }
-                            alt={product.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            <ImageOff className="h-8 w-8 text-muted-foreground/30" />
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="p-3">
-                        <div className="font-semibold text-sm line-clamp-2 min-h-10">
+                      <CardContent className="p-1.5 space-y-1">
+                        <div className="aspect-square relative rounded overflow-hidden bg-muted">
+                          {product.imageUrl ? (
+                            <Image
+                              src={
+                                product.imageUrl.startsWith("http")
+                                  ? product.imageUrl
+                                  : `${API_BASE_URL.replace("/api", "")}${product.imageUrl}`
+                              }
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ImageOff className="h-6 w-6 text-muted-foreground/30" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="font-semibold text-[13px] line-clamp-1">
                           {product.name}
                         </div>
-                        <div className="text-primary font-bold mt-1">
-                          {new Intl.NumberFormat("vi-VN").format(product.price)}
-                          đ
+                        <div className="text-primary font-bold text-xs">
+                          {new Intl.NumberFormat("vi-VN").format(product.price)}đ
                         </div>
                       </CardContent>
                     </Card>
@@ -735,15 +851,15 @@ export default function OrderingPage() {
             </div>
 
             {/* Current Order */}
-            <div className="w-80 flex flex-col border rounded-lg bg-muted/50 p-4">
-              <h3 className="font-bold mb-4 flex items-center justify-between">
+            <div className="w-105 flex flex-col border rounded-lg bg-muted/50 p-4 shadow-inner">
+              <h3 className="font-bold mb-2 flex items-center justify-between text-base">
                 {activeOrder ? "Đơn hàng hiện tại" : "Đơn hàng mới"}
                 <Badge className="bg-primary text-primary-foreground shadow-sm">
                   {orderItems.length} món
                 </Badge>
               </h3>
               <ScrollArea className="flex-1 -mx-2 px-2">
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {orderItems.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground text-sm italic">
                       Chưa chọn món nào
@@ -752,7 +868,7 @@ export default function OrderingPage() {
                     orderItems.map((item) => (
                       <div
                         key={item.product.id}
-                        className="flex flex-col gap-2"
+                        className="flex flex-col gap-1 border-b border-muted-foreground/10 pb-2 last:border-0"
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
@@ -783,41 +899,54 @@ export default function OrderingPage() {
                             đ
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 bg-background/50 rounded-md p-1 border w-fit">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-7 w-7 rounded-sm"
+                            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => removeFromOrder(item.product.id)}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </Button>
-                          <span className="text-sm font-bold w-6 text-center">
+                          <span className="text-sm font-bold w-4 text-center">
                             {item.quantity}
                           </span>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="h-7 w-7 rounded-sm"
+                            className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
                             onClick={() => addToOrder(item.product)}
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </Button>
+                          {item.isExisting && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive border-l rounded-none pl-3 ml-1"
+                              onClick={() => {
+                                setProductToRemove(item.product);
+                                setIsRemoveItemDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))
                   )}
                 </div>
               </ScrollArea>
-              <div className="mt-4 pt-4 border-t space-y-4">
-                <div className="flex justify-between items-center font-bold text-lg mb-2">
+              <div className="mt-1 pt-1 border-t space-y-1">
+                <div className="flex justify-between items-center font-bold text-xs mb-0">
                   <span>Tổng cộng:</span>
-                  <span className="text-primary">
+                  <span className="text-primary text-sm">
                     {new Intl.NumberFormat("vi-VN").format(totalPrice)}đ
                   </span>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">
+                  <Label className="text-[12px] font-medium text-muted-foreground uppercase tracking-tight">
                     Ghi chú đơn hàng
                   </Label>
                   <Textarea
@@ -826,13 +955,13 @@ export default function OrderingPage() {
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                       setOrderNote(e.target.value)
                     }
-                    className="min-h-20 text-sm resize-none"
+                    className="min-h-12 text-sm resize-none p-2"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full font-semibold border-2"
                     disabled={orderItems.length === 0 || isSubmitting}
                     onClick={() => handleSubmitOrder(false)}
                   >
@@ -840,7 +969,7 @@ export default function OrderingPage() {
                   </Button>
                   <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
                     <Button
-                      className="w-full"
+                      className="w-full font-semibold shadow-md active:scale-95 transition-transform"
                       disabled={orderItems.length === 0 || isSubmitting}
                       onClick={() => {
                         setDiscountPercent(0);
@@ -852,59 +981,198 @@ export default function OrderingPage() {
                   </PermissionGuard>
                 </div>
 
-                <PermissionGuard permissions={[Permission.INVOICE_CREATE]}>
-                  <Button
-                    variant="secondary"
-                    className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
-                    disabled={
-                      (orderItems.length === 0 && !activeOrder) || isSubmitting
-                    }
-                    onClick={handlePrintProvisional}
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    In phiếu tạm tính
-                  </Button>
+                <PermissionGuard permissions={[Permission.ORDER_UPDATE]}>
+                  {activeOrder && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
+                        onClick={() => {
+                          setDestinationTableId("");
+                          setIsTransferDialogOpen(true);
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                        Chuyển bàn
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
+                        onClick={() => {
+                          setTargetOrderId("");
+                          setIsMergeDialogOpen(true);
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        <Combine className="mr-2 h-4 w-4" />
+                        Gộp đơn
+                      </Button>
+                    </div>
+                  )}
                 </PermissionGuard>
-                {activeOrder && (
-                  <PermissionGuard permissions={[Permission.ORDER_DELETE]}>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={isSubmitting}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Huỷ đơn hàng
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Xác nhận huỷ đơn hàng?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại
-                            của bàn {selectedTable?.tableNumber} và trả bàn về
-                            trạng thái trống. Bạn không thể hoàn tác hành động
-                            này.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleCancelOrder}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Xác nhận huỷ
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <PermissionGuard permissions={[Permission.INVOICE_CREATE]}>
+                    <Button
+                      variant="secondary"
+                      className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                      disabled={
+                        (orderItems.length === 0 && !activeOrder) || isSubmitting
+                      }
+                      onClick={handlePrintProvisional}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Tạm tính
+                    </Button>
                   </PermissionGuard>
-                )}
+                  {activeOrder && (
+                    <PermissionGuard permissions={[Permission.ORDER_DELETE]}>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border border-destructive/10"
+                            disabled={isSubmitting}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Huỷ đơn
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Xác nhận huỷ đơn hàng?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Hành động này sẽ huỷ bỏ toàn bộ đơn hàng hiện tại
+                              của bàn {selectedTable?.tableNumber} và trả bàn về
+                              trạng thái trống. Bạn không thể hoàn tác hành động
+                              này.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Bỏ qua</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleCancelOrder}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Xác nhận huỷ
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </PermissionGuard>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Transfer Table Dialog */}
+      <Dialog
+        open={isTransferDialogOpen}
+        onOpenChange={setIsTransferDialogOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chuyển bàn</DialogTitle>
+            <DialogDescription>
+              Chọn bàn trống để chuyển đơn hàng hiện tại sang.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="destinationTable">Bàn đích</Label>
+            <Select
+              value={destinationTableId}
+              onValueChange={setDestinationTableId}
+            >
+              <SelectTrigger id="destinationTable" className="mt-2">
+                <SelectValue placeholder="Chọn bàn trống" />
+              </SelectTrigger>
+              <SelectContent>
+                {tables
+                  .filter((t) => t.status === TableStatus.AVAILABLE)
+                  .map((t) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      Bàn {t.tableNumber} ({t.area?.name})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsTransferDialogOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleTransferTable}
+              disabled={!destinationTableId || isSubmitting}
+            >
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Xác nhận chuyển
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge Order Dialog */}
+      <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gộp đơn hàng</DialogTitle>
+            <DialogDescription>
+              Chọn bàn đang có đơn hàng để gộp đơn hàng này vào.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="targetTable">Bàn gộp vào</Label>
+            <Select
+              value={destinationTableId}
+              onValueChange={setDestinationTableId}
+            >
+              <SelectTrigger id="targetTable" className="mt-2">
+                <SelectValue placeholder="Chọn bàn đang ngồi" />
+              </SelectTrigger>
+              <SelectContent>
+                {tables
+                  .filter(
+                    (t) =>
+                      t.status === TableStatus.OCCUPIED &&
+                      t.id !== selectedTable?.id,
+                  )
+                  .map((t) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      Bàn {t.tableNumber} ({t.area?.name})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsMergeDialogOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleMergeOrder}
+              disabled={!destinationTableId || isSubmitting}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Xác nhận gộp
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1304,6 +1572,35 @@ export default function OrderingPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={isRemoveItemDialogOpen}
+        onOpenChange={setIsRemoveItemDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xoá món</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xoá món <strong>{productToRemove?.name}</strong> khỏi đơn hàng không? 
+              Hành động này sẽ cập nhật trực tiếp vào dữ liệu đơn hàng.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmRemoveItem();
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Xác nhận xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PrintableInvoice ref={printRef} invoice={lastInvoice} />
     </PermissionGuard>
