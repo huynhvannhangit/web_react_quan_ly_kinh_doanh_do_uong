@@ -133,8 +133,11 @@ export default function InvoicePage() {
 
     setProcessingPayment(true);
     try {
+      const requestedChange = Math.max(0, cashAmount - (selectedInvoice.total || 0));
       await invoiceService.processPayment(selectedInvoice.id, {
         paymentMethod: method,
+        receivedAmount: method === PaymentMethod.CASH ? cashAmount : 0,
+        changeAmount: method === PaymentMethod.CASH ? requestedChange : 0,
       });
       setIsPaymentDialogOpen(false);
       loadInvoices();
@@ -437,12 +440,12 @@ export default function InvoicePage() {
                               </PermissionGuard>
                             )}
                             <PermissionGuard
-                              permissions={[Permission.INVOICE_CREATE]}
+                              permissions={[Permission.INVOICE_VIEW_ID]}
                             >
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-primary"
+                                className="text-primary hover:text-primary hover:bg-primary/10"
                                 onClick={() => handlePrint(invoice)}
                               >
                                 <Printer className="h-4 w-4" />
@@ -549,6 +552,29 @@ export default function InvoicePage() {
                   đ
                 </span>
               </div>
+              {selectedInvoice?.status === InvoiceStatus.PAID &&
+                selectedInvoice?.paymentMethod === PaymentMethod.CASH && (
+                  <div className="space-y-1 pt-2 border-t border-dotted mt-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Khách đưa:</span>
+                      <span className="font-medium">
+                        {new Intl.NumberFormat("vi-VN").format(
+                          selectedInvoice?.receivedAmount || 0,
+                        )}
+                        đ
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tiền thừa:</span>
+                      <span className="font-medium text-emerald-600">
+                        {new Intl.NumberFormat("vi-VN").format(
+                          selectedInvoice?.changeAmount || 0,
+                        )}
+                        đ
+                      </span>
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
           <DialogFooter>

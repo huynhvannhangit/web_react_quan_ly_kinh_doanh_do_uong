@@ -27,7 +27,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAuth, AuthUser } from "@/components/providers/auth-provider";
+import { NotificationDetailModal } from "../notifications/notification-detail-modal";
 import { useNotificationContext } from "@/components/providers/notification-provider";
+import { AppNotification } from "@/hooks/useSocket";
 import { useState } from "react";
 import ChangePasswordModal from "@/components/auth/ChangePasswordModal";
 
@@ -48,6 +50,8 @@ export function Header() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotificationContext();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   return (
     <>
@@ -107,11 +111,19 @@ export function Header() {
                   notifications.map((notif, index) => (
                     <DropdownMenuItem
                       key={notif.id || `notif-${index}`}
-                      className={`flex-col items-start py-3 cursor-pointer ${
-                        notif.read ? "opacity-70" : "bg-muted/30 font-medium"
+                      className={`flex-col items-start py-3 cursor-pointer transition-colors ${
+                        notif.read ? "opacity-60 bg-transparent" : "bg-blue-50/50 dark:bg-blue-900/20 font-medium"
                       }`}
-                      onClick={() => {
-                        if (!notif.read && notif.id) markAsRead(notif.id);
+                      onClick={async () => {
+                        if (notif.id) {
+                          try {
+                            setSelectedNotif(notif);
+                            setIsPreviewOpen(true);
+                            await markAsRead(notif.id);
+                          } catch (err) {
+                            console.error("Failed to mark notification as read:", err);
+                          }
+                        }
                       }}
                     >
                       <div className="text-sm font-semibold">{notif.title}</div>
@@ -210,6 +222,12 @@ export function Header() {
           </DropdownMenu>
         </div>
       </header>
+
+      <NotificationDetailModal 
+        notification={selectedNotif}
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+      />
 
       <ChangePasswordModal
         open={changePasswordOpen}

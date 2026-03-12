@@ -2,8 +2,17 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 
+const getBaseURL = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999/api";
+  // Fix for empty hostname issue (e.g., http://:9999)
+  if (url.includes("://:")) {
+    return url.replace("://:", "://localhost:");
+  }
+  return url;
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
+  baseURL: getBaseURL(),
   headers: {
     "Content-Type": "application/json",
   },

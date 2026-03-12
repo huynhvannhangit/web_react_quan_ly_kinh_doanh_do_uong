@@ -32,14 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { NotificationDetailModal } from "@/components/notifications/notification-detail-modal";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -228,12 +221,16 @@ export default function NotificationPage() {
                         <TableRow
                           key={notif.id}
                           className={`hover:bg-muted/50 transition-all duration-300 border-border cursor-pointer ${
-                            !notif.read ? "bg-blue-50/30 dark:bg-blue-900/10 font-medium" : ""
+                            !notif.read ? "bg-blue-50/60 dark:bg-blue-900/20 font-medium" : "bg-white dark:bg-slate-900/50"
                           }`}
                           onClick={async () => {
                             setSelectedNotif(notif);
                             if (!notif.read && notif.id) {
-                              markAsRead(notif.id);
+                              try {
+                                await markAsRead(notif.id);
+                              } catch (err) {
+                                console.error("Failed to mark notification as read:", err);
+                              }
                             }
                           }}
                         >
@@ -315,58 +312,12 @@ export default function NotificationPage() {
         </CardContent>
       </Card>
 
-        {/* Notification Detail Dialog */}
-        <Dialog
-          open={!!selectedNotif}
-          onOpenChange={(open) => {
-            if (!open) setSelectedNotif(null);
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            {selectedNotif && (
-              <>
-                <DialogHeader>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge
-                      variant="outline"
-                      className={`rounded-full px-3 py-0.5 ${getTypeColor(selectedNotif.type)}`}
-                    >
-                      {getTypeName(selectedNotif.type)}
-                    </Badge>
-                  </div>
-                  <DialogTitle className="text-xl font-bold">
-                    {selectedNotif.title}
-                  </DialogTitle>
-                  <DialogDescription className="text-muted-foreground mt-1.5">
-                    {selectedNotif.createdAt && !isNaN(new Date(selectedNotif.createdAt).getTime())
-                      ? format(new Date(selectedNotif.createdAt), "HH:mm dd/MM/yyyy")
-                      : "N/A"}
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4">
-                  <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
-                    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap font-medium">
-                      {selectedNotif.message}
-                    </p>
-                  </div>
-
-                  {/* Removed raw JSON display as it's not user-friendly */}
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedNotif(null)}
-                    className="rounded-lg px-6"
-                  >
-                    Đóng
-                  </Button>
-                </DialogFooter>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Notification Detail Modal */}
+        <NotificationDetailModal
+          notification={selectedNotif}
+          isOpen={!!selectedNotif}
+          onClose={() => setSelectedNotif(null)}
+        />
     </>
   );
 }

@@ -14,6 +14,7 @@ import { areaService, Area } from "@/services/area.service";
 import {
   useNotificationContext,
 } from "@/components/providers/notification-provider";
+import { AppNotification } from "@/hooks/useSocket";
 import {
   orderService,
   Order,
@@ -83,7 +84,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9999/api";
 
 export default function OrderingPage() {
   const [tables, setTables] = useState<Table[]>([]);
@@ -465,8 +466,11 @@ export default function OrderingPage() {
         return;
       }
 
+      const requestedChange = Math.max(0, cashAmount - discountedPrice);
       const updatedInvoice = await invoiceService.processPayment(invoice.id, {
         paymentMethod: paymentMethod,
+        receivedAmount: paymentMethod === PaymentMethod.CASH ? cashAmount : 0,
+        changeAmount: paymentMethod === PaymentMethod.CASH ? requestedChange : 0,
       });
 
       setLastInvoice(updatedInvoice);
@@ -586,6 +590,7 @@ export default function OrderingPage() {
       setIsMergeDialogOpen(false);
       setIsOrderDialogOpen(false);
       loadData();
+      setTargetOrderId("");
     } catch (error) {
       console.error("Failed to merge order:", error);
       toast.error("Không thể gộp đơn hàng");
@@ -626,7 +631,29 @@ export default function OrderingPage() {
     return result;
   }, [tables, statusFilter, selectedAreaId]);
 
-  const { isConnected } = useNotificationContext();
+  const { isConnected, socket } = useNotificationContext();
+
+  // Listen for real-time updates to refresh data
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNotification = (payload: AppNotification) => {
+      // Refresh data if notification is related to orders or tables
+      if (
+        payload.type === "NEW_ORDER" ||
+        payload.type === "ORDER_STATUS_UPDATED" ||
+        payload.type === "TABLE_STATUS_UPDATED"
+      ) {
+        console.log("Real-time update triggered by notification:", payload.type);
+        loadData();
+      }
+    };
+
+    socket.on("notification", handleNotification);
+    return () => {
+      socket.off("notification", handleNotification);
+    };
+  }, [socket]);
 
   const notifySuccess = (message: string) => {
     if (!isConnected) {
@@ -1135,8 +1162,8 @@ export default function OrderingPage() {
           <div className="py-4">
             <Label htmlFor="targetTable">Bàn gộp vào</Label>
             <Select
-              value={destinationTableId}
-              onValueChange={setDestinationTableId}
+              value={targetOrderId}
+              onValueChange={setTargetOrderId}
             >
               <SelectTrigger id="targetTable" className="mt-2">
                 <SelectValue placeholder="Chọn bàn đang ngồi" />
@@ -1150,7 +1177,7 @@ export default function OrderingPage() {
                   )
                   .map((t) => (
                     <SelectItem key={t.id} value={t.id.toString()}>
-                      Bàn {t.tableNumber} ({t.area?.name})
+                      {t.tableNumber.includes("Bàn") ? t.tableNumber : `Bàn ${t.tableNumber}`} ({t.area?.name})
                     </SelectItem>
                   ))}
               </SelectContent>
@@ -1165,7 +1192,7 @@ export default function OrderingPage() {
             </Button>
             <Button
               onClick={handleMergeOrder}
-              disabled={!destinationTableId || isSubmitting}
+              disabled={!targetOrderId || isSubmitting}
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               {isSubmitting && (

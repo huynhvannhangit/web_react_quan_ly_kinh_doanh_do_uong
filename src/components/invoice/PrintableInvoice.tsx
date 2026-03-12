@@ -114,6 +114,18 @@ export const PrintableInvoice = React.forwardRef<
             <span>THÀNH TIỀN:</span>
             <span>{formatCurrency(invoice.total)}</span>
           </div>
+          {invoice.paymentMethod === "CASH" && (
+            <div className="space-y-1 pt-2 border-t border-black border-dotted mt-2">
+              <div className="flex justify-between text-black">
+                <span>Khách đưa:</span>
+                <span>{formatCurrency(invoice.receivedAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between text-black">
+                <span>Tiền thừa:</span>
+                <span>{formatCurrency(invoice.changeAmount || 0)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

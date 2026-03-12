@@ -134,17 +134,20 @@ export const useSocket = (user: AuthUser | null | undefined) => {
           </div>
         ),
         {
-          duration: 5000,
+          duration: 2500,
         },
       );
 
       const newNotification = {
         ...payload,
-        id: Date.now().toString(),
+        id: payload.id?.toString() || Date.now().toString(),
         read: false,
       };
-      setNotifications((prev) => [newNotification, ...prev]);
-      setUnreadCount((prev) => prev + 1);
+      setNotifications((prev) => {
+        const updated = [newNotification, ...prev];
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
+      });
     });
 
     // Use setTimeout to avoid synchronous state update in effect (cascading renders)
@@ -191,21 +194,43 @@ export const useSocket = (user: AuthUser | null | undefined) => {
         // Merge logic: prefer local/new notifications, but update from firestore if helpful
         setNotifications((prev) => {
           const merged = [...prev];
-          data.forEach(item => {
-            if (!merged.find(n => n.id === item.id)) {
-              merged.push(item);
+          data.forEach((item) => {
+            const idStr = item.id?.toString();
+            if (idStr) {
+              const existingIndex = merged.findIndex(
+                (n) => n.id?.toString() === idStr,
+              );
+              if (existingIndex > -1) {
+                // Update existing item with newer data from Firestore
+                merged[existingIndex] = {
+                  ...merged[existingIndex],
+                  ...item,
+                  id: idStr,
+                  // Optimization: If either source says it's read, keep it read.
+                  // This prevents Firestore lag from reverting a locally read notification.
+                  read: item.read === true || merged[existingIndex].read === true,
+                };
+              } else {
+                merged.push({ ...item, id: idStr, read: item.read ?? false });
+              }
             }
           });
-          return merged.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        });
-        
-        setUnreadCount(prev => {
-          const unreadCountFs = data.filter(n => !n.read).length;
-          return Math.max(prev, unreadCountFs);
+          const sorted = merged.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          
+          // Update unread count based on actual merged notifications
+          setUnreadCount(sorted.filter((n) => !n.read).length);
+          
+          return sorted;
         });
       },
       (error) => {
-        console.warn("Firestore sync unavailable (expected if API disabled):", error.message);
+        console.warn(
+          "Firestore sync unavailable (expected if API disabled):",
+          error.message,
+        );
       },
     );
 

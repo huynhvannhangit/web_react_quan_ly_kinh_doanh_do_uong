@@ -48,6 +48,8 @@ export interface Invoice {
   updatedAt?: string;
   creator?: { fullName: string };
   updater?: { fullName: string };
+  receivedAmount?: number;
+  changeAmount?: number;
 }
 
 export interface CreateInvoiceDto {
@@ -57,6 +59,8 @@ export interface CreateInvoiceDto {
 
 export interface ProcessPaymentDto {
   paymentMethod: PaymentMethod;
+  receivedAmount?: number;
+  changeAmount?: number;
 }
 
 export const invoiceService = {
