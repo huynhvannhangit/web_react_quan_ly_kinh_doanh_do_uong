@@ -547,13 +547,13 @@ export default function SystemLogPage() {
                 </p>
               </div>
               {selectedLog.metadata && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Dữ liệu chi tiết (metadata)
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                    Dữ liệu chi tiết (Metadata)
                   </p>
-                  <pre className="text-xs bg-muted rounded-md p-3 overflow-auto max-h-60 font-mono">
-                    {JSON.stringify(selectedLog.metadata, null, 2)}
-                  </pre>
+                  <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+                    <MetadataViewer metadata={selectedLog.metadata} />
+                  </div>
                 </div>
               )}
             </div>
@@ -561,5 +561,71 @@ export default function SystemLogPage() {
         </DialogContent>
       </Dialog>
     </PermissionGuard>
+  );
+}
+
+function MetadataViewer({ metadata }: { metadata: Record<string, unknown> }) {
+  const translateKey = (key: string): string => {
+    const keys: Record<string, string> = {
+      method: "Phương thức",
+      url: "Đường dẫn",
+      body: "Dữ liệu gửi lên (Body)",
+      params: "Tham số đường dẫn (Params)",
+      query: "Tham số truy vấn (Query)",
+      id: "Mã định danh (ID)",
+      status: "Trạng thái",
+      message: "Thông điệp",
+      error: "Lỗi",
+      data: "Dữ liệu",
+      before: "Trước khi thay đổi",
+      after: "Sau khi thay đổi",
+    };
+    return keys[key] || key;
+  };
+
+  const renderValue = (value: unknown, isNested = false): React.ReactNode => {
+    if (value === null || value === undefined) return <span className="text-muted-foreground italic">Trống</span>;
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      if (Object.keys(obj).length === 0) return <span className="text-muted-foreground">—</span>;
+      return (
+        <div className={`mt-1.5 space-y-2 ${isNested ? "ml-3 py-1 border-l border-border/60 pl-3" : ""}`}>
+          {Object.entries(obj).map(([k, v]) => (
+            <div key={k} className="flex flex-col">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
+                {translateKey(k)}
+              </span>
+              <div className="text-sm">{renderValue(v, true)}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (typeof value === "boolean") {
+      return (
+        <Badge variant="outline" className={`h-5 text-[10px] px-1.5 ${value ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"}`}>
+          {value ? "CÓ" : "KHÔNG"}
+        </Badge>
+      );
+    }
+    return <span className="text-foreground/90 font-medium break-all">{String(value)}</span>;
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+      {Object.entries(metadata).map(([key, value]) => {
+        const isLongContent = key === "url" || (typeof value === "string" && value.length > 50) || (typeof value === "object" && value !== null && Object.keys(value).length > 3);
+        return (
+          <div key={key} className={`flex flex-col ${isLongContent ? "md:col-span-2" : ""}`}>
+            <span className="text-[11px] font-semibold text-[#00509E]/80 dark:text-blue-400 uppercase tracking-widest mb-1.5">
+              {translateKey(key)}
+            </span>
+            <div className="min-h-6">
+              {renderValue(value)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
