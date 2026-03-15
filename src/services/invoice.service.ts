@@ -90,10 +90,10 @@ export const invoiceService = {
     return response.data.data;
   },
 
-  cancel: async (id: number) => {
+  cancel: async (id: number, reason: string) => {
     const response = await api.post<{ data: Invoice }>(
       `/invoice/${id}/cancel`,
-      {},
+      { reason },
     );
     return response.data.data;
   },

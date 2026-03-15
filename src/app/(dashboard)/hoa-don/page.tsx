@@ -37,23 +37,15 @@ import {
   Search,
   RotateCcw,
   XCircle,
+  AlertTriangle,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { useRef } from "react";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import { Pagination } from "@/components/shared/Pagination";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export default function InvoicePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -73,6 +65,8 @@ export default function InvoicePage() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [invoiceToCancel, setInvoiceToCancel] = useState<Invoice | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState("");
   const pageSize = 10;
 
   const VN_DENOMINATIONS = [
@@ -158,15 +152,22 @@ export default function InvoicePage() {
 
   const handleOpenCancel = (invoice: Invoice) => {
     setInvoiceToCancel(invoice);
+    setCancelReason("");
+    setCancelReasonError("");
     setIsCancelDialogOpen(true);
   };
 
   const handleCancelInvoice = async () => {
     if (!invoiceToCancel) return;
 
+    if (!cancelReason.trim()) {
+      setCancelReasonError("Vui lòng nhập lý do huỷ hoá đơn");
+      return;
+    }
+
     setIsCancelling(true);
     try {
-      await invoiceService.cancel(invoiceToCancel.id);
+      await invoiceService.cancel(invoiceToCancel.id, cancelReason.trim());
       toast.success("Hủy hóa đơn thành công");
       setIsCancelDialogOpen(false);
       loadInvoices();
@@ -774,36 +775,71 @@ export default function InvoicePage() {
       </Dialog>
 
       {/* Cancel Confirmation Dialog */}
-      <AlertDialog
+      <Dialog
         open={isCancelDialogOpen}
-        onOpenChange={setIsCancelDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !isCancelling) setIsCancelDialogOpen(false);
+        }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận hủy hóa đơn?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hành động này sẽ chuyển trạng thái hóa đơn thành &quot;Đã
-              hủy&quot; và không thể phục hồi. Bàn liên quan (nếu có) sẽ được
-              chuyển về trạng thái &quot;Trống&quot;.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isCancelling}>Đóng</AlertDialogCancel>
-            <AlertDialogAction
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Xác nhận hủy hóa đơn
+            </DialogTitle>
+            <DialogDescription>
+              Hành động này sẽ chuyển trạng thái hóa đơn thành &quot;Đã hủy&quot;
+              và không thể phục hồi. Bàn liên quan (nếu có) sẽ được chuyển về
+              trạng thái &quot;Trống&quot;.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">
+                Lý do huỷ <span className="text-destructive">*</span>
+              </Label>
+              <textarea
+                id="cancel-reason"
+                className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Nhập lý do huỷ hoá đơn..."
+                value={cancelReason}
+                disabled={isCancelling}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (e.target.value.trim()) setCancelReasonError("");
+                }}
+              />
+              {cancelReasonError && (
+                <p className="text-sm text-destructive">{cancelReasonError}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelDialogOpen(false)}
+              disabled={isCancelling}
+            >
+              Đóng
+            </Button>
+            <Button
+              variant="destructive"
               onClick={handleCancelInvoice}
               disabled={isCancelling}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="flex items-center gap-1"
             >
               {isCancelling ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <XCircle className="mr-2 h-4 w-4" />
+                <XCircle className="h-4 w-4" />
               )}
-              Xác nhận hủy
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {isCancelling ? "Đang hủy..." : "Xác nhận hủy"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
   );
 }
