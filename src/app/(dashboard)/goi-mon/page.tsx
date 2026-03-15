@@ -1036,14 +1036,22 @@ export default function OrderingPage() {
                       </Button>
                     </PermissionGuard>
 
-                    <Button
-                      className="w-full font-bold bg-green-700 hover:bg-green-800 text-white h-11 shadow-md active:scale-95 transition-all border-0"
-                      disabled={orderItems.length === 0 || isSubmitting}
-                      onClick={() => handleSubmitOrder(false)}
+                    <PermissionGuard
+                      permissions={[
+                        Permission.ORDER_CREATE,
+                        Permission.ORDER_UPDATE,
+                      ]}
+                      requireAll={false}
                     >
-                      <Save className="mr-2 h-4 w-4" />
-                      Lưu đơn hàng
-                    </Button>
+                      <Button
+                        className="w-full font-bold bg-green-700 hover:bg-green-800 text-white h-11 shadow-md active:scale-95 transition-all border-0"
+                        disabled={orderItems.length === 0 || isSubmitting}
+                        onClick={() => handleSubmitOrder(false)}
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Lưu đơn hàng
+                      </Button>
+                    </PermissionGuard>
 
                     <PermissionGuard permissions={[Permission.INVOICE_PAY]}>
                       <Button
@@ -1062,7 +1070,7 @@ export default function OrderingPage() {
 
                   {/* Danger Zone */}
                   {activeOrder && (
-                    <PermissionGuard permissions={[Permission.ORDER_DELETE]}>
+                    <PermissionGuard permissions={[Permission.ORDER_CANCEL]}>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button

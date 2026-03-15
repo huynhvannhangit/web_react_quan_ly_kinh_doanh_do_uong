@@ -41,20 +41,22 @@ export const categoryService = {
     const response = await api.post<{ data: Category }>("/category", data);
     return response.data.data;
   },
-  update: async (id: number, data: { name?: string; description?: string }) => {
+  update: async (id: number, data: { name?: string; description?: string }, reason?: string) => {
     const response = await api.patch<{ data: Category }>(
       `/category/${id}`,
-      data,
+      reason ? { ...data, reason } : data,
     );
     return response.data.data;
   },
-  delete: async (id: number) => {
-    const response = await api.delete<{ data: Category }>(`/category/${id}`);
+  delete: async (id: number, reason?: string) => {
+    const response = await api.delete<{ data: Category }>(`/category/${id}`, {
+      data: reason ? { reason } : undefined,
+    });
     return response.data.data;
   },
-  deleteMany: async (ids: number[]) => {
+  deleteMany: async (ids: number[], reason?: string) => {
     const response = await api.delete<{ data: Category[] }>("/category/bulk", {
-      data: { ids },
+      data: { ids, reason },
     });
     return response.data.data;
   },

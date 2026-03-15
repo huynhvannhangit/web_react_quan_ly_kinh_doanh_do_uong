@@ -1,7 +1,7 @@
 // cspell:disable
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   productService,
@@ -31,6 +31,7 @@ import {
   Loader2,
   Image as ImageIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -104,10 +105,10 @@ export default function ProductPage() {
   const canDelete = user?.permissions?.includes(Permission.PRODUCT_DELETE);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
@@ -138,11 +139,36 @@ export default function ProductPage() {
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
 
   const [isMounted, setIsMounted] = useState(false);
+  const loadData = useCallback(async (keyword?: string) => {
+    setIsLoading(true);
+    setSelectedIds([]);
+    try {
+      // Fetch products first
+      const productData = await productService.getAll(keyword);
+      setProducts(productData);
+
+      // Fetch categories only if user has permission
+      if (user?.permissions?.includes(Permission.CATEGORY_VIEW)) {
+        try {
+          const categoryData = await categoryService.getAll();
+          setCategories(categoryData);
+        } catch (catError) {
+          console.error("Failed to load categories (though user has permission):", catError);
+          // Don't crash the page if categories fail
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load products:", error);
+      toast.error("Không thể tải danh sách sản phẩm");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.permissions]);
 
   useEffect(() => {
     setIsMounted(true);
     void loadData();
-  }, []);
+  }, [loadData]);
 
   // Cleanup object urls on unmount
   useEffect(() => {
@@ -157,23 +183,6 @@ export default function ProductPage() {
     currentPage * pageSize,
   );
   const globalOffset = (currentPage - 1) * pageSize;
-
-  const loadData = async (keyword?: string) => {
-    setIsLoading(true);
-    setSelectedIds([]);
-    try {
-      const [productData, categoryData] = await Promise.all([
-        productService.getAll(keyword),
-        categoryService.getAll(),
-      ]);
-      setProducts(productData);
-      setCategories(categoryData);
-    } catch (error) {
-      console.error("Failed to load product data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const resetForm = () => {
     setNewProduct({
@@ -258,9 +267,18 @@ export default function ProductPage() {
       // Non-admin: show approval reason dialog
       setApprovalActionTitle(`Xóa sản phẩm "${name}"`);
       setPendingAction(() => async (reason: string) => {
-        await productService.delete(id, reason);
-        setApprovalDialogOpen(false);
-        loadData();
+        try {
+          setIsProcessing(true);
+          await productService.delete(id, reason);
+          toast.success("Đã gửi yêu cầu xóa sản phẩm");
+        } catch (error) {
+          console.error("Failed to send delete request:", error);
+          toast.error("Gửi yêu cầu xóa thất bại!");
+        } finally {
+          setIsProcessing(false);
+          setApprovalDialogOpen(false);
+          loadData();
+        }
       });
       setApprovalDialogOpen(true);
       return;
@@ -273,14 +291,16 @@ export default function ProductPage() {
       isDanger: true,
       onConfirm: async () => {
         try {
+          setIsProcessing(true);
           await productService.delete(id);
           toast.success("Xóa sản phẩm thành công");
-          loadData();
         } catch (error) {
           console.error("Failed to delete product:", error);
           toast.error("Xóa sản phẩm thất bại!");
         } finally {
+          setIsProcessing(false);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          loadData();
         }
       },
     });
@@ -306,17 +326,18 @@ export default function ProductPage() {
     if (!isAdmin) {
       setApprovalActionTitle(`Xóa ${selectedIds.length} sản phẩm đã chọn`);
       setPendingAction(() => async (reason: string) => {
-        setIsDeletingBulk(true);
+        setIsProcessing(true);
         try {
           await productService.deleteMany(selectedIds, reason);
+          toast.success("Đã gửi yêu cầu xóa hàng loạt");
           setSelectedIds([]);
-          setApprovalDialogOpen(false);
-          loadData();
         } catch (error) {
           console.error("Failed to bulk delete products:", error);
-          alert("Xóa hàng loạt thất bại!");
+          toast.error("Xóa hàng loạt thất bại!");
         } finally {
-          setIsDeletingBulk(false);
+          setIsProcessing(false);
+          setApprovalDialogOpen(false);
+          loadData();
         }
       });
       setApprovalDialogOpen(true);
@@ -329,18 +350,18 @@ export default function ProductPage() {
       description: `Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đã chọn?`,
       isDanger: true,
       onConfirm: async () => {
-        setIsDeletingBulk(true);
+        setIsProcessing(true);
         try {
           await productService.deleteMany(selectedIds);
           setSelectedIds([]);
           toast.success("Xóa hàng loạt thành công");
-          loadData();
         } catch (error) {
           console.error("Failed to bulk delete products:", error);
           toast.error("Xóa hàng loạt thất bại!");
         } finally {
-          setIsDeletingBulk(false);
+          setIsProcessing(false);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          loadData();
         }
       },
     });
@@ -391,19 +412,26 @@ export default function ProductPage() {
           // Show reason dialog
           setApprovalActionTitle(`Cập nhật sản phẩm "${editingProduct.name}"`);
           setPendingAction(() => async (r: string) => {
-            await productService.update(editingProduct.id, {
-              ...newProduct,
-              imageUrl,
-              categoryId: parseInt(newProduct.categoryId),
-              price: Number(newProduct.price),
-              reason: r,
-            } as Parameters<typeof productService.update>[1] & {
-              reason?: string;
-            });
-            setApprovalDialogOpen(false);
-            resetForm();
-            setIsDialogOpen(false);
-            loadData();
+            try {
+              await productService.update(editingProduct.id, {
+                ...newProduct,
+                imageUrl,
+                categoryId: parseInt(newProduct.categoryId),
+                price: Number(newProduct.price),
+                reason: r,
+              } as Parameters<typeof productService.update>[1] & {
+                reason?: string;
+              });
+              toast.success("Đã gửi yêu cầu cập nhật sản phẩm");
+              resetForm();
+              setIsDialogOpen(false);
+            } catch (error) {
+              console.error("Failed to send update request:", error);
+              toast.error("Gửi yêu cầu cập nhật thất bại!");
+            } finally {
+              setApprovalDialogOpen(false);
+              loadData();
+            }
           });
           setApprovalDialogOpen(true);
           return;
@@ -415,6 +443,7 @@ export default function ProductPage() {
           price: Number(newProduct.price),
           ...(reason ? { reason } : {}),
         } as Parameters<typeof productService.update>[1] & { reason?: string });
+        toast.success("Cập nhật sản phẩm thành công");
       } else {
         // Create new product
         await productService.create({
@@ -422,26 +451,33 @@ export default function ProductPage() {
           imageUrl,
           categoryId: parseInt(newProduct.categoryId),
           price: Number(newProduct.price),
-        });
+        } as Parameters<typeof productService.create>[0]);
+        
+        if (isAdmin) {
+          toast.success("Thêm sản phẩm thành công");
+        } else {
+          toast.success("Đã gửi yêu cầu tạo sản phẩm mới");
+        }
       }
 
       resetForm();
       setIsDialogOpen(false);
-      loadData();
     } catch (error) {
       console.error("Failed to save product:", error);
       const msg =
         (error as { customMessage?: string }).customMessage ||
         (error instanceof Error ? error.message : "Lưu sản phẩm thất bại!");
       setApiError(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
+      loadData();
     }
   };
 
   return (
     <PermissionGuard
-      permissions={[Permission.PRODUCT_VIEW_ALL]}
+      permissions={[Permission.PRODUCT_VIEW]}
       redirect="/dashboard"
     >
       {isMounted && (
@@ -482,6 +518,7 @@ export default function ProductPage() {
                     variant="outline"
                     onClick={() => {
                       setSearchTerm("");
+                      setCurrentPage(1);
                       loadData();
                     }}
                     className="gap-2 rounded-lg"
@@ -819,7 +856,7 @@ export default function ProductPage() {
                         variant="destructive"
                         size="sm"
                         onClick={handleBulkDelete}
-                        disabled={isDeletingBulk}
+                        disabled={isProcessing}
                         className="flex items-center gap-2 rounded-lg"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -984,8 +1021,12 @@ export default function ProductPage() {
                                   <div className="flex items-center justify-end gap-2 text-slate-500">
                                     {canUpdate && (
                                       <button
-                                        className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                        className={cn(
+                                          "p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all",
+                                          isProcessing && "opacity-50 cursor-not-allowed",
+                                        )}
                                         onClick={() => void handleEdit(product)}
+                                        disabled={isProcessing}
                                         title="Chỉnh sửa"
                                       >
                                         <Pencil className="h-4 w-4" />
@@ -993,13 +1034,17 @@ export default function ProductPage() {
                                     )}
                                     {canDelete && (
                                       <button
-                                        className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        className={cn(
+                                          "p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all",
+                                          isProcessing && "opacity-50 cursor-not-allowed",
+                                        )}
                                         onClick={() =>
                                           void handleDelete(
                                             product.id,
                                             product.name,
                                           )
                                         }
+                                        disabled={isProcessing}
                                         title="Xóa"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1080,7 +1125,7 @@ export default function ProductPage() {
             title={confirmState.title}
             description={confirmState.description}
             isDanger={confirmState.isDanger}
-            isLoading={isDeletingBulk}
+            isLoading={isProcessing}
           />
         </>
       )}

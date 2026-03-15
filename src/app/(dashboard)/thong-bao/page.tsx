@@ -127,6 +127,7 @@ export default function NotificationPage() {
                 onClick={async () => {
                   setLoading(true);
                   try {
+                    setCurrentPage(1);
                     await refresh();
                     toast.success("Đã làm mới danh sách");
                   } catch (err) {

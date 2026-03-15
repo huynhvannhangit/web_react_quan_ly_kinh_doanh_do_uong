@@ -36,6 +36,7 @@ import {
   inputErrorClass,
 } from "@/lib/validators";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
@@ -58,10 +59,10 @@ export default function AreaPage() {
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -155,6 +156,7 @@ export default function AreaPage() {
 
   const executeDelete = async (id: number, reason?: string) => {
     try {
+      setIsProcessing(true);
       await areaService.delete(id, reason);
       toast.success(isAdmin ? "Xóa khu vực thành công" : "Đã gửi yêu cầu xóa");
       loadAreas();
@@ -162,6 +164,7 @@ export default function AreaPage() {
       console.error("Failed to delete area:", error);
       toast.error("Xóa khu vực thất bại!");
     } finally {
+      setIsProcessing(false);
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
     }
   };
@@ -201,7 +204,7 @@ export default function AreaPage() {
   };
 
   const executeBulkDelete = async (reason?: string) => {
-    setIsDeletingBulk(true);
+    setIsProcessing(true);
     try {
       await areaService.deleteMany(selectedIds, reason);
       setSelectedIds([]);
@@ -213,7 +216,7 @@ export default function AreaPage() {
       console.error("Failed to bulk delete areas:", error);
       toast.error("Xóa hàng loạt thất bại!");
     } finally {
-      setIsDeletingBulk(false);
+      setIsProcessing(false);
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
     }
   };
@@ -262,7 +265,9 @@ export default function AreaPage() {
           ? isAdmin
             ? "Cập nhật thành công"
             : "Đã gửi yêu cầu cập nhật"
-          : "Thêm thành công",
+          : isAdmin
+            ? "Thêm thành công"
+            : "Đã gửi yêu cầu tạo khu vực mới",
       );
     } catch (error) {
       console.error("Failed to save area:", error);
@@ -296,7 +301,7 @@ export default function AreaPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.AREA_VIEW_ALL]}
+      permissions={[Permission.AREA_VIEW]}
       redirect="/dashboard"
     >
       <Card>
@@ -339,6 +344,7 @@ export default function AreaPage() {
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("");
+                  setCurrentPage(1);
                   void loadAreas();
                 }}
                 className="gap-2 rounded-lg"
@@ -455,7 +461,7 @@ export default function AreaPage() {
                     variant="destructive"
                     size="sm"
                     onClick={handleBulkDelete}
-                    disabled={isDeletingBulk}
+                    disabled={isProcessing}
                     className="flex items-center gap-2 rounded-lg"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -557,8 +563,12 @@ export default function AreaPage() {
                               <div className="flex items-center justify-end gap-2 text-slate-500">
                                 {canUpdate && (
                                   <button
-                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    className={cn(
+                                      "p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all",
+                                      isProcessing && "opacity-50 cursor-not-allowed",
+                                    )}
                                     onClick={() => handleEdit(area)}
+                                    disabled={isProcessing}
                                     title="Chỉnh sửa"
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -566,10 +576,14 @@ export default function AreaPage() {
                                 )}
                                 {canDelete && (
                                   <button
-                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    className={cn(
+                                      "p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all",
+                                      isProcessing && "opacity-50 cursor-not-allowed",
+                                    )}
                                     onClick={() =>
                                       handleDelete(area.id, area.name)
                                     }
+                                    disabled={isProcessing}
                                     title="Xóa"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -602,7 +616,7 @@ export default function AreaPage() {
             title={confirmState.title}
             description={confirmState.description}
             isDanger={confirmState.isDanger}
-            isLoading={isDeletingBulk}
+            isLoading={isProcessing}
           />
           <ApprovalReasonDialog
             open={isApprovalDialogOpen}

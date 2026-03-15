@@ -10,9 +10,7 @@ import {
 } from "@/types/approval";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import {
   Table,
@@ -33,7 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input"; // Added Input import
+import { Input } from "@/components/ui/input";
 import {
   Check,
   X,
@@ -42,8 +40,8 @@ import {
   RotateCcw,
   CheckCircle,
   XCircle,
-  Trash2,
-} from "lucide-react"; // Updated Lucide imports (removed FileText, Clock)
+  Loader2,
+} from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -57,8 +55,19 @@ const typeLabels: Record<string, string> = {
   [ApprovalType.DELETE]: "Xoá",
 };
 
-/** Map field names to Vietnamese labels */
 const fieldLabels: Record<string, string> = {
+  // User / Account
+  fullName: "Họ và tên",
+  email: "Email",
+  phone: "Số điện thoại",
+  address: "Địa chỉ",
+  avatar: "Ảnh đại diện",
+  roleId: "Mã vai trò",
+  status: "Trạng thái",
+  isVerified: "Đã xác thực",
+  deviceId: "Mã thiết bị",
+  lastLogin: "Lần đăng nhập cuối",
+  lastIp: "Địa chỉ IP cuối",
   // Product
   name: "Tên",
   price: "Giá bán (VNĐ)",
@@ -67,16 +76,11 @@ const fieldLabels: Record<string, string> = {
   imageUrl: "Hình ảnh",
   categoryId: "Danh mục (ID)",
   // Employee
-  fullName: "Họ và tên",
-  phone: "Số điện thoại",
-  address: "Địa chỉ",
   baseSalary: "Lương cơ bản",
   position: "Chức vụ",
   startDate: "Ngày bắt đầu",
-  email: "Email",
   // Area / Table
   capacity: "Sức chứa",
-  status: "Trạng thái",
   areaId: "Khu vực (ID)",
   tableNumber: "Số bàn",
   floor: "Tầng",
@@ -182,7 +186,7 @@ function DataComparisonTable({
 }
 
 export default function ApprovalPage() {
-  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]); // Renamed requests to approvals
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -202,32 +206,18 @@ export default function ApprovalPage() {
     useState<ApprovalRequest | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
-  const [confirmState, setConfirmState] = useState<{
-    isOpen: boolean;
-    title: string;
-    description: string;
-    onConfirm: () => void;
-    isDanger?: boolean;
-  }>({
-    isOpen: false,
-    title: "",
-    description: "",
-    onConfirm: () => {},
-  });
+
+  const [isReviewing, setIsReviewing] = useState(false);
 
   useEffect(() => {
-    loadApprovals(); // Renamed loadRequests to loadApprovals
+    loadApprovals();
   }, []);
 
   const loadApprovals = async (keyword?: string) => {
-    // Renamed loadRequests to loadApprovals
     setIsLoading(true);
-    setSelectedIds([]); // clear selection when loading new data
     try {
       const data = await approvalService.findAll(keyword);
-      setApprovals(data); // Renamed setRequests to setApprovals
+      setApprovals(data);
     } catch (error) {
       console.error("Failed to load approvals:", error);
     } finally {
@@ -235,92 +225,66 @@ export default function ApprovalPage() {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(paginatedApprovals.map((a) => a.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleSelectRow = (id: number, checked: boolean) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
-    }
-  };
-
-  const handleBulkDelete = () => {
-    setConfirmState({
-      isOpen: true,
-      title: "Xóa nhiều yêu cầu",
-      description: `Bạn có chắc chắn muốn xóa ${selectedIds.length} yêu cầu đã chọn? Hành động này không thể hoàn tác.`,
-      isDanger: true,
-      onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await approvalService.deleteMany(selectedIds);
-          toast.success(`Đã xóa ${selectedIds.length} yêu cầu thành công`);
-          setSelectedIds([]);
-          loadApprovals();
-        } catch (error) {
-          console.error("Failed to delete approvals:", error);
-          toast.error("Xóa yêu cầu thất bại");
-        } finally {
-          setIsDeletingBulk(false);
-          setConfirmState((prev) => ({ ...prev, isOpen: false }));
-        }
-      },
-    });
-  };
-
   const handleStatusUpdate = async (id: number, status: ApprovalStatus) => {
-    // New function for status update
+    if (isReviewing) return;
+    setIsReviewing(true);
     try {
       await approvalService.review(id, {
         status,
-        reviewNote: "", // No review note for quick approve/reject from table
+        reviewNote: "",
       });
       loadApprovals();
+      toast.success(
+        status === ApprovalStatus.APPROVED
+          ? "Đã duyệt yêu cầu"
+          : "Đã từ chối yêu cầu",
+      );
     } catch (error) {
       console.error("Failed to update approval status:", error);
-      alert("Cập nhật trạng thái thất bại!");
+      toast.error("Cập nhật trạng thái thất bại!");
+    } finally {
+      setIsReviewing(false);
     }
   };
 
   const handleReview = async (status: ApprovalStatus) => {
-    if (!selectedApproval) return; // Changed selectedRequest to selectedApproval
+    if (!selectedApproval || isReviewing) return;
 
+    setIsReviewing(true);
     try {
       await approvalService.review(selectedApproval.id, {
-        // Changed selectedRequest to selectedApproval
         status,
         reviewNote,
       });
       setIsDetailOpen(false);
-      loadApprovals(); // Renamed loadRequests to loadApprovals
+      loadApprovals();
       setReviewNote("");
+      toast.success(
+        status === ApprovalStatus.APPROVED
+          ? "Đã duyệt yêu cầu"
+          : "Đã từ chối yêu cầu",
+      );
     } catch (error) {
       console.error("Failed to review request:", error);
-      alert("Xử lý yêu cầu thất bại!");
+      toast.error("Xử lý yêu cầu thất bại!");
+    } finally {
+      setIsReviewing(false);
     }
   };
 
   const openDetail = (request: ApprovalRequest) => {
-    // Kept openDetail for dialog, but now uses setSelectedApproval
     setSelectedApproval(request);
     setReviewNote(request.reviewNote || "");
     setIsDetailOpen(true);
   };
 
-  const metadata = selectedApproval?.metadata as  // Changed selectedRequest to selectedApproval
+  const metadata = selectedApproval?.metadata as
     | Record<string, unknown>
     | undefined;
 
   return (
     <PermissionGuard
-      permissions={[Permission.APPROVAL_VIEW_ALL]}
+      permissions={[Permission.APPROVAL_VIEW]}
       redirect="/dashboard"
     >
       <Card>
@@ -361,6 +325,7 @@ export default function ApprovalPage() {
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("");
+                  setCurrentPage(1);
                   loadApprovals();
                 }}
                 className="gap-2 rounded-lg"
@@ -374,20 +339,6 @@ export default function ApprovalPage() {
           <Card className="border-none shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4 px-0">
               <div className="flex items-center gap-4">
-                {selectedIds.length > 0 && (
-                  <PermissionGuard permissions={[Permission.APPROVAL_DELETE]}>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleBulkDelete}
-                      disabled={isDeletingBulk}
-                      className="flex items-center gap-2 rounded-lg"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Xóa {selectedIds.length} mục
-                    </Button>
-                  </PermissionGuard>
-                )}
                 <CardTitle className="text-lg font-semibold text-foreground">
                   Danh sách yêu cầu phê duyệt
                 </CardTitle>
@@ -398,15 +349,6 @@ export default function ApprovalPage() {
                 <Table className="min-w-325 font-sans">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border">
-                      <TableHead className="w-12 text-center">
-                        <Checkbox
-                          checked={
-                            paginatedApprovals.length > 0 &&
-                            selectedIds.length === paginatedApprovals.length
-                          }
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
                       <TableHead className="w-16 text-center whitespace-nowrap">
                         STT
                       </TableHead>
@@ -461,14 +403,6 @@ export default function ApprovalPage() {
                           key={approval.id}
                           className="hover:bg-muted/50 transition-colors border-border"
                         >
-                          <TableCell className="text-center">
-                            <Checkbox
-                              checked={selectedIds.includes(approval.id)}
-                              onCheckedChange={(checked) =>
-                                handleSelectRow(approval.id, !!checked)
-                              }
-                            />
-                          </TableCell>
                           <TableCell className="text-center font-medium text-muted-foreground">
                             {globalOffset + index + 1}
                           </TableCell>
@@ -585,49 +519,76 @@ export default function ApprovalPage() {
                                 <Eye className="h-4 w-4" />
                               </button>
                               {approval.status === ApprovalStatus.PENDING && (
-                                <PermissionGuard
-                                  permissions={[
-                                    Permission.APPROVAL_MANAGE,
-                                    ...(approval.targetModule === "Sản phẩm"
-                                      ? [Permission.PRODUCT_APPROVE]
-                                      : approval.targetModule === "Nhân viên"
+                                <div className="flex items-center gap-1">
+                                  <PermissionGuard
+                                    permissions={[
+                                      Permission.APPROVAL_APPROVE,
+                                      ...(approval.targetModule === "Sản phẩm"
+                                        ? [Permission.PRODUCT_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Nhân viên"
                                         ? [Permission.EMPLOYEE_APPROVE]
-                                        : approval.targetModule === "Bàn"
-                                          ? [Permission.TABLE_APPROVE]
-                                          : approval.targetModule === "Khu vực"
-                                            ? [Permission.AREA_APPROVE]
-                                            : approval.targetModule ===
-                                                "Danh mục"
-                                              ? [Permission.CATEGORY_APPROVE]
-                                              : []),
-                                  ]}
-                                  requireAll={false}
-                                >
-                                  <button
-                                    className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                    onClick={() =>
-                                      void handleStatusUpdate(
-                                        approval.id,
-                                        ApprovalStatus.APPROVED,
-                                      )
-                                    }
-                                    title="Phê duyệt"
+                                        : []),
+                                      ...(approval.targetModule === "Bàn"
+                                        ? [Permission.TABLE_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Khu vực"
+                                        ? [Permission.AREA_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Danh mục"
+                                        ? [Permission.CATEGORY_APPROVE]
+                                        : []),
+                                    ]}
+                                    requireAll={false}
                                   >
-                                    <Check className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                    onClick={() =>
-                                      void handleStatusUpdate(
-                                        approval.id,
-                                        ApprovalStatus.REJECTED,
-                                      )
-                                    }
-                                    title="Từ chối"
+                                    <button
+                                      className="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                      onClick={() =>
+                                        void handleStatusUpdate(
+                                          approval.id,
+                                          ApprovalStatus.APPROVED,
+                                        )
+                                      }
+                                      title="Phê duyệt"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </PermissionGuard>
+                                  <PermissionGuard
+                                    permissions={[
+                                      Permission.APPROVAL_REJECT,
+                                      ...(approval.targetModule === "Sản phẩm"
+                                        ? [Permission.PRODUCT_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Nhân viên"
+                                        ? [Permission.EMPLOYEE_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Bàn"
+                                        ? [Permission.TABLE_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Khu vực"
+                                        ? [Permission.AREA_APPROVE]
+                                        : []),
+                                      ...(approval.targetModule === "Danh mục"
+                                        ? [Permission.CATEGORY_APPROVE]
+                                        : []),
+                                    ]}
+                                    requireAll={false}
                                   >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </PermissionGuard>
+                                    <button
+                                      className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                      onClick={() =>
+                                        void handleStatusUpdate(
+                                          approval.id,
+                                          ApprovalStatus.REJECTED,
+                                        )
+                                      }
+                                      title="Từ chối"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </PermissionGuard>
+                                </div>
                               )}
                             </div>
                           </TableCell>
@@ -749,40 +710,78 @@ export default function ApprovalPage() {
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             {selectedApproval?.status === ApprovalStatus.PENDING ? (
-              <PermissionGuard
-                permissions={[
-                  Permission.APPROVAL_MANAGE,
-                  ...(selectedApproval.targetModule === "Sản phẩm"
-                    ? [Permission.PRODUCT_APPROVE]
-                    : selectedApproval.targetModule === "Nhân viên"
+              <div className="flex gap-2 w-full sm:w-auto">
+                <PermissionGuard
+                  permissions={[
+                    Permission.APPROVAL_REJECT,
+                    ...(selectedApproval.targetModule === "Sản phẩm"
+                      ? [Permission.PRODUCT_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Nhân viên"
                       ? [Permission.EMPLOYEE_APPROVE]
-                      : selectedApproval.targetModule === "Bàn"
-                        ? [Permission.TABLE_APPROVE]
-                        : selectedApproval.targetModule === "Khu vực"
-                          ? [Permission.AREA_APPROVE]
-                          : selectedApproval.targetModule === "Danh mục"
-                            ? [Permission.CATEGORY_APPROVE]
-                            : []),
-                ]}
-                requireAll={false}
-              >
-                <div className="flex gap-2 w-full sm:w-auto">
+                      : []),
+                    ...(selectedApproval.targetModule === "Bàn"
+                      ? [Permission.TABLE_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Khu vực"
+                      ? [Permission.AREA_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Danh mục"
+                      ? [Permission.CATEGORY_APPROVE]
+                      : []),
+                  ]}
+                  requireAll={false}
+                >
                   <Button
                     variant="destructive"
                     onClick={() => void handleReview(ApprovalStatus.REJECTED)}
                     className="flex items-center gap-1 flex-1 sm:flex-initial"
+                    disabled={isReviewing}
                   >
-                    <XCircle className="h-4 w-4" /> Từ chối
+                    {isReviewing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    Từ chối
                   </Button>
+                </PermissionGuard>
+                <PermissionGuard
+                  permissions={[
+                    Permission.APPROVAL_APPROVE,
+                    ...(selectedApproval.targetModule === "Sản phẩm"
+                      ? [Permission.PRODUCT_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Nhân viên"
+                      ? [Permission.EMPLOYEE_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Bàn"
+                      ? [Permission.TABLE_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Khu vực"
+                      ? [Permission.AREA_APPROVE]
+                      : []),
+                    ...(selectedApproval.targetModule === "Danh mục"
+                      ? [Permission.CATEGORY_APPROVE]
+                      : []),
+                  ]}
+                  requireAll={false}
+                >
                   <Button
                     variant="default"
                     onClick={() => void handleReview(ApprovalStatus.APPROVED)}
                     className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1 flex-1 sm:flex-initial"
+                    disabled={isReviewing}
                   >
-                    <CheckCircle className="h-4 w-4" /> Phê duyệt
+                    {isReviewing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    Phê duyệt
                   </Button>
-                </div>
-              </PermissionGuard>
+                </PermissionGuard>
+              </div>
             ) : (
               <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
                 Thoát
@@ -791,16 +790,6 @@ export default function ApprovalPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        isOpen={confirmState.isOpen}
-        onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
-        onConfirm={confirmState.onConfirm}
-        title={confirmState.title}
-        description={confirmState.description}
-        isDanger={confirmState.isDanger}
-        isLoading={isDeletingBulk}
-      />
     </PermissionGuard>
   );
 }

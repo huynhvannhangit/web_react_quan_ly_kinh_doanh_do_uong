@@ -29,17 +29,23 @@ export const roleService = {
     return response.data.data;
   },
 
-  create: async (data: CreateRoleDto) => {
-    const response = await api.post<ApiResponse<Role>>("/role", data);
+  create: async (data: CreateRoleDto, reason?: string) => {
+    const response = await api.post<ApiResponse<Role>>("/role", {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
 
-  update: async (id: number, data: UpdateRoleDto) => {
-    const response = await api.patch<ApiResponse<Role>>(`/role/${id}`, data);
+  update: async (id: number, data: UpdateRoleDto, reason?: string) => {
+    const response = await api.patch<ApiResponse<Role>>(`/role/${id}`, {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
 
-  delete: async (id: number) => {
-    await api.delete<ApiResponse<void>>(`/role/${id}`);
+  delete: async (id: number, reason?: string) => {
+    await api.delete<ApiResponse<void>>(`/role/${id}`, { data: { reason } });
   },
 };

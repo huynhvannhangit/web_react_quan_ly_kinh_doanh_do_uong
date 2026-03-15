@@ -49,6 +49,14 @@ export function ApprovalReasonDialog({
     onOpenChange(v);
   };
 
+  // Reset state when dialog is closed (either manually or programmatically)
+  React.useEffect(() => {
+    if (!open) {
+      setReason("");
+      setError("");
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">

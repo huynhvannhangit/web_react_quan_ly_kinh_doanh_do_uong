@@ -33,6 +33,7 @@ export const useSocket = (user: AuthUser | null | undefined) => {
 
   const fetchHistory = useCallback(async () => {
     if (!user || !user.id) return;
+    
     try {
       const response = await notificationService.findAll(1, 100);
       if (response && response.items) {
@@ -134,7 +135,7 @@ export const useSocket = (user: AuthUser | null | undefined) => {
           </div>
         ),
         {
-          duration: 2500,
+          duration: 2000,
         },
       );
 

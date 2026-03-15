@@ -22,9 +22,11 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Permission } from "@/types";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 
 export function RoleList() {
   const { user } = useAuth();
+  const isAdmin = (user?.role as Role)?.name === "ADMIN" || (user?.role as Role)?.name === "CHỦ CỬA HÀNG";
   const canCreate = user?.permissions?.includes(Permission.ROLE_CREATE);
   const canUpdate = user?.permissions?.includes(Permission.ROLE_UPDATE);
   const canDelete = user?.permissions?.includes(Permission.ROLE_DELETE);
@@ -40,6 +42,8 @@ export function RoleList() {
   const [searchName, setSearchName] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
+  const [openReason, setOpenReason] = useState(false);
 
   const fetchRoles = async () => {
     setIsLoading(true);
@@ -72,12 +76,25 @@ export function RoleList() {
     setOpenDelete(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleDeleteClickWrapper = async () => {
+    if (!isAdmin) {
+      setOpenReason(true);
+      return;
+    }
+    await handleConfirmDelete();
+  };
+
+  const handleReasonSubmit = async (reason: string) => {
+    await handleConfirmDelete(reason);
+    setOpenReason(false);
+  };
+
+  const handleConfirmDelete = async (reason?: string) => {
     if (!roleToDelete) return;
     setIsDeleting(true);
     try {
-      await roleService.delete(roleToDelete.id);
-      toast.success("Xóa vai trò thành công");
+      await roleService.delete(roleToDelete.id, reason);
+      toast.success(isAdmin ? "Xóa vai trò thành công" : "Đã gửi yêu cầu xóa vai trò");
       fetchRoles();
     } catch {
       toast.error("Không thể xóa vai trò");
@@ -95,6 +112,8 @@ export function RoleList() {
   const handleReset = () => {
     setSearchInput("");
     setSearchName("");
+    setCurrentPage(1);
+    fetchRoles();
   };
 
   const filteredRoles = roles.filter((role) => {
@@ -222,8 +241,9 @@ export function RoleList() {
                             <div className="flex justify-end items-center gap-3 text-muted-foreground">
                               {canUpdate && (
                                 <button
-                                  className="hover:text-foreground transition-colors"
+                                  className="hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   onClick={() => handleEdit(role)}
+                                  disabled={isDeleting}
                                   title="Chỉnh sửa"
                                 >
                                   <Pencil className="w-4 h-4" />
@@ -231,8 +251,9 @@ export function RoleList() {
                               )}
                               {canDelete && (
                                 <button
-                                  className="text-red-500 hover:text-red-600 transition-colors"
+                                  className="text-red-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   onClick={() => handleDeleteClick(role)}
+                                  disabled={isDeleting}
                                   title="Xóa"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -268,8 +289,16 @@ export function RoleList() {
         open={openDelete}
         onOpenChange={setOpenDelete}
         role={roleToDelete}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleDeleteClickWrapper}
         isLoading={isDeleting}
+      />
+
+      <ApprovalReasonDialog
+        open={openReason}
+        onOpenChange={setOpenReason}
+        onConfirm={handleReasonSubmit}
+        isLoading={isDeleting}
+        actionTitle="Xóa vai trò"
       />
     </>
   );

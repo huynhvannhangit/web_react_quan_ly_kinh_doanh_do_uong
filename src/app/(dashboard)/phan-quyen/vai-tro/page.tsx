@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function VaiTroPage() {
   return (
     <PermissionGuard
-      permissions={[Permission.ROLE_VIEW_ALL]}
+      permissions={[Permission.ROLE_VIEW]}
       redirect="/dashboard"
     >
       <Card>

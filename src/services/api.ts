@@ -33,6 +33,9 @@ api.interceptors.request.use(
 );
 
 // Response interceptor to handle token expiration or unauthorized access
+let lastToastTime = 0;
+const TOAST_DEBOUNCE = 2000; // 2 seconds
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -43,6 +46,7 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     }
+
     // Handle structured error messages from backend
     if (error.response && error.response.data) {
       const { message, error: errorType } = error.response.data;
@@ -53,11 +57,28 @@ api.interceptors.response.use(
         if (Array.isArray(message)) {
           error.customMessage = message.join(", ");
         } else {
-          error.customMessage = message;
+          // Translate some common backend messages
+          if (message === "Forbidden resource") {
+            error.customMessage = "Bạn không có quyền thực hiện thao tác này";
+          } else {
+            error.customMessage = message;
+          }
         }
       } else if (errorType) {
-        // Fallback to error type string (e.g., 'Bad Request')
-        error.customMessage = errorType;
+        // Fallback to error type string and translate
+        switch (errorType) {
+          case "Forbidden":
+            error.customMessage = "Bạn không có quyền thực hiện thao tác này";
+            break;
+          case "Unauthorized":
+            error.customMessage = "Phiên làm việc hết hạn. Vui lòng đăng nhập lại.";
+            break;
+          case "Bad Request":
+            error.customMessage = "Dữ liệu yêu cầu không hợp lệ.";
+            break;
+          default:
+            error.customMessage = errorType;
+        }
       }
     }
 
@@ -68,8 +89,17 @@ api.interceptors.response.use(
     }
 
     // Automatically trigger a toast for API errors EXCEPT 401 (handled by redirect)
+    // Add debounce to prevent multiple toasts for the same error in a short time
+    const now = Date.now();
     if (error.response?.status !== 401) {
-      toast.error(error.customMessage);
+      if (
+        now - lastToastTime > TOAST_DEBOUNCE ||
+        error.customMessage !== error.lastMessage
+      ) {
+        toast.error(error.customMessage);
+        lastToastTime = now;
+        error.lastMessage = error.customMessage;
+      }
     }
 
     return Promise.reject(error);

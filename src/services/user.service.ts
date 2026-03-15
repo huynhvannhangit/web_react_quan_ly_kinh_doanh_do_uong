@@ -46,18 +46,24 @@ export const userService = {
     return response.data.data;
   },
 
-  create: async (data: CreateUserDto) => {
-    const response = await api.post<{ data: User }>("/user", data);
+  create: async (data: CreateUserDto, reason?: string) => {
+    const response = await api.post<{ data: User }>("/user", {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
 
-  update: async (id: number, data: UpdateUserDto) => {
-    const response = await api.patch<{ data: User }>(`/user/${id}`, data);
+  update: async (id: number, data: UpdateUserDto, reason?: string) => {
+    const response = await api.patch<{ data: User }>(`/user/${id}`, {
+      ...data,
+      reason,
+    });
     return response.data.data;
   },
 
-  remove: async (id: number) => {
-    const response = await api.delete(`/user/${id}`);
+  remove: async (id: number, reason?: string) => {
+    const response = await api.delete(`/user/${id}`, { data: { reason } });
     return response.data;
   },
 

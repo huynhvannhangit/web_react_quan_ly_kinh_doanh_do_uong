@@ -218,7 +218,7 @@ export default function SystemLogPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.LOGGING_VIEW_ALL]}
+      permissions={[Permission.LOGGING_VIEW]}
       redirect="/dashboard"
     >
       <Card>

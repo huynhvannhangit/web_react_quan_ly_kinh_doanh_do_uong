@@ -66,9 +66,10 @@ export function AiAssistantChat() {
   };
 
   const isChatPage = pathname === "/chat-ai";
+  const hasAiPermission = user?.permissions?.includes("AI_ASSISTANT_CHAT");
 
-  // Hide the floating button if on the main chat page to avoid redundancy
-  if (isChatPage) return null;
+  // Hide the floating button if on the main chat page, or if user doesn't have permission
+  if (isChatPage || !hasAiPermission) return null;
 
   return (
     <div className="no-print fixed bottom-6 right-6 z-50">

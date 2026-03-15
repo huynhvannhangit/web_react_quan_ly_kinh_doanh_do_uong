@@ -22,6 +22,7 @@ import { UserRoleDialog } from "./user-role-dialog";
 import { toast } from "sonner";
 import { Role } from "@/services/role.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function UserList() {
   const [users, setUsers] = useState<User[]>([]);
@@ -90,6 +91,8 @@ export function UserList() {
   const handleReset = () => {
     setSearchInput("");
     setSearchName("");
+    setCurrentPage(1);
+    fetchUsers();
   };
 
   const filteredUsers = users.filter((user) => {
@@ -241,12 +244,22 @@ export function UserList() {
                         </TableCell>
                         {canManageRoles && (
                           <TableCell className="text-center">
-                            <Button
-                              className="bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg"
-                              onClick={() => handleEditRole(user)}
-                            >
-                              Phân quyền
-                            </Button>
+                            {user.id !== currentUser?.id ? (
+                              <Button
+                                className={cn(
+                                  "bg-[#00509E] hover:bg-[#00509E]/90 text-white rounded-lg",
+                                  isLoading && "opacity-50 cursor-not-allowed",
+                                )}
+                                onClick={() => handleEditRole(user)}
+                                disabled={isLoading}
+                              >
+                                Phân quyền
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">
+                                Bản thân
+                              </span>
+                            )}
                           </TableCell>
                         )}
                       </TableRow>

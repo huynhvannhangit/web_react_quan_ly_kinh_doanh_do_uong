@@ -256,7 +256,7 @@ export default function InvoicePage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.INVOICE_VIEW_ALL]}
+      permissions={[Permission.INVOICE_VIEW]}
       redirect="/dashboard"
     >
       <Card>
@@ -415,7 +415,7 @@ export default function InvoicePage() {
                           </TableCell>
                           <TableCell className="text-right whitespace-nowrap">
                             <PermissionGuard
-                              permissions={[Permission.INVOICE_VIEW_ID]}
+                              permissions={[Permission.INVOICE_VIEW]}
                             >
                               <Button
                                 variant="ghost"
@@ -440,7 +440,7 @@ export default function InvoicePage() {
                               </PermissionGuard>
                             )}
                             <PermissionGuard
-                              permissions={[Permission.INVOICE_VIEW_ID]}
+                              permissions={[Permission.INVOICE_VIEW]}
                             >
                               <Button
                                 variant="ghost"

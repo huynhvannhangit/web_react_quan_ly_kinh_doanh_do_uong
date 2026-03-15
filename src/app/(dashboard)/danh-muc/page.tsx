@@ -39,11 +39,19 @@ import {
   inputErrorClass,
 } from "@/lib/validators";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
+
 export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const roleName =
+    typeof user?.role === "string"
+      ? user.role
+      : (user?.role as { name?: string } | null)?.name;
+  const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
   const canCreate = user?.permissions?.includes(Permission.CATEGORY_CREATE);
   const canUpdate = user?.permissions?.includes(Permission.CATEGORY_UPDATE);
   const canDelete = user?.permissions?.includes(Permission.CATEGORY_DELETE);
@@ -53,10 +61,10 @@ export default function CategoryPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
@@ -73,6 +81,15 @@ export default function CategoryPage() {
     description: "",
     onConfirm: () => {},
   });
+
+  // Approval Dialog States
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "create" | "update" | "delete" | "bulkDelete";
+    data?: Record<string, unknown>;
+    id?: number;
+    name?: string;
+  } | null>(null);
 
   const filteredCategories = categories;
   const totalPages = Math.max(
@@ -132,18 +149,31 @@ export default function CategoryPage() {
       description: `Bạn có chắc muốn xóa danh mục "${name}"?`,
       isDanger: true,
       onConfirm: async () => {
-        try {
-          await categoryService.delete(id);
-          toast.success("Xóa danh mục thành công");
-          loadCategories();
-        } catch (error) {
-          console.error("Failed to delete category:", error);
-          toast.error("Xóa danh mục thất bại!");
-        } finally {
+        if (!isAdmin) {
+          setPendingAction({ type: "delete", id, name });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeDelete(id);
       },
     });
+  };
+
+  const executeDelete = async (id: number, reason?: string) => {
+    try {
+      setIsProcessing(true);
+      await categoryService.delete(id, reason);
+      toast.success(isAdmin ? "Xóa danh mục thành công" : "Đã gửi yêu cầu xóa");
+      loadCategories();
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+      toast.error("Xóa danh mục thất bại!");
+    } finally {
+      setIsProcessing(false);
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+      loadCategories();
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -169,21 +199,34 @@ export default function CategoryPage() {
       description: `Bạn có chắc muốn xóa ${selectedIds.length} danh mục đã chọn?`,
       isDanger: true,
       onConfirm: async () => {
-        setIsDeletingBulk(true);
-        try {
-          await categoryService.deleteMany(selectedIds);
-          setSelectedIds([]);
-          toast.success("Xóa hàng loạt thành công");
-          loadCategories();
-        } catch (error) {
-          console.error("Failed to bulk delete categories:", error);
-          toast.error("Xóa hàng loạt thất bại!");
-        } finally {
-          setIsDeletingBulk(false);
+        if (!isAdmin) {
+          setPendingAction({ type: "bulkDelete" });
+          setIsApprovalDialogOpen(true);
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
         }
+        await executeBulkDelete();
       },
     });
+  };
+
+  const executeBulkDelete = async (reason?: string) => {
+    try {
+      setIsProcessing(true);
+      await categoryService.deleteMany(selectedIds, reason);
+      setSelectedIds([]);
+      toast.success(
+        isAdmin ? "Xóa hàng loạt thành công" : "Đã gửi yêu cầu xóa hàng loạt",
+      );
+      loadCategories();
+    } catch (error) {
+      console.error("Failed to bulk delete categories:", error);
+      toast.error("Xóa hàng loạt thất bại!");
+    } finally {
+      setIsProcessing(false);
+      setConfirmState((prev) => ({ ...prev, isOpen: false }));
+      loadCategories();
+    }
   };
 
   const handleCreateCategory = async () => {
@@ -198,6 +241,17 @@ export default function CategoryPage() {
       setFormErrors(errors);
       return;
     }
+
+    if (!isAdmin && isEditMode) {
+      setPendingAction({ type: "update" });
+      setIsApprovalDialogOpen(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
+  const executeSave = async (reason?: string) => {
     setFormErrors({});
     setIsSaving(true);
     try {
@@ -206,27 +260,49 @@ export default function CategoryPage() {
         description: newCategory.description.trim(),
       };
       if (isEditMode && editingCategory) {
-        await categoryService.update(editingCategory.id, payload);
+        await categoryService.update(editingCategory.id, payload, reason);
+        toast.success(
+          isAdmin ? "Cập nhật danh mục thành công" : "Đã gửi yêu cầu cập nhật"
+        );
       } else {
         await categoryService.create(payload);
+        toast.success(
+          isAdmin ? "Thêm danh mục thành công" : "Đã gửi yêu cầu tạo danh mục mới"
+        );
       }
       resetForm();
       setIsDialogOpen(false);
       loadCategories();
     } catch (error) {
-      console.error("Failed to create category:", error);
+      console.error("Failed to save category:", error);
       const msg =
         (error as { customMessage?: string }).customMessage ||
         (error instanceof Error ? error.message : "Lưu danh mục thất bại!");
       setApiError(msg);
     } finally {
       setIsSaving(false);
+      loadCategories();
     }
+  };
+
+  const handleConfirmApproval = async (reason: string) => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === "update") {
+      await executeSave(reason);
+    } else if (pendingAction.type === "delete" && pendingAction.id) {
+      await executeDelete(pendingAction.id, reason);
+    } else if (pendingAction.type === "bulkDelete") {
+      await executeBulkDelete(reason);
+    }
+
+    setIsApprovalDialogOpen(false);
+    setPendingAction(null);
   };
 
   return (
     <PermissionGuard
-      permissions={[Permission.CATEGORY_VIEW_ALL]}
+      permissions={[Permission.CATEGORY_VIEW]}
       redirect="/dashboard"
     >
       <Card>
@@ -264,6 +340,7 @@ export default function CategoryPage() {
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("");
+                  setCurrentPage(1);
                   void loadCategories();
                 }}
                 className="gap-2 rounded-lg"
@@ -391,7 +468,7 @@ export default function CategoryPage() {
                     variant="destructive"
                     size="sm"
                     onClick={handleBulkDelete}
-                    disabled={isDeletingBulk}
+                    disabled={isProcessing}
                     className="flex items-center gap-2 rounded-lg"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -494,8 +571,12 @@ export default function CategoryPage() {
                               <div className="flex items-center justify-end gap-2 text-slate-500">
                                 {canUpdate && (
                                   <button
-                                    className="p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all"
+                                    className={cn(
+                                      "p-2 hover:text-[#00509E] hover:bg-[#00509E]/10 rounded-lg transition-all",
+                                      isProcessing && "opacity-50 cursor-not-allowed",
+                                    )}
                                     onClick={() => handleEdit(category)}
+                                    disabled={isProcessing}
                                     title="Chỉnh sửa" // Added title
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -503,11 +584,15 @@ export default function CategoryPage() {
                                 )}
                                 {canDelete && (
                                   <button
-                                    className="p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    className={cn(
+                                      "p-2 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all",
+                                      isProcessing && "opacity-50 cursor-not-allowed",
+                                    )}
                                     onClick={
                                       () =>
                                         handleDelete(category.id, category.name) // Changed from categoryName to name
                                     }
+                                    disabled={isProcessing}
                                     title="Xóa" // Added title
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -539,7 +624,22 @@ export default function CategoryPage() {
             title={confirmState.title}
             description={confirmState.description}
             isDanger={confirmState.isDanger}
-            isLoading={isDeletingBulk}
+            isLoading={isProcessing}
+          />
+          <ApprovalReasonDialog
+            open={isApprovalDialogOpen}
+            onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setPendingAction(null);
+            }}
+            onConfirm={handleConfirmApproval}
+            actionTitle={
+              pendingAction?.type === "update"
+                ? "Cập nhật danh mục"
+                : pendingAction?.type === "delete"
+                  ? "Xóa danh mục"
+                  : "Xóa hàng loạt danh mục"
+            }
           />
         </CardContent>
       </Card>

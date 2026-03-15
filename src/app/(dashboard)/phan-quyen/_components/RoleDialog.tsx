@@ -23,6 +23,8 @@ import {
   noHtml,
   inputErrorClass,
 } from "@/lib/validators";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface RoleDialogProps {
   open: boolean;
@@ -30,14 +32,13 @@ interface RoleDialogProps {
   role?: Role;
   onSuccess: () => void;
 }
-
 // ─── Permission Matrix Definition ───────────────────────────────────────────
 // Each module row defines which permission maps to which action column.
 // null = not applicable for that module.
 
 type ActionKey =
-  | "viewAll"
-  | "viewId"
+  | "sidebar"
+  | "view"
   | "create"
   | "update"
   | "delete"
@@ -49,155 +50,180 @@ type ActionKey =
   | "manageSetting"
   | "viewLog"
   | "pay"
+  | "approve"
+  | "viewReport"
   | "all";
 
 interface MatrixRow {
   label: string;
-  permissions: Partial<Record<ActionKey, Permission>>;
+  permissions: Partial<Record<ActionKey, Permission | Permission[]>>;
 }
 
 const MATRIX: MatrixRow[] = [
   {
     label: "Tổng quan",
     permissions: {
-      viewAll: Permission.DASHBOARD_VIEW_ALL,
+      sidebar: Permission.DASHBOARD_MENU,
+      view: Permission.DASHBOARD_VIEW,
     },
   },
   {
     label: "Khu vực",
     permissions: {
-      viewAll: Permission.AREA_VIEW_ALL,
-      viewId: Permission.AREA_VIEW_ID,
+      sidebar: Permission.AREA_MENU,
+      view: Permission.AREA_VIEW,
       create: Permission.AREA_CREATE,
       update: Permission.AREA_UPDATE,
       delete: Permission.AREA_DELETE,
+      approve: Permission.AREA_APPROVE,
     },
   },
   {
     label: "Bàn",
     permissions: {
-      viewAll: Permission.TABLE_VIEW_ALL,
-      viewId: Permission.TABLE_VIEW_ID,
+      sidebar: Permission.TABLE_MENU,
+      view: Permission.TABLE_VIEW,
       create: Permission.TABLE_CREATE,
       update: Permission.TABLE_UPDATE,
       delete: Permission.TABLE_DELETE,
+      approve: Permission.TABLE_APPROVE,
     },
   },
   {
     label: "Danh mục",
     permissions: {
-      viewAll: Permission.CATEGORY_VIEW_ALL,
-      viewId: Permission.CATEGORY_VIEW_ID,
+      sidebar: Permission.CATEGORY_MENU,
+      view: Permission.CATEGORY_VIEW,
       create: Permission.CATEGORY_CREATE,
       update: Permission.CATEGORY_UPDATE,
       delete: Permission.CATEGORY_DELETE,
+      approve: Permission.CATEGORY_APPROVE,
     },
   },
   {
     label: "Sản phẩm",
     permissions: {
-      viewAll: Permission.PRODUCT_VIEW_ALL,
-      viewId: Permission.PRODUCT_VIEW_ID,
+      sidebar: Permission.PRODUCT_MENU,
+      view: Permission.PRODUCT_VIEW,
       create: Permission.PRODUCT_CREATE,
       update: Permission.PRODUCT_UPDATE,
       delete: Permission.PRODUCT_DELETE,
-    },
-  },
-  {
-    label: "Người dùng",
-    permissions: {
-      viewAll: Permission.USER_VIEW_ALL,
-      viewId: Permission.USER_VIEW_ID,
-      lock: Permission.USER_DELETE,
-      manageUser: Permission.USER_MANAGE,
+      approve: Permission.PRODUCT_APPROVE,
     },
   },
   {
     label: "Nhân viên",
     permissions: {
-      viewAll: Permission.EMPLOYEE_VIEW_ALL,
-      viewId: Permission.EMPLOYEE_VIEW_ID,
+      sidebar: Permission.EMPLOYEE_MENU,
+      view: Permission.EMPLOYEE_VIEW,
       create: Permission.EMPLOYEE_CREATE,
       update: Permission.EMPLOYEE_UPDATE,
       delete: Permission.EMPLOYEE_DELETE,
+      approve: Permission.EMPLOYEE_APPROVE,
+    },
+  },
+  {
+    label: "Tài khoản",
+    permissions: {
+      sidebar: Permission.USER_MENU,
+      view: Permission.USER_VIEW,
+      create: Permission.USER_CREATE,
+      update: Permission.USER_UPDATE,
+      delete: Permission.USER_DELETE,
+      approve: Permission.USER_APPROVE,
     },
   },
   {
     label: "Vai trò",
     permissions: {
-      viewAll: Permission.ROLE_VIEW_ALL,
-      viewId: Permission.ROLE_VIEW_ID,
+      sidebar: Permission.ROLE_MENU,
+      view: Permission.ROLE_VIEW,
       create: Permission.ROLE_CREATE,
       update: Permission.ROLE_UPDATE,
       delete: Permission.ROLE_DELETE,
+      approve: Permission.ROLE_APPROVE,
+    },
+  },
+  {
+    label: "Phân quyền",
+    permissions: {
+      manageUser: Permission.USER_MANAGE,
+    },
+  },
+  {
+    label: "Phê duyệt",
+    permissions: {
+      sidebar: Permission.APPROVAL_MENU,
+      view: Permission.APPROVAL_VIEW,
+      approve: [Permission.APPROVAL_APPROVE, Permission.APPROVAL_REJECT],
     },
   },
   {
     label: "Đơn hàng",
     permissions: {
-      viewAll: Permission.ORDER_VIEW_ALL,
-      viewId: Permission.ORDER_VIEW_ID,
+      sidebar: Permission.ORDER_MENU,
+      view: Permission.ORDER_VIEW,
       create: Permission.ORDER_CREATE,
       update: Permission.ORDER_UPDATE,
-      delete: Permission.ORDER_DELETE,
       cancel: Permission.ORDER_CANCEL,
     },
   },
   {
     label: "Hoá đơn",
     permissions: {
-      viewAll: Permission.INVOICE_VIEW_ALL,
-      viewId: Permission.INVOICE_VIEW_ID,
+      sidebar: Permission.INVOICE_MENU,
+      view: Permission.INVOICE_VIEW,
       pay: Permission.INVOICE_PAY,
-      cancel: Permission.INVOICE_CANCEL,
+      delete: Permission.INVOICE_CANCEL,
+      approve: Permission.INVOICE_APPROVE,
     },
   },
   {
     label: "Thống kê",
     permissions: {
-      viewAll: Permission.STATISTICS_VIEW_ALL,
+      sidebar: Permission.STATISTICS_MENU,
+      view: Permission.STATISTICS_VIEW,
       export: Permission.STATISTICS_EXPORT,
     },
   },
   {
-    label: "Trợ lý AI",
+    label: "AI Assistant",
     permissions: {
-      viewAll: Permission.AI_ASSISTANT_CHAT,
+      sidebar: Permission.AI_ASSISTANT_MENU,
+      view: Permission.AI_ASSISTANT_CHAT,
     },
   },
   {
-    label: "Phê duyệt",
+    label: "Cấu hình",
     permissions: {
-      viewAll: Permission.APPROVAL_VIEW_ALL,
-      viewId: Permission.APPROVAL_VIEW_ID,
-      delete: Permission.APPROVAL_DELETE,
-      manageApproval: Permission.APPROVAL_MANAGE,
-    },
-  },
-  {
-    label: "Hệ thống",
-    permissions: {
-      viewLog: Permission.LOG_VIEW_ALL,
+      sidebar: Permission.SETTING_MENU,
       manageSetting: Permission.SETTING_MANAGE,
+    },
+  },
+  {
+    label: "Nhật ký",
+    permissions: {
+      sidebar: Permission.LOGGING_MENU,
+      viewLog: Permission.LOGGING_VIEW,
     },
   },
 ];
 
 // Column definitions
 const COLUMNS: { key: ActionKey; label: string }[] = [
-  { key: "viewAll", label: "Xem" },
+  { key: "sidebar", label: "Menu" },
+  { key: "view", label: "Xem" },
   { key: "create", label: "Thêm" },
-  { key: "viewId", label: "Chi tiết" },
   { key: "update", label: "Sửa" },
   { key: "delete", label: "Xóa" },
-  { key: "lock", label: "Khóa/Mở" },
-  { key: "export", label: "Xuất file" },
+  { key: "approve", label: "Duyệt" },
+  { key: "pay", label: "Thanh toán" },
   { key: "cancel", label: "Hủy" },
+  { key: "export", label: "Xuất file" },
   { key: "manageUser", label: "Phân quyền" },
-  { key: "manageApproval", label: "Duyệt" },
+  { key: "manageApproval", label: "Cấu hình duyệt" },
   { key: "manageSetting", label: "Cấu hình" },
   { key: "viewLog", label: "Xem nhật ký" },
-  { key: "pay", label: "Thanh toán" },
   { key: "all", label: "Tất cả" },
 ];
 
@@ -207,17 +233,26 @@ export function RoleDialog({
   role,
   onSuccess,
 }: RoleDialogProps) {
+  const { user } = useAuth();
+  const isAdmin = (user?.role as Role)?.name === "ADMIN" || (user?.role as Role)?.name === "CHỦ CỬA HÀNG";
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  const [openReason, setOpenReason] = useState(false);
+
   useEffect(() => {
     if (role) {
       setName(role.name);
       setDescription(role.description || "");
-      setPermissions(role.permissions || []);
+      // Filter out permissions that are no longer in the enum to avoid 400 errors
+      const validPermissions = (role.permissions || []).filter((p) =>
+        Object.values(Permission).includes(p as Permission),
+      );
+      setPermissions(validPermissions);
     } else {
       setName("");
       setDescription("");
@@ -237,19 +272,34 @@ export function RoleDialog({
       return;
     }
     setFormErrors({});
+
+    if (!isAdmin) {
+      setOpenReason(true);
+      return;
+    }
+
+    await performSubmit();
+  };
+
+  const handleReasonSubmit = async (reason: string) => {
+    await performSubmit(reason);
+    setOpenReason(false);
+  };
+
+  const performSubmit = async (reason?: string) => {
     setIsLoading(true);
     try {
       if (role) {
-        await roleService.update(role.id, { name, description, permissions });
-        toast.success("Cập nhật vai trò thành công");
+        await roleService.update(role.id, { name, description, permissions }, reason);
+        toast.success(isAdmin ? "Cập nhật vai trò thành công" : "Đã gửi yêu cầu cập nhật vai trò");
       } else {
         await roleService.create({
           name,
           description,
           permissions,
           isActive: true,
-        });
-        toast.success("Tạo vai trò mới thành công");
+        }, reason);
+        toast.success(isAdmin ? "Tạo vai trò mới thành công" : "Đã gửi yêu cầu tạo vai trò mới");
       }
       onSuccess();
       onOpenChange(false);
@@ -260,16 +310,23 @@ export function RoleDialog({
       setIsLoading(false);
     }
   };
+// ... rest of toggle and matrix logic ...
 
-  const toggle = (perm: Permission) => {
-    setPermissions((prev) =>
-      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm],
-    );
+  const toggle = (perm: Permission | Permission[]) => {
+    const targetPerms = Array.isArray(perm) ? perm : [perm];
+    setPermissions((prev) => {
+      const allPresent = targetPerms.every((p) => prev.includes(p));
+      if (allPresent) {
+        return prev.filter((p) => !targetPerms.includes(p));
+      } else {
+        return [...new Set([...prev, ...targetPerms])];
+      }
+    });
   };
 
   // Toggle all permissions in a row
   const toggleRow = (row: MatrixRow) => {
-    const rowPerms = Object.values(row.permissions) as Permission[];
+    const rowPerms = Object.values(row.permissions).flat() as Permission[];
     const allChecked = rowPerms.every((p) => permissions.includes(p));
     if (allChecked) {
       setPermissions((prev) => prev.filter((p) => !rowPerms.includes(p)));
@@ -279,14 +336,14 @@ export function RoleDialog({
   };
 
   const isRowAllChecked = (row: MatrixRow) => {
-    const rowPerms = Object.values(row.permissions) as Permission[];
+    const rowPerms = Object.values(row.permissions).flat() as Permission[];
     return (
       rowPerms.length > 0 && rowPerms.every((p) => permissions.includes(p))
     );
   };
 
   const isRowPartialChecked = (row: MatrixRow) => {
-    const rowPerms = Object.values(row.permissions) as Permission[];
+    const rowPerms = Object.values(row.permissions).flat() as Permission[];
     return (
       rowPerms.some((p) => permissions.includes(p)) && !isRowAllChecked(row)
     );
@@ -389,17 +446,30 @@ export function RoleDialog({
                               const perm = row.permissions[col.key];
                               if (!perm) return null;
 
-                              const checked = permissions.includes(perm);
+                              const perms = Array.isArray(perm) ? perm : [perm];
+                              const checked = perms.every((p) =>
+                                permissions.includes(p),
+                              );
+                              const indeterminate =
+                                !checked &&
+                                perms.some((p) => permissions.includes(p));
+
                               return (
                                 <label
                                   key={col.key}
                                   className="inline-flex items-center gap-2 cursor-pointer select-none"
                                 >
                                   <Checkbox
-                                    id={perm}
-                                    checked={checked}
+                                    id={perms[0]}
+                                    checked={
+                                      checked
+                                        ? true
+                                        : indeterminate
+                                          ? "indeterminate"
+                                          : false
+                                    }
                                     onCheckedChange={() => toggle(perm)}
-                                    className="data-[state=checked]:bg-[#0b5c9b] data-[state=checked]:border-[#0b5c9b]"
+                                    className="data-[state=checked]:bg-[#0b5c9b] data-[state=checked]:border-[#0b5c9b] data-[state=indeterminate]:bg-[#0b5c9b] data-[state=indeterminate]:border-[#0b5c9b]"
                                   />
                                   <span className="text-sm whitespace-nowrap">
                                     {col.label}
@@ -449,6 +519,13 @@ export function RoleDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+      <ApprovalReasonDialog
+        open={openReason}
+        onOpenChange={setOpenReason}
+        onConfirm={handleReasonSubmit}
+        isLoading={isLoading}
+        actionTitle={role ? "Lý do cập nhật vai trò" : "Lý do tạo vai trò"}
+      />
     </Dialog>
   );
 }

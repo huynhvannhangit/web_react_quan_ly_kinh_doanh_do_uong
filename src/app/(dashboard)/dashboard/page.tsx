@@ -53,7 +53,7 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     // Nếu không có quyền xem dashboard thì không gọi API để tránh lỗi 403
     // Logic chuyển hướng sẽ được AuthProvider xử lý
-    if (!user?.permissions?.includes(Permission.DASHBOARD_VIEW_ALL)) {
+    if (!user?.permissions?.includes(Permission.DASHBOARD_VIEW)) {
       setIsLoading(false);
       return;
     }
@@ -84,7 +84,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <PermissionGuard permissions={[Permission.DASHBOARD_VIEW_ALL]}>
+    <PermissionGuard permissions={[Permission.DASHBOARD_VIEW]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-wide text-[#00509E] dark:text-blue-400 uppercase">

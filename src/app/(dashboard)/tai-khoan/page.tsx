@@ -1,8 +1,8 @@
 // cspell:disable
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { userService, User } from "@/services/user.service";
+import React, { useEffect, useState, useCallback } from "react";
+import { userService, User, UpdateUserDto, CreateUserDto } from "@/services/user.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -30,6 +30,8 @@ import { toast } from "sonner";
 import { Permission } from "@/types";
 import { PermissionGuard } from "@/components/shared/PermissionGuard";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ApprovalReasonDialog } from "@/components/shared/ApprovalReasonDialog";
 import {
   Dialog,
   DialogContent,
@@ -55,10 +57,18 @@ import {
 } from "@/lib/validators";
 
 export default function AccountPage() {
+  const { user } = useAuth();
+  const roleName =
+    typeof user?.role === "string"
+      ? user.role
+      : (user?.role as { name?: string } | null)?.name;
+  const isAdmin = roleName === "ADMIN" || roleName === "CHỦ CỬA HÀNG";
+
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -85,29 +95,46 @@ export default function AccountPage() {
     description: "",
     onConfirm: () => {},
   });
+
+  // Approval Dialog States
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "create" | "update" | "delete" | "toggleStatus";
+    data?: Record<string, unknown>;
+    id?: number;
+    email?: string;
+  } | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [userData, roleData] = await Promise.all([
-        userService.getAll(),
-        roleService.getAll(),
-      ]);
+      const userData = await userService.getAll();
       setUsers(userData);
-      setRoles(roleData);
+
+      if (
+        user?.permissions?.includes(Permission.USER_CREATE) ||
+        user?.permissions?.includes(Permission.USER_UPDATE)
+      ) {
+        try {
+          const roleData = await roleService.getAll();
+          setRoles(roleData);
+        } catch (roleError) {
+          console.error("Failed to load roles:", roleError);
+        }
+      }
     } catch (error) {
       console.error("Failed to load data:", error);
-      toast.error("Không thể tải danh sách dữ liệu");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.permissions]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const resetForm = () => {
     setFormData({
@@ -145,15 +172,21 @@ export default function AccountPage() {
       description: `Bạn có chắc muốn xóa tài khoản "${user.email}"? Hành động này không thể hoàn tác.`,
       isDanger: true,
       onConfirm: async () => {
+        if (!isAdmin) {
+          setPendingAction({ type: "delete", id: user.id, email: user.email });
+          setIsApprovalDialogOpen(true);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
+        }
         try {
           await userService.remove(user.id);
           toast.success("Xóa tài khoản thành công");
-          loadData();
         } catch (error) {
           console.error("Failed to delete account:", error);
           toast.error("Xóa tài khoản thất bại!");
         } finally {
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          loadData();
         }
       },
     });
@@ -162,7 +195,8 @@ export default function AccountPage() {
   const handleSubmit = async () => {
     const errors = collectErrors({
       email: required(formData.email),
-      fullName: required(formData.fullName) || noSpecialChars(formData.fullName),
+      fullName:
+        required(formData.fullName) || noSpecialChars(formData.fullName),
       roleId: required(formData.roleId),
       password: !isEditMode ? required(formData.password) : "",
     });
@@ -175,28 +209,45 @@ export default function AccountPage() {
     setFormErrors({});
     setIsSaving(true);
     try {
+      const payload = {
+        email: formData.email,
+        fullName: formData.fullName,
+        password: formData.password || undefined,
+        roleId: parseInt(formData.roleId),
+        status: formData.status,
+      };
+
       if (isEditMode && editingUser) {
-        await userService.update(editingUser.id, {
-          email: formData.email,
-          fullName: formData.fullName,
-          password: formData.password || undefined,
-          roleId: parseInt(formData.roleId),
-          status: formData.status,
-        });
+        if (!isAdmin) {
+          setPendingAction({
+            type: "update",
+            id: editingUser.id,
+            data: payload,
+            email: editingUser.email,
+          });
+          setIsApprovalDialogOpen(true);
+          setIsDialogOpen(false);
+          return;
+        }
+        await userService.update(editingUser.id, payload);
         toast.success("Cập nhật tài khoản thành công");
       } else {
-        await userService.create({
-          email: formData.email,
-          fullName: formData.fullName,
-          password: formData.password,
-          roleId: parseInt(formData.roleId),
-        });
+        if (!isAdmin) {
+          setPendingAction({
+            type: "create",
+            data: payload,
+            email: formData.email,
+          });
+          setIsApprovalDialogOpen(true);
+          setIsDialogOpen(false);
+          return;
+        }
+        await userService.create(payload);
         toast.success("Thêm tài khoản thành công");
       }
 
       setIsDialogOpen(false);
       resetForm();
-      loadData();
     } catch (error: unknown) {
       console.error("Failed to save user:", error);
       const msg =
@@ -205,6 +256,7 @@ export default function AccountPage() {
       toast.error(msg);
     } finally {
       setIsSaving(false);
+      loadData();
     }
   };
 
@@ -219,12 +271,23 @@ export default function AccountPage() {
       description: `Bạn có chắc muốn ${actionText} tài khoản "${user.email}"?`,
       isDanger: isCurrentlyActive,
       onConfirm: async () => {
+        if (!isAdmin) {
+          setPendingAction({
+            type: "toggleStatus",
+            id: user.id,
+            email: user.email,
+            data: { status: newStatus },
+          });
+          setIsApprovalDialogOpen(true);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          return;
+        }
         try {
+          setIsProcessing(true);
           await userService.update(user.id, { status: newStatus });
           toast.success(
             `${isCurrentlyActive ? "Khoá" : "Mở khoá"} tài khoản thành công`,
           );
-          loadData();
         } catch (error: unknown) {
           console.error(`Failed to ${actionText} account:`, error);
           const msg =
@@ -233,9 +296,49 @@ export default function AccountPage() {
           toast.error(msg);
         } finally {
           setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          loadData();
         }
       },
     });
+  };
+
+  const handleConfirmApproval = async (reason: string) => {
+    if (!pendingAction) return;
+
+    try {
+      setIsProcessing(true);
+      if (pendingAction.type === "update" && pendingAction.id) {
+        await userService.update(
+          pendingAction.id,
+          pendingAction.data as UpdateUserDto,
+          reason,
+        );
+        toast.success("Đã gửi yêu cầu cập nhật tài khoản");
+        resetForm();
+      } else if (pendingAction.type === "toggleStatus" && pendingAction.id) {
+        await userService.update(
+          pendingAction.id,
+          pendingAction.data as UpdateUserDto,
+          reason,
+        );
+        toast.success("Đã gửi yêu cầu thay đổi trạng thái");
+      } else if (pendingAction.type === "delete" && pendingAction.id) {
+        await userService.remove(pendingAction.id, reason);
+        toast.success("Đã gửi yêu cầu xóa tài khoản");
+      } else if (pendingAction.type === "create") {
+        await userService.create(pendingAction.data as unknown as CreateUserDto, reason);
+        toast.success("Đã gửi yêu cầu tạo tài khoản mới");
+        resetForm();
+      }
+    } catch (error) {
+      console.error("Approval request failed:", error);
+      toast.error("Gửi yêu cầu phê duyệt thất bại!");
+    } finally {
+      setIsProcessing(false);
+      setIsApprovalDialogOpen(false);
+      setPendingAction(null);
+      loadData();
+    }
   };
 
   const filteredUsers = users.filter(
@@ -252,10 +355,7 @@ export default function AccountPage() {
   const globalOffset = (currentPage - 1) * pageSize;
 
   return (
-    <PermissionGuard
-      permissions={[Permission.USER_VIEW_ALL]}
-      redirect="/dashboard"
-    >
+    <PermissionGuard permissions={[Permission.USER_VIEW]} redirect="/dashboard">
       <Card>
         <CardContent className="p-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -295,14 +395,18 @@ export default function AccountPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setSearchTerm("")}
+                onClick={() => {
+                  setSearchTerm("");
+                  setCurrentPage(1);
+                  loadData();
+                }}
                 className="gap-2 rounded-lg"
               >
                 <RotateCcw className="h-4 w-4" />
                 Làm mới
               </Button>
 
-              <PermissionGuard permissions={[Permission.USER_MANAGE]}>
+              <PermissionGuard permissions={[Permission.USER_CREATE]}>
                 <Button
                   className="bg-[#00509E] hover:bg-[#00509E]/90 text-white h-10 rounded-lg px-6"
                   onClick={() => {
@@ -418,28 +522,32 @@ export default function AccountPage() {
                           <TableCell className="text-center whitespace-nowrap">
                             <div className="flex justify-center gap-3">
                               <PermissionGuard
-                                permissions={[Permission.USER_MANAGE]}
+                                permissions={[Permission.USER_UPDATE]}
                               >
-                                <button
-                                  onClick={() => handleToggleStatus(user)}
-                                  className={cn(
-                                    "transition-colors",
-                                    user.status === "ACTIVE"
-                                      ? "text-slate-400 hover:text-amber-500"
-                                      : "text-slate-400 hover:text-green-500",
-                                  )}
-                                  title={
-                                    user.status === "ACTIVE"
-                                      ? "Khoá tài khoản"
-                                      : "Mở khoá tài khoản"
-                                  }
-                                >
-                                  {user.status === "ACTIVE" ? (
-                                    <Lock className="h-4 w-4" />
-                                  ) : (
-                                    <Unlock className="h-4 w-4" />
-                                  )}
-                                </button>
+                                  <button
+                                    onClick={() => handleToggleStatus(user)}
+                                    disabled={isProcessing}
+                                    className={cn(
+                                      "transition-colors",
+                                      isProcessing && "opacity-50 cursor-not-allowed",
+                                      user.status === "ACTIVE"
+                                        ? "text-slate-400 hover:text-amber-500"
+                                        : "text-slate-400 hover:text-green-500",
+                                    )}
+                                    title={
+                                      user.status === "ACTIVE"
+                                        ? "Khoá tài khoản"
+                                        : "Mở khoá tài khoản"
+                                    }
+                                  >
+                                    {isProcessing && pendingAction?.id === user.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : user.status === "ACTIVE" ? (
+                                      <Lock className="h-4 w-4" />
+                                    ) : (
+                                      <Unlock className="h-4 w-4" />
+                                    )}
+                                  </button>
                                 <button
                                   onClick={() => handleEdit(user)}
                                   className="text-slate-400 hover:text-blue-500 transition-colors"
@@ -453,7 +561,11 @@ export default function AccountPage() {
                               >
                                 <button
                                   onClick={() => handleDelete(user)}
-                                  className="text-slate-400 hover:text-destructive transition-colors"
+                                  disabled={isProcessing}
+                                  className={cn(
+                                    "text-slate-400 hover:text-destructive transition-colors",
+                                    isProcessing && "opacity-50 cursor-not-allowed",
+                                  )}
                                   title="Xóa tài khoản"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -481,7 +593,7 @@ export default function AccountPage() {
             open={isDialogOpen}
             onOpenChange={(open) => {
               setIsDialogOpen(open);
-              if (!open) resetForm(); 
+              if (!open) resetForm();
             }}
           >
             <DialogContent className="sm:max-w-125">
@@ -567,7 +679,9 @@ export default function AccountPage() {
                       setFormData({ ...formData, roleId: val })
                     }
                   >
-                    <SelectTrigger className={inputErrorClass(formErrors.roleId)}>
+                    <SelectTrigger
+                      className={inputErrorClass(formErrors.roleId)}
+                    >
                       <SelectValue placeholder="Chọn vai trò" />
                     </SelectTrigger>
                     <SelectContent>
@@ -606,17 +720,21 @@ export default function AccountPage() {
                 )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
                   Hủy
                 </Button>
                 <Button onClick={handleSubmit} disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSaving && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   {isEditMode ? "Cập nhật" : "Lưu tài khoản"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
           <ConfirmDialog
             isOpen={confirmState.isOpen}
             onClose={() =>
@@ -626,6 +744,22 @@ export default function AccountPage() {
             title={confirmState.title}
             description={confirmState.description}
             isDanger={confirmState.isDanger}
+          />
+
+          <ApprovalReasonDialog
+            open={isApprovalDialogOpen}
+            onOpenChange={(open) => {
+              setIsApprovalDialogOpen(open);
+              if (!open) setPendingAction(null);
+            }}
+            onConfirm={handleConfirmApproval}
+            actionTitle={
+              pendingAction?.type === "update"
+                ? "Cập nhật tài khoản"
+                : pendingAction?.type === "delete"
+                  ? "Xóa tài khoản"
+                  : "Thay đổi trạng thái tài khoản"
+            }
           />
         </CardContent>
       </Card>

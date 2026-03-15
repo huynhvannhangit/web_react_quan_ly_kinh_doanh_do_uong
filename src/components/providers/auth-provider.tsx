@@ -11,7 +11,6 @@ import React, {
 import { useRouter, usePathname } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { Permission } from "@/types";
-import { toast } from "sonner";
 
 export interface AuthUser {
   id?: number;
@@ -71,13 +70,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!checkUserRole(user)) return "/waiting-approval";
 
     const perms = user.permissions || [];
-    if (perms.includes(Permission.DASHBOARD_VIEW_ALL)) return "/dashboard";
-    if (perms.includes(Permission.ORDER_CREATE)) return "/goi-mon";
-    if (perms.includes(Permission.INVOICE_VIEW_ALL)) return "/hoa-don";
-    if (perms.includes(Permission.PRODUCT_VIEW_ALL)) return "/san-pham";
-    if (perms.includes(Permission.TABLE_VIEW_ALL)) return "/ban";
 
-    return "/dashboard"; // Fallback
+    // Define prioritized routes with their required permissions
+    const routePriority = [
+      {
+        path: "/dashboard",
+        perms: [Permission.DASHBOARD_MENU, Permission.DASHBOARD_VIEW],
+      },
+      {
+        path: "/goi-mon",
+        perms: [Permission.ORDER_MENU, Permission.ORDER_CREATE],
+      },
+      {
+        path: "/hoa-don",
+        perms: [Permission.INVOICE_MENU, Permission.INVOICE_VIEW],
+      },
+      {
+        path: "/ban",
+        perms: [Permission.TABLE_MENU, Permission.TABLE_VIEW],
+      },
+      {
+        path: "/nhan-vien",
+        perms: [Permission.EMPLOYEE_MENU, Permission.EMPLOYEE_VIEW],
+      },
+      {
+        path: "/tai-khoan",
+        perms: [Permission.USER_MENU, Permission.USER_VIEW],
+      },
+      {
+        path: "/khu-vuc",
+        perms: [Permission.AREA_MENU, Permission.AREA_VIEW],
+      },
+      {
+        path: "/san-pham",
+        perms: [Permission.PRODUCT_MENU, Permission.PRODUCT_VIEW],
+      },
+      {
+        path: "/danh-muc",
+        perms: [Permission.CATEGORY_MENU, Permission.CATEGORY_VIEW],
+      },
+      {
+        path: "/phan-quyen/vai-tro",
+        perms: [Permission.ROLE_MENU, Permission.ROLE_VIEW],
+      },
+      {
+        path: "/phe-duyet",
+        perms: [Permission.APPROVAL_MENU, Permission.APPROVAL_VIEW],
+      },
+      {
+        path: "/bao-cao/ngay",
+        perms: [Permission.STATISTICS_MENU, Permission.STATISTICS_VIEW],
+      },
+      {
+        path: "/chat-ai",
+        perms: [Permission.AI_ASSISTANT_MENU, Permission.AI_ASSISTANT_CHAT],
+      },
+      {
+        path: "/cau-hinh",
+        perms: [Permission.SETTING_MENU, Permission.SETTING_MANAGE],
+      },
+      {
+        path: "/nhat-ky",
+        perms: [Permission.LOGGING_MENU, Permission.LOGGING_VIEW],
+      },
+    ];
+
+    // Find the first route the user has access to
+    for (const route of routePriority) {
+      if (route.perms.some(p => perms.includes(p))) {
+        return route.path;
+      }
+    }
+
+    return "/ho-so"; // Fallback to profile if no other page is accessible
   }, []);
 
   useEffect(() => {
@@ -86,7 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hasToken = authService.isAuthenticated();
 
       if (currentUser && hasToken) {
-        setUser(currentUser);
+        // Only update if data actually changed to prevent unstable object identity
+        // which causes hooks like useSocket to re-run effects
+        setUser((prevUser) => {
+          if (JSON.stringify(prevUser) !== JSON.stringify(currentUser)) {
+            return currentUser;
+          }
+          return prevUser;
+        });
 
         const userHasRole = checkUserRole(currentUser);
 
@@ -97,12 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (pathname === "/waiting-approval" ||
             (pathname === "/dashboard" &&
               !currentUser.permissions?.includes(
-                Permission.DASHBOARD_VIEW_ALL,
+                Permission.DASHBOARD_VIEW,
               )))
         ) {
-          if (pathname === "/dashboard") {
-            toast.error("Bạn không có quyền truy cập trang Tổng quan");
-          }
+          // SILENT REDIRECT: removed toast.error for restricted roles
           router.push(getRedirectPath(currentUser));
         }
       } else {

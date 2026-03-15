@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function NguoiDungPage() {
   return (
     <PermissionGuard
-      permissions={[Permission.USER_VIEW_ALL]}
+      permissions={[Permission.USER_MANAGE]}
       redirect="/dashboard"
     >
       <Card>

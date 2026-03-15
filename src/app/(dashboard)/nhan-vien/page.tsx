@@ -105,10 +105,10 @@ export default function StaffPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [confirmState, setConfirmState] = useState<{
@@ -255,6 +255,7 @@ export default function StaffPage() {
 
   const executeDelete = async (id: number, reason?: string) => {
     try {
+      setIsProcessing(true);
       await employeeService.delete(id, reason);
       toast.success(
         isAdmin ? "Xóa nhân viên thành công" : "Đã gửi yêu cầu xóa",
@@ -264,6 +265,7 @@ export default function StaffPage() {
       console.error("Failed to delete employee:", error);
       toast.error("Xóa nhân viên thất bại!");
     } finally {
+      setIsProcessing(false);
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
     }
   };
@@ -303,8 +305,8 @@ export default function StaffPage() {
   };
 
   const executeBulkDelete = async (reason?: string) => {
-    setIsDeletingBulk(true);
     try {
+      setIsProcessing(true);
       await employeeService.deleteMany(selectedIds, reason);
       setSelectedIds([]);
       toast.success(
@@ -315,7 +317,7 @@ export default function StaffPage() {
       console.error("Failed to bulk delete employees:", error);
       toast.error("Xóa hàng loạt thất bại!");
     } finally {
-      setIsDeletingBulk(false);
+      setIsProcessing(false);
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
     }
   };
@@ -491,7 +493,7 @@ export default function StaffPage() {
 
   return (
     <PermissionGuard
-      permissions={[Permission.EMPLOYEE_VIEW_ALL]}
+      permissions={[Permission.EMPLOYEE_VIEW]}
       redirect="/dashboard"
     >
       <Card>
@@ -978,7 +980,7 @@ export default function StaffPage() {
                     variant="destructive"
                     size="sm"
                     onClick={handleBulkDelete}
-                    disabled={isDeletingBulk}
+                    disabled={isProcessing}
                     className="flex items-center gap-2 rounded-lg"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1225,7 +1227,7 @@ export default function StaffPage() {
             title={confirmState.title}
             description={confirmState.description}
             isDanger={confirmState.isDanger}
-            isLoading={isDeletingBulk}
+            isLoading={isProcessing}
           />
           <ApprovalReasonDialog
             open={isApprovalDialogOpen}

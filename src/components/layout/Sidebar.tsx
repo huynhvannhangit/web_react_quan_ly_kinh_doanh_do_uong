@@ -15,7 +15,6 @@ import {
   Coffee,
   CreditCard,
   BarChart3,
-  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,128 +42,125 @@ const menuItems: MenuItem[] = [
     title: "Tổng quan",
     href: "/dashboard",
     icon: Home,
-    permissions: [Permission.DASHBOARD_VIEW_ALL],
-  },
-  {
-    title: "Quản lý tài khoản",
-    icon: Users,
-    permissions: [Permission.EMPLOYEE_VIEW_ALL, Permission.USER_VIEW_ALL],
-    children: [
-      {
-        title: "Danh sách nhân viên",
-        href: "/nhan-vien",
-        permissions: [Permission.EMPLOYEE_VIEW_ALL],
-      },
-      {
-        title: "Danh sách tài khoản",
-        href: "/tai-khoan",
-        permissions: [Permission.USER_VIEW_ALL],
-      },
-      {
-        title: "Vai trò & Quyền",
-        href: "/phan-quyen/vai-tro",
-        permissions: [Permission.ROLE_VIEW_ALL],
-      },
-      {
-        title: "Phân quyền người dùng",
-        href: "/phan-quyen/nguoi-dung",
-        permissions: [Permission.USER_VIEW_ALL],
-      },
-    ],
+    permissions: [Permission.DASHBOARD_MENU],
   },
   {
     title: "Quản lý cửa hàng",
     icon: Coffee,
     permissions: [
-      Permission.AREA_VIEW_ALL,
-      Permission.TABLE_VIEW_ALL,
-      Permission.PRODUCT_VIEW_ALL,
-      Permission.APPROVAL_VIEW_ALL,
-      Permission.CATEGORY_VIEW_ALL,
+      Permission.AREA_MENU,
+      Permission.TABLE_MENU,
+      Permission.CATEGORY_MENU,
+      Permission.PRODUCT_MENU,
     ],
     children: [
       {
         title: "Khu vực",
         href: "/khu-vuc",
-        permissions: [Permission.AREA_VIEW_ALL],
+        permissions: [Permission.AREA_MENU],
       },
-      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_VIEW_ALL] },
+      { title: "Bàn", href: "/ban", permissions: [Permission.TABLE_MENU] },
       {
         title: "Danh mục",
         href: "/danh-muc",
-        permissions: [Permission.CATEGORY_VIEW_ALL],
+        permissions: [Permission.CATEGORY_MENU],
       },
       {
         title: "Sản phẩm",
         href: "/san-pham",
-        permissions: [Permission.PRODUCT_VIEW_ALL],
-      },
-      {
-        title: "Phê duyệt yêu cầu",
-        href: "/phe-duyet",
-        permissions: [Permission.APPROVAL_VIEW_ALL],
+        permissions: [Permission.PRODUCT_MENU],
       },
     ],
   },
   {
-    title: "Bán hàng",
-    icon: CreditCard,
-    permissions: [Permission.ORDER_CREATE, Permission.INVOICE_VIEW_ALL],
+    title: "Quản lý nhân sự",
+    icon: Users,
+    permissions: [
+      Permission.EMPLOYEE_MENU,
+      Permission.USER_MENU,
+      Permission.ROLE_MENU,
+      Permission.USER_MANAGE,
+    ],
     children: [
+      {
+        title: "Danh sách nhân viên",
+        href: "/nhan-vien",
+        permissions: [Permission.EMPLOYEE_MENU],
+      },
+      {
+        title: "Danh sách tài khoản",
+        href: "/tai-khoan",
+        permissions: [Permission.USER_MENU],
+      },
+      {
+        title: "Vai trò & Quyền",
+        href: "/phan-quyen/vai-tro",
+        permissions: [Permission.ROLE_MENU],
+      },
+      {
+        title: "Phân quyền người dùng",
+        href: "/phan-quyen/nguoi-dung",
+        permissions: [Permission.USER_MANAGE],
+      },
+    ],
+  },
+  {
+    title: "Kinh doanh",
+    icon: CreditCard,
+    permissions: [
+      Permission.APPROVAL_MENU,
+      Permission.ORDER_MENU,
+      Permission.INVOICE_MENU,
+    ],
+    children: [
+      {
+        title: "Phê duyệt yêu cầu",
+        href: "/phe-duyet",
+        permissions: [Permission.APPROVAL_MENU],
+      },
       {
         title: "Gọi món",
         href: "/goi-mon",
-        permissions: [Permission.ORDER_CREATE],
+        permissions: [Permission.ORDER_MENU],
       },
       {
         title: "Danh sách hoá đơn",
         href: "/hoa-don",
-        permissions: [Permission.INVOICE_VIEW_ALL],
+        permissions: [Permission.INVOICE_MENU],
       },
     ],
   },
   {
-    title: "Báo cáo & Thống kê",
+    title: "Báo cáo & Trợ lý",
     icon: BarChart3,
-    permissions: [Permission.STATISTICS_VIEW_ALL],
+    permissions: [Permission.STATISTICS_MENU, Permission.AI_ASSISTANT_MENU],
     children: [
       {
-        title: "Doanh thu theo ngày",
+        title: "Thống kê & Báo cáo",
         href: "/bao-cao/ngay",
-        permissions: [Permission.STATISTICS_VIEW_ALL],
+        permissions: [Permission.STATISTICS_MENU],
       },
       {
-        title: "Thống kê theo tuần",
-        href: "/bao-cao/tuan",
-        permissions: [Permission.STATISTICS_VIEW_ALL],
-      },
-      {
-        title: "Thống kê theo tháng",
-        href: "/bao-cao/thang",
-        permissions: [Permission.STATISTICS_VIEW_ALL],
+        title: "Trợ lý ảo AI",
+        href: "/chat-ai",
+        permissions: [Permission.AI_ASSISTANT_MENU],
       },
     ],
-  },
-  {
-    title: "Trợ lý AI",
-    href: "/chat-ai",
-    icon: MessageSquare,
-    permissions: [Permission.AI_ASSISTANT_CHAT],
   },
   {
     title: "Quản trị hệ thống",
     icon: Settings,
-    permissions: [Permission.SETTING_MANAGE, Permission.LOGGING_VIEW_ALL],
+    permissions: [Permission.SETTING_MENU, Permission.LOGGING_MENU],
     children: [
       {
         title: "Cấu hình hệ thống",
         href: "/cau-hinh",
-        permissions: [Permission.SETTING_MANAGE],
+        permissions: [Permission.SETTING_MENU],
       },
       {
         title: "Nhật ký hệ thống",
         href: "/nhat-ky",
-        permissions: [Permission.LOGGING_VIEW_ALL],
+        permissions: [Permission.LOGGING_MENU],
       },
     ],
   },
