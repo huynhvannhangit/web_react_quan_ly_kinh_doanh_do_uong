@@ -31,7 +31,24 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const fullName = `${firstName} ${lastName}`.trim();
+      const trimmedFirstName = firstName.trim();
+      const trimmedLastName = lastName.trim();
+
+      if (!trimmedFirstName || !trimmedLastName) {
+        toast.error("Họ và tên không được để trống hoặc chỉ chứa khoảng trắng.");
+        setLoading(false);
+        return;
+      }
+
+      // Kiểm tra ký tự đặc biệt cơ bản
+      const specialCharsRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
+      if (specialCharsRegex.test(trimmedFirstName) || specialCharsRegex.test(trimmedLastName)) {
+        toast.error("Họ tên không được chứa ký tự đặc biệt.");
+        setLoading(false);
+        return;
+      }
+
+      const fullName = `${trimmedFirstName} ${trimmedLastName}`;
       await authService.register({
         email,
         password,
